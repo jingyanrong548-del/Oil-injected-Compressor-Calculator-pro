@@ -3,7 +3,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
   // 1. 基础路径配置 (如果在服务器子目录下部署，需修改此处)
-  base: './', 
+  base: '/Oil-injected-Compressor-Calculator-pro/',
   
   // 2. 插件配置
   plugins: [
