@@ -1,6 +1,6 @@
 // =====================================================================
-// mode2_oil_refrig.js: 模式一 (制冷热泵) - UI 2.0 Apple-Style Edition
-// 职责: 执行制冷循环计算，并调用 Component 工厂生成可视化仪表盘。
+// mode2_oil_refrig.js: 模式一 (制冷热泵) - UI 3.0 Cockpit Edition
+// 职责: 执行计算 -> 双向渲染 (PC悬浮窗 + 移动端抽屉) -> 更新移动端摘要栏
 // =====================================================================
 
 import { updateFluidInfo } from './coolprop_loader.js';
@@ -14,15 +14,15 @@ import {
 } from './components.js';
 
 let CP_INSTANCE = null;
-// 用于存储最后一次计算的详细数据对象，供打印使用
 let lastCalculationData = null; 
 
-// UI 元素引用
-let calcButtonM2, resultsDivM2, calcFormM2, printButtonM2, fluidSelectM2, fluidInfoDivM2;
+// UI References
+let calcButtonM2, calcFormM2, printButtonM2, fluidSelectM2, fluidInfoDivM2;
+let resultsDesktopM2, resultsMobileM2, summaryMobileM2; // New UI Targets
 let autoEffCheckboxM2, tempEvapM2, tempCondM2, etaVM2, etaSM2;
 let ecoCheckbox, ecoSatTempInput, ecoSuperheatInput, tempDischargeActualM2;
 
-// 状态文本
+// Button States
 const BTN_TEXT_CALCULATE = "Calculate Performance";
 const BTN_TEXT_RECALCULATE = "Recalculate (Input Changed)";
 
@@ -30,9 +30,10 @@ function setButtonStale2() {
     if (calcButtonM2 && calcButtonM2.innerText !== BTN_TEXT_RECALCULATE) {
         calcButtonM2.innerText = BTN_TEXT_RECALCULATE;
         calcButtonM2.classList.add('opacity-90', 'ring-2', 'ring-yellow-400', 'ring-offset-2');
-        // 禁用打印，直到重新计算
-        printButtonM2.disabled = true;
-        printButtonM2.classList.add('opacity-50', 'cursor-not-allowed');
+        if(printButtonM2) {
+            printButtonM2.disabled = true;
+            printButtonM2.classList.add('opacity-50', 'cursor-not-allowed');
+        }
     }
 }
 
@@ -43,7 +44,27 @@ function setButtonFresh2() {
     }
 }
 
-// 自动更新效率
+// 辅助函数：同时渲染内容到 PC 和 移动端容器
+function renderToAllViews(htmlContent) {
+    if(resultsDesktopM2) resultsDesktopM2.innerHTML = htmlContent;
+    if(resultsMobileM2) resultsMobileM2.innerHTML = htmlContent;
+}
+
+// 辅助函数：更新移动端底部把手的摘要信息
+function updateMobileSummary(kpi1Label, kpi1Value, kpi2Label, kpi2Value) {
+    if (!summaryMobileM2) return;
+    summaryMobileM2.innerHTML = `
+        <div>
+            <p class="text-[10px] text-gray-500 uppercase tracking-wider font-bold">${kpi1Label}</p>
+            <p class="text-xl font-bold text-gray-900">${kpi1Value}</p>
+        </div>
+        <div class="text-right">
+            <p class="text-[10px] text-gray-500 uppercase tracking-wider font-bold">${kpi2Label}</p>
+            <p class="text-xl font-bold text-blue-600">${kpi2Value}</p>
+        </div>
+    `;
+}
+
 function updateAndDisplayEfficienciesM2() {
     if (!CP_INSTANCE || !autoEffCheckboxM2 || !autoEffCheckboxM2.checked) return;
     try {
@@ -65,15 +86,16 @@ function updateAndDisplayEfficienciesM2() {
 }
 
 // =====================================================================
-// 核心计算逻辑 (保持 v2.9 逻辑完整性)
+// Core Calculation Logic
 // =====================================================================
 function calculateMode2() {
-    resultsDivM2.innerHTML = '<div class="flex justify-center p-10"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div></div>';
+    // 1. Set Loading State (Both Screens)
+    const loadingHtml = '<div class="flex justify-center p-10"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div></div>';
+    renderToAllViews(loadingHtml);
     
-    // 使用 setTimeout 让 UI 有机会渲染 Loading 动画
     setTimeout(() => {
         try {
-            // --- 1. 读取基础输入 ---
+            // --- Input Reading ---
             const fluid = fluidSelectM2.value;
             const Te_C = parseFloat(document.getElementById('temp_evap_m2').value);
             const Tc_C = parseFloat(document.getElementById('temp_cond_m2').value);
@@ -92,27 +114,26 @@ function calculateMode2() {
             const ecoPressMode = document.querySelector('input[name="eco_press_mode_m2"]:checked').value; 
             const eco_superheat_K = parseFloat(document.getElementById('eco_superheat_m2').value);
 
-            // Validation
-            if (T_2a_est_C <= Tc_C) throw new Error(`排气温度预估值 (${T_2a_est_C}°C) 必须高于冷凝温度 (${Tc_C}°C)。`);
-            if (isNaN(Te_C) || isNaN(eta_v) || isNaN(eta_s_input)) throw new Error("请输入有效的数字参数。");
+            // Basic Validation
+            if (T_2a_est_C <= Tc_C) throw new Error(`Discharge temp (${T_2a_est_C}°C) must be higher than Condensing temp (${Tc_C}°C).`);
+            if (isNaN(Te_C) || isNaN(eta_v) || isNaN(eta_s_input)) throw new Error("Invalid numeric input.");
 
-            // --- 2. 状态点计算 (CoolProp) ---
+            // --- Calculation (CoolProp) ---
             const T_evap_K = Te_C + 273.15;
             const T_cond_K = Tc_C + 273.15;
             const Pe_Pa = CP_INSTANCE.PropsSI('P', 'T', T_evap_K, 'Q', 1, fluid);
             const Pc_Pa = CP_INSTANCE.PropsSI('P', 'T', T_cond_K, 'Q', 1, fluid);
 
-            // Point 1: Suction
+            // Point 1 & 3
             const T_1_K = T_evap_K + superheat_K;
             const h_1 = CP_INSTANCE.PropsSI('H', 'T', T_1_K, 'P', Pe_Pa, fluid);
             const s_1 = CP_INSTANCE.PropsSI('S', 'T', T_1_K, 'P', Pe_Pa, fluid);
             const rho_1 = CP_INSTANCE.PropsSI('D', 'T', T_1_K, 'P', Pe_Pa, fluid);
-
-            // Point 3: Liquid
+            
             const T_3_K = T_cond_K - subcooling_K;
             const h_3 = CP_INSTANCE.PropsSI('H', 'T', T_3_K, 'P', Pc_Pa, fluid); 
-            
-            // --- 3. 流量计算 ---
+
+            // Flow
             let V_th_m3_s, rpm_display = "-";
             if (flow_mode === 'rpm') {
                 const rpm = parseFloat(document.getElementById('rpm_m2').value);
@@ -126,9 +147,8 @@ function calculateMode2() {
             const V_act_m3_s = V_th_m3_s * eta_v;
             const m_dot_suc = V_act_m3_s * rho_1;
 
-            // --- 4. ECO 计算 ---
-            let m_dot_inj = 0;
-            let m_dot_total = m_dot_suc;
+            // ECO Calculation
+            let m_dot_inj = 0, m_dot_total = m_dot_suc;
             let h_liquid_to_evap = h_3;
             let P_eco_Pa = 0, T_eco_sat_K = 0, h_inj = 0;
             let Q_evap_W_no_eco = m_dot_suc * (h_1 - h_3);
@@ -140,7 +160,7 @@ function calculateMode2() {
                     T_eco_sat_K = CP_INSTANCE.PropsSI('T', 'P', P_eco_Pa, 'Q', 0, fluid);
                 } else {
                     const T_eco_sat_C_Input = parseFloat(ecoSatTempInput.value);
-                    if (isNaN(T_eco_sat_C_Input)) throw new Error("手动模式需输入补气饱和温度");
+                    if (isNaN(T_eco_sat_C_Input)) throw new Error("Please enter ECO Saturation Temp.");
                     T_eco_sat_K = T_eco_sat_C_Input + 273.15;
                     P_eco_Pa = CP_INSTANCE.PropsSI('P', 'T', T_eco_sat_K, 'Q', 0.5, fluid);
                 }
@@ -161,9 +181,7 @@ function calculateMode2() {
                 m_dot_total = m_dot_suc + m_dot_inj;
             }
 
-            const h_4 = h_liquid_to_evap;
-            
-            // --- 5. 功耗计算 ---
+            // Power
             let W_ideal_W = 0;
             if (!isEcoEnabled) {
                 const h_2s = CP_INSTANCE.PropsSI('H', 'P', Pc_Pa, 'S', s_1, fluid);
@@ -189,7 +207,8 @@ function calculateMode2() {
                 eta_total_display = eta_s_input;
             }
 
-            // --- 6. 热平衡修正 ---
+            // Heat Balance & Oil Load
+            const h_4 = h_liquid_to_evap;
             const Q_evap_W = m_dot_suc * (h_1 - h_4);
             const h_system_in = (m_dot_suc * h_1 + m_dot_inj * h_inj);
             const T_2a_est_K = T_2a_est_C + 273.15;
@@ -208,137 +227,134 @@ function calculateMode2() {
                 isAdishargeCorrection = true;
             }
             
-            // Final Condenser Load
             const h_2a_final = (h_system_in + W_shaft_W - Q_oil_W) / m_dot_total;
             const Q_cond_W = m_dot_total * (h_2a_final - h_3);
             const Q_heating_total_W = Q_cond_W + Q_oil_W;
 
-            // ECO Improvement
             if (isEcoEnabled) {
                 eco_badge_val = ((Q_evap_W - Q_evap_W_no_eco) / Q_evap_W_no_eco) * 100;
             }
 
-            // --- 7. 构建 HTML 仪表盘 ---
+            // KPI
             const COP_R = Q_evap_W / W_input_W;
             const COP_H = Q_heating_total_W / W_input_W;
 
-            // 保存数据供打印
+            // Cache data for Print
             lastCalculationData = {
                 fluid, Te_C, Tc_C, P_e: Pe_Pa/1e5, P_c: Pc_Pa/1e5,
                 m_dot: m_dot_total, Q_evap_W, W_input_W, Q_cond_W, Q_oil_W,
-                COP_R, COP_H, T_2a: T_2a_final_C,
-                eco: isEcoEnabled ? { P: P_eco_Pa/1e5, alpha: m_dot_inj/m_dot_suc } : null
+                COP_R, COP_H, T_2a: T_2a_final_C
             };
 
+            // --- 2. Render Dashboard HTML (Desktop & Mobile Body) ---
             let html = `
                 <div class="grid grid-cols-2 gap-4 mb-6">
                     ${createKpiCard('制冷量 (Cooling)', (Q_evap_W/1000).toFixed(2), 'kW', `COP: ${COP_R.toFixed(2)}`, 'blue')}
                     ${createKpiCard('总供热 (Heating)', (Q_heating_total_W/1000).toFixed(2), 'kW', `COP: ${COP_H.toFixed(2)}`, 'orange')}
                 </div>
                 <div class="space-y-1 bg-white/40 p-4 rounded-2xl border border-white/50 shadow-inner">
-                    ${createSectionHeader('Compressor Flow')}
-                    ${createDetailRow('吸气流量 (Mass Flow)', `${m_dot_suc.toFixed(4)} kg/s`)}
-                    ${createDetailRow('吸气容积 (Vol Flow)', `${(V_act_m3_s*3600).toFixed(1)} m³/h`)}
+                    ${createSectionHeader('System Flow')}
+                    ${createDetailRow('吸气流量 (Mass)', `${m_dot_suc.toFixed(4)} kg/s`)}
+                    ${createDetailRow('吸气容积 (Vol)', `${(V_act_m3_s*3600).toFixed(1)} m³/h`)}
                     ${createDetailRow('转速 (Speed)', rpm_display)}
                     
                     ${createSectionHeader('Thermodynamics')}
-                    ${createDetailRow('吸气 (Inlet)', `${Te_C.toFixed(1)}°C / ${(Pe_Pa/1e5).toFixed(2)} bar`)}
-                    ${createDetailRow('排气 (Discharge)', `${Tc_C.toFixed(1)}°C / ${(Pc_Pa/1e5).toFixed(2)} bar`)}
-                    ${createDetailRow('排气温度 (T2a)', `${T_2a_final_C.toFixed(1)}°C`, isAdishargeCorrection)}
-                    ${isAdishargeCorrection ? '<div class="text-[10px] text-orange-500 text-right">*Energy Corrected</div>' : ''}
-
-                    ${createSectionHeader('Energy & Efficiencies')}
+                    ${createDetailRow('蒸发 (Evap)', `${Te_C.toFixed(1)}°C / ${(Pe_Pa/1e5).toFixed(2)} bar`)}
+                    ${createDetailRow('冷凝 (Cond)', `${Tc_C.toFixed(1)}°C / ${(Pc_Pa/1e5).toFixed(2)} bar`)}
+                    ${createDetailRow('排气 (Discharge)', `${T_2a_final_C.toFixed(1)}°C`, isAdishargeCorrection)}
+                    
+                    ${createSectionHeader('Power & Energy')}
                     ${createDetailRow('输入功率 (Input)', `${(W_input_W/1000).toFixed(2)} kW`, true)}
                     ${createDetailRow('轴功率 (Shaft)', `${(W_shaft_W/1000).toFixed(2)} kW`)}
-                    ${createDetailRow('油冷负荷 (Oil Load)', `${(Q_oil_W/1000).toFixed(2)} kW`)}
-                    ${createDetailRow('总等熵效率 (η_total)', eta_total_display.toFixed(3))}
+                    ${createDetailRow('油冷负荷 (Oil)', `${(Q_oil_W/1000).toFixed(2)} kW`)}
+                    ${createDetailRow('总等熵效率 (η_tot)', eta_total_display.toFixed(3))}
             `;
-
+            
             if (isEcoEnabled) {
                 html += `
-                    ${createSectionHeader('Economizer (ECO)', '⚡')}
+                    ${createSectionHeader('Economizer', '⚡')}
                     ${createDetailRow('补气状态', `${(P_eco_Pa/1e5).toFixed(2)} bar ${createEcoBadge(eco_badge_val)}`)}
                     ${createDetailRow('补气流量', `${m_dot_inj.toFixed(4)} kg/s`)}
                 `;
             }
-
             html += `</div>`;
+
+            // Render to DOM
+            renderToAllViews(html);
             
-            resultsDivM2.innerHTML = html;
+            // --- 3. Update Mobile Summary Handle (Live View) ---
+            updateMobileSummary(
+                'Est. Cooling', `${(Q_evap_W/1000).toFixed(1)} kW`, 
+                'COP', COP_R.toFixed(2)
+            );
+
+            // Reset Button & Print
             setButtonFresh2();
-            
-            // 启用打印
-            printButtonM2.disabled = false;
-            printButtonM2.classList.remove('opacity-50', 'cursor-not-allowed');
+            if(printButtonM2) {
+                printButtonM2.disabled = false;
+                printButtonM2.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
 
         } catch (error) {
-            resultsDivM2.innerHTML = createErrorCard(error.message);
+            const errorHtml = createErrorCard(error.message);
+            renderToAllViews(errorHtml);
             console.error(error);
-            printButtonM2.disabled = true;
+            if(printButtonM2) printButtonM2.disabled = true;
         }
-    }, 50); // Small delay to allow UI render
+    }, 50);
 }
 
-// 打印逻辑适配
+// Print Handler
 function printReportMode2() {
     if (!lastCalculationData) return;
-    
-    // 填充隐藏的打印容器
+    const d = lastCalculationData;
     const container = document.getElementById('print-container');
     const table = container.querySelector('.print-table');
     const resultDiv = container.querySelector('.print-results');
     
-    // 清空旧内容
     table.innerHTML = '';
-    
-    const d = lastCalculationData;
     const rows = [
         ['Mode', 'Refrigeration / Heat Pump'],
         ['Fluid', d.fluid],
-        ['Evap (Te)', `${d.Te_C} °C`],
-        ['Cond (Tc)', `${d.Tc_C} °C`],
-        ['Input Power', `${(d.W_input_W/1000).toFixed(3)} kW`],
+        ['Te / Tc', `${d.Te_C} / ${d.Tc_C} °C`],
         ['Cooling Cap', `${(d.Q_evap_W/1000).toFixed(3)} kW`],
         ['Heating Cap', `${((d.Q_cond_W+d.Q_oil_W)/1000).toFixed(3)} kW`],
-        ['COP (Cooling)', d.COP_R.toFixed(3)],
-        ['COP (Heating)', d.COP_H.toFixed(3)]
+        ['COP (C/H)', `${d.COP_R.toFixed(2)} / ${d.COP_H.toFixed(2)}`]
     ];
+    rows.forEach(r => table.innerHTML += `<tr class="border-b"><th class="py-2 text-left">${r[0]}</th><td class="py-2 font-mono">${r[1]}</td></tr>`);
     
-    rows.forEach(row => {
-        table.innerHTML += `<tr class="border-b border-gray-200"><th class="py-2 pr-4 text-gray-600 font-medium w-1/3">${row[0]}</th><td class="py-2 text-gray-900 font-mono">${row[1]}</td></tr>`;
-    });
-
-    resultDiv.innerText = `Detailed Report Generated at ${new Date().toLocaleString()}\n------------------------------------------------\nDischarge Temp: ${d.T_2a.toFixed(2)} °C\nOil Cooler Load: ${(d.Q_oil_W/1000).toFixed(3)} kW\nMass Flow: ${d.m_dot.toFixed(4)} kg/s`;
-
-    // 触发浏览器打印
+    resultDiv.innerText = `Full report generated at ${new Date().toLocaleString()}`;
     window.print();
 }
 
-// 导出接口
 export function triggerMode2EfficiencyUpdate() {
-    if (autoEffCheckboxM2 && autoEffCheckboxM2.checked) {
-        updateAndDisplayEfficienciesM2();
-    }
+    if (autoEffCheckboxM2 && autoEffCheckboxM2.checked) updateAndDisplayEfficienciesM2();
 }
 
-// 初始化
 export function initMode2(CP) {
     CP_INSTANCE = CP;
+    
+    // UI Refs
     calcButtonM2 = document.getElementById('calc-button-mode-2');
-    resultsDivM2 = document.getElementById('results-mode-2');
     calcFormM2 = document.getElementById('calc-form-mode-2');
     printButtonM2 = document.getElementById('print-button-mode-2');
     fluidSelectM2 = document.getElementById('fluid_m2');
     fluidInfoDivM2 = document.getElementById('fluid-info-m2');
     tempDischargeActualM2 = document.getElementById('temp_discharge_actual_m2');
     
+    // New UI Targets (Desktop Panel & Mobile Bottom Sheet)
+    resultsDesktopM2 = document.getElementById('results-desktop-m2');
+    resultsMobileM2 = document.getElementById('mobile-results-m2');
+    summaryMobileM2 = document.getElementById('mobile-summary-m2');
+    
+    // Inputs
     autoEffCheckboxM2 = document.getElementById('auto-eff-m2');
     tempEvapM2 = document.getElementById('temp_evap_m2');
     tempCondM2 = document.getElementById('temp_cond_m2');
     etaVM2 = document.getElementById('eta_v_m2');
     etaSM2 = document.getElementById('eta_s_m2');
     
-    // ECO UI Ref
+    // ECO
     ecoCheckbox = document.getElementById('enable_eco_m2');
     ecoSatTempInput = document.getElementById('temp_eco_sat_m2');
     ecoSuperheatInput = document.getElementById('eco_superheat_m2');
@@ -346,26 +362,18 @@ export function initMode2(CP) {
     if (calcFormM2) {
         calcFormM2.addEventListener('submit', (e) => { e.preventDefault(); calculateMode2(); });
         
-        // Input Change Listeners
-        const inputs = calcFormM2.querySelectorAll('input, select');
-        inputs.forEach(input => {
+        calcFormM2.querySelectorAll('input, select').forEach(input => {
             input.addEventListener('input', setButtonStale2);
             input.addEventListener('change', setButtonStale2);
         });
 
-        // Fluid Change
-        fluidSelectM2.addEventListener('change', () => {
-            updateFluidInfo(fluidSelectM2, fluidInfoDivM2, CP_INSTANCE);
-        });
+        fluidSelectM2.addEventListener('change', () => updateFluidInfo(fluidSelectM2, fluidInfoDivM2, CP_INSTANCE));
         
-        // Auto Eff Triggers
         [tempEvapM2, tempCondM2, autoEffCheckboxM2].forEach(el => {
             if(el) el.addEventListener('change', updateAndDisplayEfficienciesM2);
         });
 
-        if (printButtonM2) {
-            printButtonM2.addEventListener('click', printReportMode2);
-        }
+        if (printButtonM2) printButtonM2.addEventListener('click', printReportMode2);
     }
-    console.log("Mode 2 (UI 2.0) initialized.");
+    console.log("Mode 2 (Cockpit UI) initialized.");
 }

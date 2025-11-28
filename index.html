@@ -2,45 +2,44 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#f5f5f7">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Compressor Efficiency Pro</title>
 </head>
-<body class="font-sans antialiased text-ios-text-primary bg-ios-bg bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-blue-50/60 via-gray-50 to-white min-h-screen pb-20 selection:bg-primary-500 selection:text-white">
+<body class="font-sans antialiased text-ios-text-primary bg-ios-bg bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-blue-50/60 via-gray-50 to-white min-h-screen selection:bg-primary-500 selection:text-white overflow-x-hidden">
 
-    <div id="app" class="container mx-auto px-4 py-8 max-w-5xl">
+    <div id="app" class="container mx-auto px-4 py-8 max-w-6xl pb-32 lg:pb-12">
         
-        <header class="text-center mb-10 pt-4">
-            <h1 class="text-4xl font-bold tracking-tight text-gray-900 mb-2 drop-shadow-sm">Compressor Pro</h1>
-            <p class="text-sm font-medium text-ios-text-secondary">Industrial Heat Pump Calculator v3.0</p>
+        <header class="text-center mb-8 pt-2">
+            <h1 class="text-3xl md:text-4xl font-bold tracking-tight text-gray-900 mb-2 drop-shadow-sm">Compressor Pro</h1>
+            <p class="text-xs md:text-sm font-medium text-ios-text-secondary uppercase tracking-widest">Industrial Heat Pump Calculator v3.0</p>
         </header>
         
-        <nav class="max-w-md mx-auto mb-10">
-            <div class="bg-gray-200/50 p-1 rounded-xl flex shadow-inner-ios backdrop-blur-sm">
+        <nav class="max-w-md mx-auto mb-10 sticky top-2 z-30">
+            <div class="glass-panel p-1 rounded-xl flex shadow-glass-hover backdrop-blur-md">
                 <button id="tab-btn-m2" class="flex-1 py-2.5 rounded-[10px] text-sm font-semibold transition-all duration-300 ease-ios text-gray-600 hover:text-gray-900 active bg-white shadow-sm ring-1 ring-black/5">制冷热泵</button>
                 <button id="tab-btn-m3" class="flex-1 py-2.5 rounded-[10px] text-sm font-semibold transition-all duration-300 ease-ios text-gray-500 hover:text-gray-900 hover:bg-white/50">气体压缩</button>
             </div>
         </nav>
 
         <div id="tab-content-m2" class="tab-content active transition-opacity duration-300 ease-in-out">
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-start relative">
                 
                 <div class="lg:col-span-7 space-y-6">
                     <form id="calc-form-mode-2" class="space-y-6">
                         
-                        <div class="glass-panel rounded-3xl p-6 md:p-8">
-                            <div class="flex items-center space-x-3 mb-6">
-                                <div class="w-10 h-10 rounded-2xl bg-teal-100 flex items-center justify-center text-teal-600 shadow-sm">
-                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                        <div class="glass-panel rounded-3xl p-6">
+                            <div class="flex items-center space-x-3 mb-5">
+                                <div class="w-8 h-8 rounded-xl bg-teal-100 flex items-center justify-center text-teal-600 shadow-sm">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
                                 </div>
-                                <h3 class="text-lg font-bold text-gray-900">工质与流量</h3>
+                                <h3 class="text-base font-bold text-gray-900">工质与流量</h3>
                             </div>
                             
-                            <div class="space-y-6">
+                            <div class="space-y-5">
                                 <div>
-                                    <label for="fluid_m2" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 ml-1">工质 (Refrigerant)</label>
                                     <div class="relative">
                                         <select id="fluid_m2" class="block w-full appearance-none bg-gray-50/50 border-0 rounded-xl py-3 px-4 text-gray-900 font-medium ring-1 ring-black/5 focus:ring-2 focus:ring-primary-500 focus:bg-white transition-all shadow-sm">
                                             <option value="R245fa" selected>R245fa</option>
@@ -50,48 +49,45 @@
                                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                         </div>
                                     </div>
-                                    <div id="fluid-info-m2" class="mt-3 text-xs text-gray-400 font-mono px-2">--- 加载中 ---</div>
+                                    <div id="fluid-info-m2" class="mt-2 text-[10px] text-gray-400 font-mono px-2 truncate">--- 加载中 ---</div>
                                 </div>
 
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 ml-1">流量模式</label>
-                                    <div class="bg-gray-100/80 p-1 rounded-xl flex shadow-inner-ios">
-                                        <label class="flex-1 cursor-pointer">
-                                            <input type="radio" name="flow_mode_m2" value="rpm" class="peer sr-only" checked>
-                                            <div class="py-2 text-xs font-semibold text-gray-500 text-center rounded-[8px] transition-all peer-checked:bg-white peer-checked:text-gray-900 peer-checked:shadow-sm">转速 + 排量</div>
-                                        </label>
-                                        <label class="flex-1 cursor-pointer">
-                                            <input type="radio" name="flow_mode_m2" value="vol" class="peer sr-only">
-                                            <div class="py-2 text-xs font-semibold text-gray-500 text-center rounded-[8px] transition-all peer-checked:bg-white peer-checked:text-gray-900 peer-checked:shadow-sm">理论流量</div>
-                                        </label>
-                                    </div>
+                                <div class="bg-gray-100/80 p-1 rounded-xl flex shadow-inner-ios">
+                                    <label class="flex-1 cursor-pointer">
+                                        <input type="radio" name="flow_mode_m2" value="rpm" class="peer sr-only" checked>
+                                        <div class="py-2 text-xs font-semibold text-gray-500 text-center rounded-[8px] transition-all peer-checked:bg-white peer-checked:text-gray-900 peer-checked:shadow-sm">转速模式</div>
+                                    </label>
+                                    <label class="flex-1 cursor-pointer">
+                                        <input type="radio" name="flow_mode_m2" value="vol" class="peer sr-only">
+                                        <div class="py-2 text-xs font-semibold text-gray-500 text-center rounded-[8px] transition-all peer-checked:bg-white peer-checked:text-gray-900 peer-checked:shadow-sm">流量模式</div>
+                                    </label>
                                 </div>
 
                                 <div id="rpm-inputs-m2" class="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label for="rpm_m2" class="block text-xs text-gray-500 mb-1 ml-1">转速 (RPM)</label>
+                                        <label class="block text-xs text-gray-500 mb-1 ml-1">转速 (RPM)</label>
                                         <input type="number" id="rpm_m2" value="2900" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium bg-gray-50/50" required>
                                     </div>
                                     <div>
-                                        <label for="displacement_m2" class="block text-xs text-gray-500 mb-1 ml-1">排量 (cm³/rev)</label>
+                                        <label class="block text-xs text-gray-500 mb-1 ml-1">排量 (cm³/rev)</label>
                                         <input type="number" id="displacement_m2" value="437.5" step="any" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium bg-gray-50/50" required>
                                     </div>
                                 </div>
                                 <div id="vol-inputs-m2" style="display: none;">
-                                    <label for="flow_m3h_m2" class="block text-xs text-gray-500 mb-1 ml-1">理论流量 (m³/h)</label>
+                                    <label class="block text-xs text-gray-500 mb-1 ml-1">理论流量 (m³/h)</label>
                                     <input type="number" id="flow_m3h_m2" value="100" step="any" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium bg-gray-50/50">
                                 </div>
                             </div>
                         </div>
 
-                        <div class="glass-panel rounded-3xl p-6 md:p-8">
-                            <div class="flex items-center space-x-3 mb-6">
-                                <div class="w-10 h-10 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600 shadow-sm">
-                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                        <div class="glass-panel rounded-3xl p-6">
+                            <div class="flex items-center space-x-3 mb-5">
+                                <div class="w-8 h-8 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 shadow-sm">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
                                 </div>
-                                <h3 class="text-lg font-bold text-gray-900">热力学工况</h3>
+                                <h3 class="text-base font-bold text-gray-900">热力学工况</h3>
                             </div>
-                            <div class="grid grid-cols-2 gap-5">
+                            <div class="grid grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-xs text-gray-500 mb-1 ml-1">蒸发 Te (°C)</label>
                                     <input type="number" id="temp_evap_m2" value="50" step="0.1" class="glass-input block w-full rounded-xl py-2.5 px-3 text-gray-900 font-medium" required>
@@ -111,23 +107,22 @@
                             </div>
                         </div>
 
-                        <div class="glass-panel rounded-3xl p-6 md:p-8 relative overflow-hidden group">
-                            <div class="flex items-center justify-between mb-6 z-10 relative">
+                        <div class="glass-panel rounded-3xl p-6 relative overflow-hidden group">
+                            <div class="flex items-center justify-between mb-5 z-10 relative">
                                 <div class="flex items-center space-x-3">
-                                    <div class="w-10 h-10 rounded-2xl bg-teal-100 flex items-center justify-center text-teal-600 shadow-sm">
-                                        <span class="font-bold text-sm">ECO</span>
+                                    <div class="w-8 h-8 rounded-xl bg-teal-100 flex items-center justify-center text-teal-600 shadow-sm">
+                                        <span class="font-bold text-xs">ECO</span>
                                     </div>
-                                    <h3 class="text-lg font-bold text-gray-900">经济器补气</h3>
+                                    <h3 class="text-base font-bold text-gray-900">经济器</h3>
                                 </div>
                                 <label class="relative inline-flex items-center cursor-pointer">
                                     <input type="checkbox" id="enable_eco_m2" class="sr-only peer">
-                                    <div class="w-12 h-7 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all after:shadow-sm peer-checked:bg-primary-500 transition-colors duration-300 ease-ios"></div>
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all after:shadow-sm peer-checked:bg-primary-500 transition-colors duration-300 ease-ios"></div>
                                 </label>
                             </div>
 
                             <div id="eco-settings-m2" class="hidden space-y-5 relative z-10">
                                 <div>
-                                    <label class="block text-xs text-gray-500 mb-2 ml-1">类型</label>
                                     <div class="bg-gray-100/80 p-1 rounded-xl flex shadow-inner-ios">
                                         <label class="flex-1 cursor-pointer">
                                             <input type="radio" name="eco_type_m2" value="flash_tank" class="peer sr-only" checked>
@@ -139,9 +134,7 @@
                                         </label>
                                     </div>
                                 </div>
-
                                 <div>
-                                    <label class="block text-xs text-gray-500 mb-2 ml-1">补气压力控制</label>
                                     <div class="bg-gray-100/80 p-1 rounded-xl flex shadow-inner-ios">
                                         <label class="flex-1 cursor-pointer">
                                             <input type="radio" name="eco_press_mode_m2" value="auto" class="peer sr-only" checked>
@@ -153,7 +146,6 @@
                                         </label>
                                     </div>
                                 </div>
-
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
                                         <label class="block text-xs text-teal-600/80 mb-1 ml-1">饱和温度 (°C)</label>
@@ -165,25 +157,22 @@
                                     </div>
                                 </div>
                             </div>
-                            
-                            <div id="eco-placeholder-m2" class="text-sm text-gray-400 italic py-2 text-center">
-                                ECO Disabled (Single Stage)
-                            </div>
+                            <div id="eco-placeholder-m2" class="text-xs text-gray-400 italic py-1 text-center">ECO Disabled</div>
                         </div>
 
-                        <div class="glass-panel rounded-3xl p-6 md:p-8">
-                            <div class="flex items-center justify-between mb-6">
+                        <div class="glass-panel rounded-3xl p-6">
+                            <div class="flex items-center justify-between mb-5">
                                 <div class="flex items-center space-x-3">
-                                    <div class="w-10 h-10 rounded-2xl bg-orange-100 flex items-center justify-center text-orange-600 shadow-sm">
-                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                                    <div class="w-8 h-8 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600 shadow-sm">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                                     </div>
-                                    <h3 class="text-lg font-bold text-gray-900">效率设定</h3>
+                                    <h3 class="text-base font-bold text-gray-900">效率设定</h3>
                                 </div>
                                 <div class="flex items-center">
-                                    <span class="mr-2 text-xs font-medium text-gray-500">Auto Model</span>
+                                    <span class="mr-2 text-xs font-medium text-gray-500">Auto</span>
                                     <label class="relative inline-flex items-center cursor-pointer">
                                         <input type="checkbox" id="auto-eff-m2" class="sr-only peer">
-                                        <div class="w-10 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all after:shadow-sm peer-checked:bg-blue-500 transition-colors duration-300 ease-ios"></div>
+                                        <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all after:shadow-sm peer-checked:bg-blue-500 transition-colors duration-300 ease-ios"></div>
                                     </label>
                                 </div>
                             </div>
@@ -223,106 +212,123 @@
                             </div>
                         </div>
 
-                        <button type="submit" id="calc-button-mode-2" class="w-full bg-gray-900 hover:bg-black text-white font-semibold py-4 px-8 rounded-2xl shadow-lg hover:shadow-xl transform active:scale-[0.98] transition-all duration-300 ease-ios disabled:opacity-70 disabled:cursor-not-allowed text-lg">
+                        <button type="submit" id="calc-button-mode-2" class="w-full bg-gray-900 hover:bg-black text-white font-semibold py-4 px-8 rounded-2xl shadow-lg hover:shadow-xl transform active:scale-[0.98] transition-all duration-300 ease-ios disabled:opacity-70 disabled:cursor-not-allowed text-lg mb-8 lg:mb-0">
                             Calculate Performance
                         </button>
                     </form>
                 </div>
 
-                <div class="lg:col-span-5">
+                <div class="hidden lg:block lg:col-span-5 relative h-full">
                     <div class="sticky top-6">
                         <div class="glass-panel rounded-3xl overflow-hidden flex flex-col min-h-[600px] shadow-glass-hover transition-shadow duration-500">
                             <div class="px-6 py-4 border-b border-gray-100/50 bg-white/40 backdrop-blur flex justify-between items-center">
                                 <h3 class="font-bold text-gray-800">Results</h3>
-                                <span class="text-[10px] font-bold bg-gray-100 text-gray-400 px-2 py-1 rounded uppercase tracking-widest">Live Preview</span>
+                                <span class="text-[10px] font-bold bg-gray-100 text-gray-400 px-2 py-1 rounded uppercase tracking-widest">Desktop View</span>
                             </div>
-                            
-                            <div id="results-mode-2" class="flex-grow p-6 overflow-y-auto bg-white/30 space-y-4">
+                            <div id="results-desktop-m2" class="flex-grow p-6 overflow-y-auto bg-white/30 space-y-4">
                                 <div class="flex flex-col items-center justify-center h-full text-gray-400 space-y-4 opacity-60">
                                     <svg class="w-16 h-16 stroke-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                                     <p class="text-sm font-medium">Ready to calculate</p>
                                 </div>
                             </div>
-                            
                             <div class="p-4 bg-white/50 border-t border-white/60">
                                 <button type="button" id="print-button-mode-2" class="w-full bg-white border border-gray-200 text-gray-700 font-semibold py-3 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition-colors shadow-sm flex items-center justify-center" disabled>
-                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                                     Export PDF
                                 </button>
                             </div>
                         </div>
                     </div>
                 </div>
+
+                <div id="mobile-sheet-m2" class="fixed inset-x-0 bottom-0 z-50 lg:hidden transition-transform duration-500 ease-ios translate-y-[calc(100%-80px)]" style="max-height: 85vh;">
+                    <div class="bg-white/90 backdrop-blur-xl border-t border-white/50 shadow-[0_-8px_30px_rgba(0,0,0,0.12)] rounded-t-3xl h-full flex flex-col">
+                        
+                        <div id="sheet-handle-m2" class="h-20 flex-shrink-0 cursor-pointer relative" onclick="/* Toggle Logic via JS */">
+                            <div class="absolute top-3 left-1/2 transform -translate-x-1/2 w-12 h-1.5 bg-gray-300 rounded-full"></div>
+                            
+                            <div class="px-6 pt-7 flex items-center justify-between" id="mobile-summary-m2">
+                                <div>
+                                    <p class="text-[10px] text-gray-500 uppercase tracking-wider font-bold">Est. Cooling</p>
+                                    <p class="text-xl font-bold text-gray-900">- kW</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-[10px] text-gray-500 uppercase tracking-wider font-bold">COP</p>
+                                    <p class="text-xl font-bold text-blue-600">-</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex-grow overflow-y-auto p-6 bg-gray-50/50" id="mobile-results-m2">
+                            <div class="text-center text-gray-400 py-10">
+                                <p class="text-sm">Pull up for details</p>
+                            </div>
+                        </div>
+                        
+                        <div class="p-4 bg-white border-t border-gray-100 safe-area-bottom">
+                            <button type="button" id="mobile-close-m2" class="w-full bg-gray-100 text-gray-800 font-bold py-3 rounded-xl">Close Report</button>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
 
         <div id="tab-content-m3" class="tab-content hidden transition-opacity duration-300 ease-in-out">
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-start relative">
                 
                 <div class="lg:col-span-7 space-y-6">
                     <form id="calc-form-mode-3" class="space-y-6">
-                        
-                        <div class="glass-panel rounded-3xl p-6 md:p-8">
-                            <div class="flex items-center space-x-3 mb-6">
-                                <div class="w-10 h-10 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-600 shadow-sm">
-                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                        <div class="glass-panel rounded-3xl p-6">
+                            <div class="flex items-center space-x-3 mb-5">
+                                <div class="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600 shadow-sm">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
                                 </div>
-                                <h3 class="text-lg font-bold text-gray-900">气体与流量</h3>
+                                <h3 class="text-base font-bold text-gray-900">气体与流量</h3>
                             </div>
-                            
-                            <div class="space-y-6">
+                            <div class="space-y-5">
                                 <div>
-                                    <label for="fluid_m3" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 ml-1">气体 (Gas)</label>
                                     <div class="relative">
                                         <select id="fluid_m3" class="block w-full appearance-none bg-gray-50/50 border-0 rounded-xl py-3 px-4 text-gray-900 font-medium ring-1 ring-black/5 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all shadow-sm">
                                             <option value="Air" selected>Air (空气)</option><option value="Nitrogen">Nitrogen</option><option value="Helium">Helium</option><option value="Neon">Neon</option><option value="Argon">Argon</option><option value="Water">Water (Steam)</option><option value="R744">CO2</option><option value="Hydrogen">Hydrogen</option><option value="Oxygen">Oxygen</option><option value="Methane">Methane</option>
                                         </select>
-                                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
-                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                                        </div>
                                     </div>
-                                    <div id="fluid-info-m3" class="mt-3 text-xs text-gray-400 font-mono px-2">--- 加载中 ---</div>
+                                    <div id="fluid-info-m3" class="mt-2 text-[10px] text-gray-400 font-mono px-2 truncate">--- 加载中 ---</div>
                                 </div>
-
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 ml-1">流量模式</label>
-                                    <div class="bg-gray-100/80 p-1 rounded-xl flex shadow-inner-ios">
-                                        <label class="flex-1 cursor-pointer">
-                                            <input type="radio" name="flow_mode_m3" value="rpm" class="peer sr-only" checked>
-                                            <div class="py-2 text-xs font-semibold text-gray-500 text-center rounded-[8px] transition-all peer-checked:bg-white peer-checked:text-gray-900 peer-checked:shadow-sm">转速 + 排量</div>
-                                        </label>
-                                        <label class="flex-1 cursor-pointer">
-                                            <input type="radio" name="flow_mode_m3" value="vol" class="peer sr-only">
-                                            <div class="py-2 text-xs font-semibold text-gray-500 text-center rounded-[8px] transition-all peer-checked:bg-white peer-checked:text-gray-900 peer-checked:shadow-sm">理论流量</div>
-                                        </label>
-                                    </div>
+                                <div class="bg-gray-100/80 p-1 rounded-xl flex shadow-inner-ios">
+                                    <label class="flex-1 cursor-pointer">
+                                        <input type="radio" name="flow_mode_m3" value="rpm" class="peer sr-only" checked>
+                                        <div class="py-2 text-xs font-semibold text-gray-500 text-center rounded-[8px] transition-all peer-checked:bg-white peer-checked:text-gray-900 peer-checked:shadow-sm">转速模式</div>
+                                    </label>
+                                    <label class="flex-1 cursor-pointer">
+                                        <input type="radio" name="flow_mode_m3" value="vol" class="peer sr-only">
+                                        <div class="py-2 text-xs font-semibold text-gray-500 text-center rounded-[8px] transition-all peer-checked:bg-white peer-checked:text-gray-900 peer-checked:shadow-sm">流量模式</div>
+                                    </label>
                                 </div>
-
                                 <div id="rpm-inputs-m3" class="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label for="rpm_m3" class="block text-xs text-gray-500 mb-1 ml-1">转速 (RPM)</label>
+                                        <label class="block text-xs text-gray-500 mb-1 ml-1">转速 (RPM)</label>
                                         <input type="number" id="rpm_m3" value="2900" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium bg-gray-50/50" required>
                                     </div>
                                     <div>
-                                        <label for="displacement_m3" class="block text-xs text-gray-500 mb-1 ml-1">排量 (cm³/rev)</label>
+                                        <label class="block text-xs text-gray-500 mb-1 ml-1">排量 (cm³/rev)</label>
                                         <input type="number" id="displacement_m3" value="437.5" step="any" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium bg-gray-50/50" required>
                                     </div>
                                 </div>
                                 <div id="vol-inputs-m3" style="display: none;">
-                                    <label for="flow_m3h_m3" class="block text-xs text-gray-500 mb-1 ml-1">理论流量 (m³/h)</label>
+                                    <label class="block text-xs text-gray-500 mb-1 ml-1">理论流量 (m³/h)</label>
                                     <input type="number" id="flow_m3h_m3" value="100" step="any" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium bg-gray-50/50">
                                 </div>
                             </div>
                         </div>
 
-                        <div class="glass-panel rounded-3xl p-6 md:p-8">
-                            <div class="flex items-center space-x-3 mb-6">
-                                <div class="w-10 h-10 rounded-2xl bg-purple-100 flex items-center justify-center text-purple-600 shadow-sm">
-                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                        <div class="glass-panel rounded-3xl p-6">
+                            <div class="flex items-center space-x-3 mb-5">
+                                <div class="w-8 h-8 rounded-xl bg-purple-100 flex items-center justify-center text-purple-600 shadow-sm">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
                                 </div>
-                                <h3 class="text-lg font-bold text-gray-900">压力与温度</h3>
+                                <h3 class="text-base font-bold text-gray-900">压力与温度</h3>
                             </div>
-                            <div class="grid grid-cols-2 gap-5">
+                            <div class="grid grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-xs text-gray-500 mb-1 ml-1">吸气压力 (bar a)</label>
                                     <input type="number" id="press_in_m3" value="1.0" step="any" class="glass-input block w-full rounded-xl py-2.5 px-3 text-gray-900 font-medium" required>
@@ -338,25 +344,23 @@
                             </div>
                         </div>
 
-                        <div class="glass-panel rounded-3xl p-6 md:p-8">
-                            <div class="flex items-center justify-between mb-6">
+                        <div class="glass-panel rounded-3xl p-6">
+                            <div class="flex items-center justify-between mb-5">
                                 <div class="flex items-center space-x-3">
-                                    <div class="w-10 h-10 rounded-2xl bg-pink-100 flex items-center justify-center text-pink-600 shadow-sm">
-                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                    <div class="w-8 h-8 rounded-xl bg-pink-100 flex items-center justify-center text-pink-600 shadow-sm">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                     </div>
-                                    <h3 class="text-lg font-bold text-gray-900">效率设定</h3>
+                                    <h3 class="text-base font-bold text-gray-900">效率设定</h3>
                                 </div>
                                 <div class="flex items-center">
                                     <span class="mr-2 text-xs font-medium text-gray-500">Auto</span>
                                     <label class="relative inline-flex items-center cursor-pointer">
                                         <input type="checkbox" id="auto-eff-m3" class="sr-only peer">
-                                        <div class="w-10 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all after:shadow-sm peer-checked:bg-indigo-500 transition-colors duration-300 ease-ios"></div>
+                                        <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all after:shadow-sm peer-checked:bg-indigo-500 transition-colors duration-300 ease-ios"></div>
                                     </label>
                                 </div>
                             </div>
-
                             <div class="mb-4">
-                                <label class="block text-xs text-gray-500 mb-2 ml-1">功率基准</label>
                                 <div class="bg-gray-100/80 p-1 rounded-xl flex shadow-inner-ios">
                                     <label class="flex-1 cursor-pointer">
                                         <input type="radio" name="eff_mode_m3" value="shaft" class="peer sr-only" checked>
@@ -368,9 +372,7 @@
                                     </label>
                                 </div>
                             </div>
-
                             <div class="mb-5">
-                                <label class="block text-xs text-gray-500 mb-2 ml-1">效率类型</label>
                                 <div class="bg-gray-100/80 p-1 rounded-xl flex shadow-inner-ios">
                                     <label class="flex-1 cursor-pointer">
                                         <input type="radio" name="eff_type_m3" value="isothermal" class="peer sr-only" checked>
@@ -382,7 +384,6 @@
                                     </label>
                                 </div>
                             </div>
-
                             <div class="grid grid-cols-2 gap-4 mb-4">
                                 <div>
                                     <label id="eta_label_m3" class="block text-xs text-gray-500 mb-1 ml-1">效率数值</label>
@@ -393,48 +394,70 @@
                                     <input type="number" id="eta_v_m3" value="0.95" step="any" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium">
                                 </div>
                             </div>
-
                             <div id="motor-eff-group-m3" class="mb-5" style="display: none;">
                                 <label class="block text-xs text-gray-500 mb-1 ml-1">电机效率 η_motor</label>
                                 <input type="number" id="motor_eff_m3" value="0.95" step="0.01" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium">
                             </div>
-
                             <div class="pt-4 border-t border-gray-100/50">
                                 <label class="block text-xs font-bold text-indigo-600 mb-1 ml-1">预估实际排气温度 T2a (°C)</label>
                                 <input type="number" id="temp_discharge_actual_m3" value="85" step="0.1" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-bold bg-indigo-50/50 border-indigo-100 focus:ring-indigo-200">
                             </div>
                         </div>
 
-                        <button type="submit" id="calc-button-mode-3" class="w-full bg-gray-900 hover:bg-black text-white font-semibold py-4 px-8 rounded-2xl shadow-lg hover:shadow-xl transform active:scale-[0.98] transition-all duration-300 ease-ios disabled:opacity-70 disabled:cursor-not-allowed text-lg">
+                        <button type="submit" id="calc-button-mode-3" class="w-full bg-gray-900 hover:bg-black text-white font-semibold py-4 px-8 rounded-2xl shadow-lg hover:shadow-xl transform active:scale-[0.98] transition-all duration-300 ease-ios disabled:opacity-70 disabled:cursor-not-allowed text-lg mb-8 lg:mb-0">
                             Calculate Gas Compression
                         </button>
                     </form>
                 </div>
 
-                <div class="lg:col-span-5">
+                <div class="hidden lg:block lg:col-span-5 relative h-full">
                     <div class="sticky top-6">
                         <div class="glass-panel rounded-3xl overflow-hidden flex flex-col min-h-[600px] shadow-glass-hover transition-shadow duration-500">
                             <div class="px-6 py-4 border-b border-gray-100/50 bg-white/40 backdrop-blur flex justify-between items-center">
                                 <h3 class="font-bold text-gray-800">Results (Gas)</h3>
-                                <span class="text-[10px] font-bold bg-indigo-50 text-indigo-400 px-2 py-1 rounded uppercase tracking-widest">Live Preview</span>
+                                <span class="text-[10px] font-bold bg-indigo-50 text-indigo-400 px-2 py-1 rounded uppercase tracking-widest">Desktop View</span>
                             </div>
-                            
-                            <div id="results-mode-3" class="flex-grow p-6 overflow-y-auto bg-white/30 space-y-4">
+                            <div id="results-desktop-m3" class="flex-grow p-6 overflow-y-auto bg-white/30 space-y-4">
                                 <div class="flex flex-col items-center justify-center h-full text-gray-400 space-y-4 opacity-60">
                                     <svg class="w-16 h-16 stroke-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                                     <p class="text-sm font-medium">Ready to calculate</p>
                                 </div>
                             </div>
-                            
                             <div class="p-4 bg-white/50 border-t border-white/60">
                                 <button type="button" id="print-button-mode-3" class="w-full bg-white border border-gray-200 text-gray-700 font-semibold py-3 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition-colors shadow-sm flex items-center justify-center" disabled>
-                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                                     Export Report
                                 </button>
                             </div>
                         </div>
                     </div>
                 </div>
+
+                <div id="mobile-sheet-m3" class="fixed inset-x-0 bottom-0 z-50 lg:hidden transition-transform duration-500 ease-ios translate-y-[calc(100%-80px)]" style="max-height: 85vh;">
+                    <div class="bg-white/90 backdrop-blur-xl border-t border-white/50 shadow-[0_-8px_30px_rgba(0,0,0,0.12)] rounded-t-3xl h-full flex flex-col">
+                        <div id="sheet-handle-m3" class="h-20 flex-shrink-0 cursor-pointer relative" onclick="/* JS */">
+                            <div class="absolute top-3 left-1/2 transform -translate-x-1/2 w-12 h-1.5 bg-gray-300 rounded-full"></div>
+                            <div class="px-6 pt-7 flex items-center justify-between" id="mobile-summary-m3">
+                                <div>
+                                    <p class="text-[10px] text-gray-500 uppercase tracking-wider font-bold">Shaft Power</p>
+                                    <p class="text-xl font-bold text-gray-900">- kW</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-[10px] text-gray-500 uppercase tracking-wider font-bold">Iso-Eff</p>
+                                    <p class="text-xl font-bold text-pink-600">-</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex-grow overflow-y-auto p-6 bg-gray-50/50" id="mobile-results-m3">
+                            <div class="text-center text-gray-400 py-10">
+                                <p class="text-sm">Pull up for details</p>
+                            </div>
+                        </div>
+                         <div class="p-4 bg-white border-t border-gray-100 safe-area-bottom">
+                            <button type="button" id="mobile-close-m3" class="w-full bg-gray-100 text-gray-800 font-bold py-3 rounded-xl">Close Report</button>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
 
