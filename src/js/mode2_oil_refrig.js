@@ -1,6 +1,6 @@
 // =====================================================================
-// mode2_oil_refrig.js: 模式一 (制冷热泵) - v3.6 Scope Fix
-// 职责: 修复函数作用域丢失导致的 "is not defined" 错误
+// mode2_oil_refrig.js: 模式一 (制冷热泵) - v3.7 History Enabled
+// 职责: 计算核心 -> 渲染可视化 -> 自动保存历史记录
 // =====================================================================
 
 import { updateFluidInfo } from './coolprop_loader.js';
@@ -14,6 +14,7 @@ import {
     createStateTable 
 } from './components.js';
 import { drawPHDiagram } from './charts.js';
+import { HistoryDB, SessionState } from './storage.js'; // [New] 引入存储模块
 
 let CP_INSTANCE = null;
 let lastCalculationData = null; 
@@ -29,7 +30,7 @@ const BTN_TEXT_CALCULATE = "Calculate Performance";
 const BTN_TEXT_RECALCULATE = "Recalculate (Input Changed)";
 
 // ---------------------------------------------------------------------
-// Helper Functions (Top Level)
+// Helper Functions
 // ---------------------------------------------------------------------
 
 function setButtonStale2() {
@@ -69,15 +70,12 @@ function updateMobileSummary(kpi1Label, kpi1Value, kpi2Label, kpi2Value) {
     `;
 }
 
-// [CRITICAL FIX] 必须定义在 Top Level，确保 initMode2 可以访问
 function updateAndDisplayEfficienciesM2() {
     if (!CP_INSTANCE || !autoEffCheckboxM2 || !autoEffCheckboxM2.checked) return;
     try {
         const fluid = fluidSelectM2.value;
         const Te_C = parseFloat(tempEvapM2.value);
         const Tc_C = parseFloat(tempCondM2.value);
-        
-        // 简单校验防止 CoolProp 报错
         if (isNaN(Te_C) || isNaN(Tc_C) || Tc_C <= Te_C) return;
         
         const Pe_Pa = CP_INSTANCE.PropsSI('P', 'T', Te_C + 273.15, 'Q', 1, fluid);
@@ -122,15 +120,13 @@ function calculateMode2() {
             const eta_v = parseFloat(etaVM2.value);
             const eta_s_input = parseFloat(etaSM2.value);
 
-            // ECO Inputs
             const isEcoEnabled = ecoCheckbox.checked;
             const ecoType = document.querySelector('input[name="eco_type_m2"]:checked').value; 
             const ecoPressMode = document.querySelector('input[name="eco_press_mode_m2"]:checked').value; 
             const eco_superheat_K = parseFloat(document.getElementById('eco_superheat_m2').value);
 
-            // Validation
             if (T_2a_est_C <= Tc_C) throw new Error("Discharge temp must be higher than Condensing temp.");
-            if (isNaN(Te_C) || isNaN(eta_v) || isNaN(eta_s_input)) throw new Error("Invalid numeric input.");
+            if (isNaN(Te_C) || isNaN(eta_v)) throw new Error("Invalid numeric input.");
 
             // --- Calculation (CoolProp) ---
             const T_evap_K = Te_C + 273.15;
@@ -138,17 +134,14 @@ function calculateMode2() {
             const Pe_Pa = CP_INSTANCE.PropsSI('P', 'T', T_evap_K, 'Q', 1, fluid);
             const Pc_Pa = CP_INSTANCE.PropsSI('P', 'T', T_cond_K, 'Q', 1, fluid);
 
-            // Point 1: Suction
             const T_1_K = T_evap_K + superheat_K;
             const h_1 = CP_INSTANCE.PropsSI('H', 'T', T_1_K, 'P', Pe_Pa, fluid);
             const s_1 = CP_INSTANCE.PropsSI('S', 'T', T_1_K, 'P', Pe_Pa, fluid);
             const rho_1 = CP_INSTANCE.PropsSI('D', 'T', T_1_K, 'P', Pe_Pa, fluid);
             
-            // Point 3: Condenser Out
             const T_3_K = T_cond_K - subcooling_K;
             const h_3 = CP_INSTANCE.PropsSI('H', 'T', T_3_K, 'P', Pc_Pa, fluid); 
 
-            // Flow
             let V_th_m3_s, rpm_display = "-";
             if (flow_mode === 'rpm') {
                 const rpm = parseFloat(document.getElementById('rpm_m2').value);
@@ -162,32 +155,20 @@ function calculateMode2() {
             const V_act_m3_s = V_th_m3_s * eta_v;
             const m_dot_suc = V_act_m3_s * rho_1;
 
-            // --- ECO Calculation & 7-Point Analysis ---
+            // --- ECO Logic ---
             let m_dot_inj = 0, m_dot_total = m_dot_suc;
             let P_eco_Pa = 0, T_eco_sat_K = 0;
             
-            // Safe Init
             let h_4 = 0, h_5 = 0, h_6 = 0, h_7 = 0;
             let m_p5 = 0, m_p6 = 0, m_p7 = 0; 
             
-            // No-ECO Base
-            h_5 = h_3; 
-            h_4 = h_3; 
-            
+            h_5 = h_3; h_4 = h_3; 
             const Q_evap_W_no_eco = m_dot_suc * (h_1 - h_3);
             let eco_badge_val = 0;
 
-            // Arrays for Chart
-            let mainPoints = [];     
-            let ecoLiquidPoints = []; 
-            let ecoVaporPoints = [];  
+            let mainPoints = [], ecoLiquidPoints = [], ecoVaporPoints = [];  
 
-            // Helper for points
-            const point = (name, h, p_pa, pos='top') => ({
-                name: name,
-                value: [h/1000, p_pa/1e5],
-                label: { position: pos, show: true }
-            });
+            const point = (name, h, p_pa, pos='top') => ({ name, value: [h/1000, p_pa/1e5], label: { position: pos, show: true } });
             const rawP = (h, p_pa) => [h/1000, p_pa/1e5];
 
             if (isEcoEnabled) {
@@ -196,29 +177,22 @@ function calculateMode2() {
                     T_eco_sat_K = CP_INSTANCE.PropsSI('T', 'P', P_eco_Pa, 'Q', 0, fluid);
                 } else {
                     const T_eco_sat_C_Input = parseFloat(ecoSatTempInput.value);
-                    if (isNaN(T_eco_sat_C_Input)) throw new Error("Please enter ECO Saturation Temp.");
                     T_eco_sat_K = T_eco_sat_C_Input + 273.15;
                     P_eco_Pa = CP_INSTANCE.PropsSI('P', 'T', T_eco_sat_K, 'Q', 0.5, fluid);
                 }
 
                 const h_eco_sat_liq = CP_INSTANCE.PropsSI('H', 'T', T_eco_sat_K, 'Q', 0, fluid);
                 const h_eco_sat_vap = CP_INSTANCE.PropsSI('H', 'T', T_eco_sat_K, 'Q', 1, fluid);
-
-                h_7 = h_3; // Isenthalpic aux expansion
+                h_7 = h_3; 
 
                 if (ecoType === 'flash_tank') {
                     h_6 = h_eco_sat_vap; 
                     h_5 = h_eco_sat_liq; 
-                    
                     const x_flash = (h_7 - h_5) / (h_6 - h_5);
                     m_dot_inj = m_dot_suc * (x_flash / (1 - x_flash));
                     m_dot_total = m_dot_suc + m_dot_inj;
-
                     h_4 = h_5; 
-
-                    m_p7 = m_dot_total; 
-                    m_p5 = m_dot_suc;   
-                    m_p6 = m_dot_inj;   
+                    m_p7 = m_dot_total; m_p5 = m_dot_suc; m_p6 = m_dot_inj;   
 
                     const pt3 = point('3', h_3, Pc_Pa, 'top');
                     const pt7 = point('7', h_7, P_eco_Pa, 'right');
@@ -234,18 +208,12 @@ function calculateMode2() {
                 } else {
                     const T_inj_K = T_eco_sat_K + eco_superheat_K;
                     h_6 = CP_INSTANCE.PropsSI('H', 'T', T_inj_K, 'P', P_eco_Pa, fluid); 
-                    
                     const T_5_K = T_eco_sat_K + 5.0;
                     h_5 = CP_INSTANCE.PropsSI('H', 'T', T_5_K, 'P', Pc_Pa, fluid); 
-                    
                     h_4 = h_5; 
-                    
                     m_dot_inj = (m_dot_suc * (h_3 - h_5)) / (h_6 - h_7);
                     m_dot_total = m_dot_suc + m_dot_inj; 
-
-                    m_p5 = m_dot_suc; 
-                    m_p7 = m_dot_inj; 
-                    m_p6 = m_dot_inj; 
+                    m_p5 = m_dot_suc; m_p7 = m_dot_inj; m_p6 = m_dot_inj; 
 
                     const pt3 = point('3', h_3, Pc_Pa, 'top');
                     const pt5 = point('5', h_5, Pc_Pa, 'top');
@@ -259,25 +227,18 @@ function calculateMode2() {
                     ecoVaporPoints = [rawP(h_3, Pc_Pa), pt7, pt6];  
                 }
             } else {
-                // No ECO
                 h_4 = h_3;
                 m_dot_total = m_dot_suc;
-                
                 const pt1 = point('1', h_1, Pe_Pa, 'bottom');
                 const pt3 = point('3', h_3, Pc_Pa, 'top');
                 const pt4 = point('4', h_4, Pe_Pa, 'bottom');
-                
                 mainPoints = [pt1]; 
                 ecoLiquidPoints = [pt3, pt4]; 
                 ecoVaporPoints = [];
             }
 
-            // Calc Cooling
             const Q_evap_W = m_dot_suc * (h_1 - h_4);
-
-            if (isEcoEnabled) {
-                eco_badge_val = ((Q_evap_W - Q_evap_W_no_eco) / Q_evap_W_no_eco) * 100;
-            }
+            if (isEcoEnabled) eco_badge_val = ((Q_evap_W - Q_evap_W_no_eco) / Q_evap_W_no_eco) * 100;
 
             // Power
             let W_ideal_W = 0;
@@ -287,7 +248,6 @@ function calculateMode2() {
             } else {
                 const h_mid_1s = CP_INSTANCE.PropsSI('H', 'P', P_eco_Pa, 'S', s_1, fluid);
                 const W_s1 = m_dot_suc * (h_mid_1s - h_1);
-                // Safe h_6 usage (initialized above)
                 const h_mix_s = (m_dot_suc * h_mid_1s + m_dot_inj * h_6) / m_dot_total;
                 const s_mix = CP_INSTANCE.PropsSI('S', 'H', h_mix_s, 'P', P_eco_Pa, fluid);
                 const h_2s_stage2 = CP_INSTANCE.PropsSI('H', 'P', Pc_Pa, 'S', s_mix, fluid);
@@ -308,7 +268,6 @@ function calculateMode2() {
 
             // Heat Balance
             const h_system_in = (m_dot_suc * h_1 + m_dot_inj * h_6); 
-            
             const T_2a_est_K = T_2a_est_C + 273.15;
             const h_2a_target = CP_INSTANCE.PropsSI('H', 'T', T_2a_est_K, 'P', Pc_Pa, fluid);
             const energy_out_gas = m_dot_total * h_2a_target;
@@ -327,11 +286,10 @@ function calculateMode2() {
             const h_2a_final = (h_system_in + W_shaft_W - Q_oil_W) / m_dot_total;
             const Q_cond_W = m_dot_total * (h_2a_final - h_3);
             const Q_heating_total_W = Q_cond_W + Q_oil_W;
-
             const COP_R = Q_evap_W / W_input_W;
             const COP_H = Q_heating_total_W / W_input_W;
 
-            // --- Chart Finalization ---
+            // Finalize Chart
             const pt2 = point('2', h_2a_final, Pc_Pa, 'top');
             const pt3 = point('3', h_3, Pc_Pa, 'top');
             const pt4 = point('4', h_4, Pe_Pa, 'bottom');
@@ -357,7 +315,7 @@ function calculateMode2() {
                 });
             });
 
-            // Table
+            // Table Data
             let T_7_disp = '-', T_5_disp = '-';
             if (isEcoEnabled) {
                 T_7_disp = (T_eco_sat_K - 273.15).toFixed(1);
@@ -379,17 +337,19 @@ function calculateMode2() {
             if (isEcoEnabled) {
                 statePoints.push(
                     { name: '7', desc: 'ECO In', temp: T_7_disp, press: (P_eco_Pa/1e5).toFixed(2), enth: (h_7/1000).toFixed(1), flow: m_p7.toFixed(3) },
-                    { name: '6', desc: 'ECO Vap', temp: (ecoType==='flash_tank' ? T_7_disp : (T_eco_sat_K+eco_superheat_K-273.15).toFixed(1)), press: (P_eco_Pa/1e5).toFixed(2), enth: (h_6/1000).toFixed(1), flow: m_p6.toFixed(3) },
-                    { name: '5', desc: 'ECO Liq', temp: T_5_disp, press: (ecoType==='subcooler' ? Pc_Pa/1e5 : P_eco_Pa/1e5).toFixed(2), enth: (h_5/1000).toFixed(1), flow: m_p5.toFixed(3) }
+                    { name: '6', desc: 'ECO Vap', temp: (isEcoEnabled && ecoType==='flash_tank' ? (T_eco_sat_K-273.15).toFixed(1) : '-'), press: (P_eco_Pa/1e5).toFixed(2), enth: (h_6/1000).toFixed(1), flow: m_p6.toFixed(3) },
+                    { name: '5', desc: 'ECO Liq', temp: T_5_disp, press: (ecoType==='subcooler' ? (Pc_Pa/1e5).toFixed(2) : (P_eco_Pa/1e5).toFixed(2)), enth: (h_5/1000).toFixed(1), flow: m_p5.toFixed(3) }
                 );
             }
             
+            const T_4_K = CP_INSTANCE.PropsSI('T', 'P', Pe_Pa, 'H', h_4, fluid);
             statePoints.push(
                 { name: '4', desc: 'Evap In', temp: T_4_disp, press: (Pe_Pa/1e5).toFixed(2), enth: (h_4/1000).toFixed(1), flow: m_dot_suc.toFixed(3) }
             );
 
             statePoints.sort((a, b) => parseInt(a.name) - parseInt(b.name));
 
+            // HTML
             let html = `
                 <div class="grid grid-cols-2 gap-4 mb-6">
                     ${createKpiCard('制冷量 (Cooling)', (Q_evap_W/1000).toFixed(2), 'kW', `COP: ${COP_R.toFixed(2)}`, 'blue')}
@@ -401,7 +361,7 @@ function calculateMode2() {
                     ${createDetailRow('Shaft Power', `${(W_shaft_W/1000).toFixed(2)} kW`)}
                     ${createDetailRow('Oil Load', `${(Q_oil_W/1000).toFixed(2)} kW`)}
                     ${isEcoEnabled ? `${createSectionHeader('Economizer', '⚡')}${createDetailRow('P_eco', `${(P_eco_Pa/1e5).toFixed(2)} bar ${createEcoBadge(eco_badge_val)}`)}` : ''}
-                    ${createSectionHeader('7-Point Analysis', '📊')}
+                    ${createSectionHeader('7-Point Analysis (Flow)', '📊')}
                     ${createStateTable(statePoints)}
                 </div>
             `;
@@ -413,6 +373,15 @@ function calculateMode2() {
 
             lastCalculationData = { fluid, statePoints, COP_R, COP_H, Q_evap_W, Q_cond_W, Q_oil_W };
 
+            // --- [New] Auto Save to History ---
+            const inputState = SessionState.collectInputs('calc-form-mode-2');
+            const historyTitle = `${fluid} • ${(Q_evap_W/1000).toFixed(1)} kW`;
+            const historySummary = {
+                'COP': COP_R.toFixed(2),
+                'Power': `${(W_input_W/1000).toFixed(1)} kW`
+            };
+            HistoryDB.add('M2', historyTitle, inputState, historySummary);
+
         } catch (error) {
             renderToAllViews(createErrorCard(error.message));
             console.error(error);
@@ -421,6 +390,7 @@ function calculateMode2() {
     }, 50);
 }
 
+// ... (Rest of Init Code) ...
 export function initMode2(CP) {
     CP_INSTANCE = CP;
     calcButtonM2 = document.getElementById('calc-button-mode-2');
@@ -443,20 +413,22 @@ export function initMode2(CP) {
 
     if (calcFormM2) {
         calcFormM2.addEventListener('submit', (e) => { e.preventDefault(); calculateMode2(); });
+        
         calcFormM2.querySelectorAll('input, select').forEach(input => {
             input.addEventListener('input', setButtonStale2);
             input.addEventListener('change', setButtonStale2);
         });
+
         fluidSelectM2.addEventListener('change', () => updateFluidInfo(fluidSelectM2, fluidInfoDivM2, CP_INSTANCE));
         
-        // Use the safe top-level function
+        // Use safe function
         [tempEvapM2, tempCondM2, autoEffCheckboxM2].forEach(el => {
             if(el) el.addEventListener('change', updateAndDisplayEfficienciesM2);
         });
         
         if (printButtonM2) printButtonM2.addEventListener('click', printReportMode2);
     }
-    console.log("Mode 2 (Scope Fixed) initialized.");
+    console.log("Mode 2 (History Enabled) initialized.");
 }
 
 function printReportMode2() {
