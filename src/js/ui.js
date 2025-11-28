@@ -1,6 +1,6 @@
 // =====================================================================
-// ui.js: UI 界面交互逻辑 - (v2.6 最终初始化修复版)
-// 职责: 1. 将所有UI初始化逻辑包裹在一个函数中，由main.js统一调用。
+// ui.js: UI 界面交互逻辑 - (v2.8 ECO Auto-Opt 适配版)
+// 职责: 处理所有 DOM 元素的显示/隐藏、选项卡切换、开关联动及自动模式锁定。
 // =====================================================================
 
 export function initUI() {
@@ -16,101 +16,171 @@ export function initUI() {
         if (tab.btn && tab.content) {
             tab.btn.addEventListener('click', () => {
                 tabs.forEach(t => {
-                    t.btn.classList.remove('active');
+                    t.btn.classList.remove('active', 'bg-white', 'shadow-sm');
                     t.content.classList.remove('active');
+                    t.content.classList.add('hidden');
                 });
-                tab.btn.classList.add('active');
+                tab.btn.classList.add('active', 'bg-white', 'shadow-sm');
                 tab.content.classList.add('active');
+                tab.content.classList.remove('hidden');
             });
         }
     });
 
-    // --- 通用设置函数 ---
+    // --- 通用设置函数 (用于 Radio 单选框切换) ---
     function setupRadioToggle(radioName, onToggle) {
         const radios = document.querySelectorAll(`input[name="${radioName}"]`);
         if (!radios.length) return;
-        radios.forEach(radio => radio.addEventListener('change', () => onToggle(radio.value)));
+        
+        radios.forEach(radio => {
+            radio.addEventListener('change', () => {
+                if(radio.checked) onToggle(radio.value);
+            });
+        });
+        
+        // 初始化：找到当前被选中的 radio 并触发一次回调
         const checkedRadio = document.querySelector(`input[name="${radioName}"]:checked`);
         if (checkedRadio) onToggle(checkedRadio.value);
     }
 
-    // --- 流量模式切换 ---
+    // --- [原有] 流量模式切换 ---
     setupRadioToggle('flow_mode_m2', (value) => {
-        document.getElementById('rpm-inputs-m2').style.display = (value === 'rpm') ? 'block' : 'none';
-        document.getElementById('vol-inputs-m2').style.display = (value === 'vol') ? 'block' : 'none';
-        document.getElementById('rpm-inputs-m2').querySelectorAll('input').forEach(i => i.required = (value === 'rpm'));
-        document.getElementById('vol-inputs-m2').querySelectorAll('input').forEach(i => i.required = (value === 'vol'));
-    });
-    setupRadioToggle('flow_mode_m3', (value) => {
-        document.getElementById('rpm-inputs-m3').style.display = (value === 'rpm') ? 'block' : 'none';
-        document.getElementById('vol-inputs-m3').style.display = (value === 'vol') ? 'block' : 'none';
-        document.getElementById('rpm-inputs-m3').querySelectorAll('input').forEach(i => i.required = (value === 'rpm'));
-        document.getElementById('vol-inputs-m3').querySelectorAll('input').forEach(i => i.required = (value === 'vol'));
-    });
-
-    // --- 功率/效率基准切换 ---
-    setupRadioToggle('eff_mode_m2', (value) => {
-        document.getElementById('motor-eff-group-m2').style.display = (value === 'input') ? 'block' : 'none';
-        const label = document.getElementById('eta_s_label_m2');
-        const tooltip = document.getElementById('tooltip-eta-s-m2');
-        for (const node of label.childNodes) {
-            if (node.nodeType === Node.TEXT_NODE) {
-                node.nodeValue = (value === 'input') ? '总等熵效率 (η_total)' : '等熵效率 (η_s)';
-                break;
-            }
+        const rpmInputs = document.getElementById('rpm-inputs-m2');
+        const volInputs = document.getElementById('vol-inputs-m2');
+        if (rpmInputs && volInputs) {
+            rpmInputs.style.display = (value === 'rpm') ? 'grid' : 'none';
+            volInputs.style.display = (value === 'vol') ? 'block' : 'none';
+            rpmInputs.querySelectorAll('input').forEach(i => i.required = (value === 'rpm'));
+            volInputs.querySelectorAll('input').forEach(i => i.required = (value === 'vol'));
         }
-        tooltip.textContent = (value === 'input') ? '基于【输入功率】。η_total = 理论等熵功率 / 电机输入功率。' : '基于【轴功率】。η_s = 理论等熵功率 / 压缩机轴功率。';
-    });
-    setupRadioToggle('eff_mode_m3', (value) => {
-        document.getElementById('motor-eff-group-m3').style.display = (value === 'input') ? 'block' : 'none';
     });
     
-    // --- 气体压缩模式效率类型切换 ---
-    const effTypeRadiosM3 = document.querySelectorAll('input[name="eff_type_m3"]');
-    const effModeRadiosM3 = document.querySelectorAll('input[name="eff_mode_m3"]');
-    const effLabelM3 = document.getElementById('eta_label_m3');
-    const effTooltipM3 = document.getElementById('tooltip-eta_m3');
+    setupRadioToggle('flow_mode_m3', (value) => {
+        const rpmInputs = document.getElementById('rpm-inputs-m3');
+        const volInputs = document.getElementById('vol-inputs-m3');
+        if (rpmInputs && volInputs) {
+            rpmInputs.style.display = (value === 'rpm') ? 'grid' : 'none';
+            volInputs.style.display = (value === 'vol') ? 'block' : 'none';
+            rpmInputs.querySelectorAll('input').forEach(i => i.required = (value === 'rpm'));
+            volInputs.querySelectorAll('input').forEach(i => i.required = (value === 'vol'));
+        }
+    });
 
-    if (effTypeRadiosM3.length && effLabelM3 && effTooltipM3) {
+    // --- [ECO] 经济器交互逻辑 ---
+    const ecoCheckbox = document.getElementById('enable_eco_m2');
+    const ecoSettings = document.getElementById('eco-settings-m2');
+    const ecoPlaceholder = document.getElementById('eco-placeholder-m2');
+
+    if (ecoCheckbox && ecoSettings && ecoPlaceholder) {
+        // 1. 监听总开关
+        ecoCheckbox.addEventListener('change', () => {
+            if (ecoCheckbox.checked) {
+                ecoSettings.classList.remove('hidden');
+                ecoPlaceholder.classList.add('hidden');
+            } else {
+                ecoSettings.classList.add('hidden');
+                ecoPlaceholder.classList.remove('hidden');
+            }
+        });
+        // 初始化状态
+        ecoCheckbox.dispatchEvent(new Event('change'));
+    }
+
+    // 2. ECO 类型切换 (闪发罐 vs 过冷器)
+    setupRadioToggle('eco_type_m2', (value) => {
+        const subcoolerInputs = document.getElementById('eco-subcooler-inputs-m2');
+        if (subcoolerInputs) {
+            if (value === 'subcooler') {
+                subcoolerInputs.classList.remove('hidden');
+            } else {
+                subcoolerInputs.classList.add('hidden');
+            }
+        }
+    });
+
+    // 3. [新增] ECO 压力设定模式切换 (自动 vs 手动)
+    setupRadioToggle('eco_press_mode_m2', (value) => {
+        const tempInput = document.getElementById('temp_eco_sat_m2');
+        if (!tempInput) return;
+
+        if (value === 'auto') {
+            // 自动模式：禁用输入框，变灰
+            tempInput.disabled = true;
+            tempInput.placeholder = "自动计算 (Auto)";
+            tempInput.value = ""; // 清空，表明由系统接管
+            tempInput.classList.add('bg-gray-100', 'text-gray-500', 'cursor-not-allowed');
+            tempInput.classList.remove('bg-white', 'text-gray-900', 'focus:ring-teal-500');
+        } else {
+            // 手动模式：启用输入框，变白
+            tempInput.disabled = false;
+            tempInput.placeholder = "输入温度 (例如 35)";
+            if (tempInput.value === "") tempInput.value = "35"; // 给个默认值方便输入
+            tempInput.classList.remove('bg-gray-100', 'text-gray-500', 'cursor-not-allowed');
+            tempInput.classList.add('bg-white', 'text-gray-900', 'focus:ring-teal-500');
+        }
+    });
+
+    // --- [原有] 功率/效率基准切换 ---
+    setupRadioToggle('eff_mode_m2', (value) => {
+        const motorGroup = document.getElementById('motor-eff-group-m2');
+        if (motorGroup) motorGroup.style.display = (value === 'input') ? 'block' : 'none';
+        
+        const label = document.getElementById('eta_s_label_m2');
+        if (label && label.firstChild) {
+            label.firstChild.textContent = (value === 'input') ? '总等熵效率 (η_total) ' : '等熵效率 (η_s) ';
+        }
+    });
+    
+    setupRadioToggle('eff_mode_m3', (value) => {
+        const motorGroup = document.getElementById('motor-eff-group-m3');
+        if(motorGroup) motorGroup.style.display = (value === 'input') ? 'block' : 'none';
+    });
+    
+    // --- [原有] 气体压缩模式效率类型切换 ---
+    const effTypeRadiosM3 = document.querySelectorAll('input[name="eff_type_m3"]');
+    if (effTypeRadiosM3.length) {
         const toggleM3EfficiencyLabel = () => {
-            const isInputMode = document.querySelector('input[name="eff_mode_m3"]:checked').value === 'input';
-            const effType = document.querySelector('input[name="eff_type_m3"]:checked').value;
-            let labelText = '', tooltipText = '';
+            const modeRadio = document.querySelector('input[name="eff_mode_m3"]:checked');
+            const typeRadio = document.querySelector('input[name="eff_type_m3"]:checked');
+            const effLabelM3 = document.getElementById('eta_label_m3');
+            
+            if(!modeRadio || !typeRadio || !effLabelM3) return;
+
+            const isInputMode = modeRadio.value === 'input';
+            const effType = typeRadio.value;
+            let labelText = '';
+            
             if (effType === 'isothermal') {
                 labelText = isInputMode ? '总等温效率 (η_iso_total) ' : '等温效率 (η_iso) ';
-                tooltipText = isInputMode ? 'η_iso_total = 理论等温功率 / 电机输入功率' : 'η_iso = 理论等温功率 / 压缩机轴功率';
             } else {
                 labelText = isInputMode ? '总等熵效率 (η_s_total) ' : '等熵效率 (η_s) ';
-                tooltipText = isInputMode ? 'η_s_total = 理论等熵功率 / 电机输入功率' : 'η_s = 理论等熵功率 / 压缩机轴功率';
             }
-            for (const node of effLabelM3.childNodes) {
-                if (node.nodeType === Node.TEXT_NODE && node.nodeValue.trim() !== '') {
-                    node.nodeValue = labelText;
-                    break;
-                }
-            }
-            effTooltipM3.textContent = tooltipText;
+            if (effLabelM3.firstChild) effLabelM3.firstChild.textContent = labelText;
         };
-        effTypeRadiosM3.forEach(radio => radio.addEventListener('change', toggleM3EfficiencyLabel));
-        effModeRadiosM3.forEach(radio => radio.addEventListener('change', toggleM3EfficiencyLabel));
+        
+        document.querySelectorAll('input[name="eff_type_m3"], input[name="eff_mode_m3"]')
+            .forEach(r => r.addEventListener('change', toggleM3EfficiencyLabel));
         toggleM3EfficiencyLabel();
     }
 
-    // --- 智能效率模式UI控制 ---
+    // --- [原有] 智能效率模式UI控制 ---
     function setupAutoEfficiencyCheckbox(checkboxId, inputIds) {
         const checkbox = document.getElementById(checkboxId);
         const inputs = inputIds.map(id => document.getElementById(id));
 
-        if (!checkbox || inputs.some(i => !i)) {
-            console.error(`智能效率UI初始化失败: 找不到元素 (Checkbox: ${checkboxId})`);
-            return;
-        }
+        if (!checkbox || inputs.some(i => !i)) return;
 
         const handleChange = () => {
             const isAuto = checkbox.checked;
             inputs.forEach(input => {
                 input.disabled = isAuto;
-                input.classList.toggle('bg-gray-200', isAuto); 
+                if (isAuto) {
+                    input.classList.add('bg-gray-100', 'text-gray-500', 'cursor-not-allowed');
+                    input.classList.remove('bg-white');
+                } else {
+                    input.classList.remove('bg-gray-100', 'text-gray-500', 'cursor-not-allowed');
+                    input.classList.add('bg-white');
+                }
             });
         };
 
@@ -121,5 +191,5 @@ export function initUI() {
     setupAutoEfficiencyCheckbox('auto-eff-m2', ['eta_s_m2', 'eta_v_m2']);
     setupAutoEfficiencyCheckbox('auto-eff-m3', ['eta_iso_m3', 'eta_v_m3']);
 
-    console.log("UI 已初始化。");
+    console.log("UI v2.8 (ECO Auto-Opt) 已初始化。");
 }
