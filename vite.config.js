@@ -4,17 +4,17 @@ import { VitePWA } from 'vite-plugin-pwa';
 export default defineConfig({
   // 1. 基础路径配置 (如果在服务器子目录下部署，需修改此处)
   base: '/Oil-injected-Compressor-Calculator-pro/',
-  
+
   // 2. 插件配置
   plugins: [
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['coolprop.wasm', 'coolprop.js'], // 确保缓存核心 WASM 文件
+      includeAssets: ['coolprop.wasm', 'coolprop.js'],
       manifest: {
         name: 'Compressor Efficiency Pro',
         short_name: 'CompEff Pro',
         description: 'Industrial Heat Pump Compressor Calculation Tool',
-        theme_color: '#0d9488', // 对应 Tailwind Teal-600
+        theme_color: '#0d9488',
         background_color: '#f9fafb',
         display: 'standalone',
         icons: [
@@ -29,7 +29,12 @@ export default defineConfig({
             type: 'image/png'
           }
         ]
+      },
+      // ▼▼▼▼▼▼▼▼▼ 新增以下配置 (允许缓存大文件) ▼▼▼▼▼▼▼▼▼
+      workbox: {
+        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024 // 提高限制到 10MB
       }
+      // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     })
   ],
 
