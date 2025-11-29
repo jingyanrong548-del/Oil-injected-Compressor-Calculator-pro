@@ -1,6 +1,6 @@
 // =====================================================================
-// components.js: Apple-style UI 组件工厂 (v3.3 流量版)
-// 职责: 生成标准化 HTML 片段，支持 5 列状态点详表
+// components.js: Apple-style UI 组件工厂 (v3.5 ECO Matrix)
+// 职责: 生成标准化 HTML 片段，新增 ECO 效益矩阵组件
 // =====================================================================
 
 /**
@@ -71,12 +71,12 @@ export function createErrorCard(message) {
 }
 
 /**
- * 生成 ECO 提升率胶囊
+ * (旧版兼容) 生成简单 ECO 提升率胶囊
  */
 export function createEcoBadge(percentage) {
     if (percentage <= 0) return '';
     return `
-    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800 ml-2">
+    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-800 ml-2">
         <svg class="mr-1 h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
         </svg>
@@ -86,45 +86,80 @@ export function createEcoBadge(percentage) {
 }
 
 /**
- * [New] 生成状态点数据表格 (State Points Table - 5 Columns)
- * @param {Array} points - 状态点对象数组 [{ name, desc, temp, press, enth, flow }]
+ * [New] 生成 ECO 效益 2x2 矩阵 (4维对比)
+ * @param {object} data - { Qc: {val, diff}, Qh: {val, diff}, COPc: {val, diff}, COPh: {val, diff} }
+ */
+export function createEcoImpactGrid(data) {
+    // 内部辅助：生成带箭头的小标签
+    const renderBadge = (diff) => {
+        if (Math.abs(diff) < 0.05) return `<span class="text-[9px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded ml-auto border border-gray-200">-</span>`;
+        
+        const isPos = diff > 0;
+        // 绿色(提升) / 红色(下降)
+        const bgClass = isPos ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100';
+        const arrow = isPos ? '▲' : '▼';
+        
+        return `<span class="text-[9px] ${bgClass} border px-1.5 py-0.5 rounded ml-auto font-bold tracking-tight shadow-sm">${arrow} ${Math.abs(diff).toFixed(1)}%</span>`;
+    };
+
+    // 内部辅助：生成单个格子
+    const renderItem = (label, obj, unit = '') => `
+        <div class="bg-white/40 rounded-xl p-3 border border-white/60 shadow-sm flex flex-col justify-between">
+            <div class="text-[9px] text-gray-400 uppercase font-bold tracking-wider mb-1">${label}</div>
+            <div class="flex items-center justify-between">
+                <div class="flex items-baseline">
+                    <span class="text-sm font-bold text-gray-800 font-mono">${obj.val}</span>
+                    <span class="text-[10px] text-gray-500 ml-0.5">${unit}</span>
+                </div>
+                ${renderBadge(obj.diff)}
+            </div>
+        </div>
+    `;
+
+    return `
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 mb-2">
+        ${renderItem('Cooling Cap.', data.Qc, 'kW')}
+        ${renderItem('Heating Cap.', data.Qh, 'kW')}
+        ${renderItem('Cooling COP', data.COPc)}
+        ${renderItem('Heating COP', data.COPh)}
+    </div>
+    `;
+}
+
+/**
+ * 生成状态点数据表格 (5 Columns)
  */
 export function createStateTable(points) {
     if (!points || points.length === 0) return '';
 
-    // 生成行
     const rows = points.map((p, index) => {
-        // 斑马纹背景
         const bgClass = index % 2 === 0 ? 'bg-white/40' : 'bg-transparent';
-        // 特殊标记：如果有点位名称包含 ECO，可以加点颜色提示 (可选)
         const rowStyle = p.name.includes('ECO') ? 'font-medium text-blue-900' : 'text-gray-600';
 
         return `
         <tr class="${bgClass} text-xs transition-colors hover:bg-white/60">
-            <td class="py-2 pl-3 font-semibold text-gray-700 whitespace-nowrap">
+            <td class="py-2 pl-3 font-semibold text-gray-700 whitespace-nowrap sticky left-0 z-10 bg-white/20 backdrop-blur-[1px]">
                 ${p.name}
                 ${p.desc ? `<div class="text-[9px] text-gray-400 font-normal font-sans tracking-tight">${p.desc}</div>` : ''}
             </td>
-            <td class="py-2 text-right font-mono ${rowStyle} tracking-tight">${p.temp}</td>
-            <td class="py-2 text-right font-mono ${rowStyle} tracking-tight">${p.press}</td>
-            <td class="py-2 text-right font-mono ${rowStyle} tracking-tight hidden sm:table-cell">${p.enth}</td> <td class="py-2 pr-3 text-right font-mono font-bold text-gray-800 tracking-tight">${p.flow}</td>
+            <td class="py-2 text-right font-mono ${rowStyle} tracking-tight whitespace-nowrap">${p.temp}</td>
+            <td class="py-2 text-right font-mono ${rowStyle} tracking-tight whitespace-nowrap">${p.press}</td>
+            <td class="py-2 text-right font-mono ${rowStyle} tracking-tight whitespace-nowrap">${p.enth}</td>
+            <td class="py-2 pr-3 text-right font-mono font-bold text-gray-800 tracking-tight whitespace-nowrap">${p.flow}</td>
         </tr>
         `;
     }).join('');
 
-    // 返回完整表格 HTML
-    // 注意：表头添加了 "m (kg/s)"
-    // 手机端通过 'hidden sm:table-cell' 隐藏焓值列，保证流量列可见
     return `
-    <div class="overflow-x-auto rounded-xl border border-white/40 shadow-sm bg-gray-50/20 backdrop-blur-sm mt-4 no-scrollbar">
+    <div class="overflow-x-auto rounded-xl border border-white/40 shadow-sm bg-gray-50/20 backdrop-blur-sm mt-4 no-scrollbar touch-pan-x">
         <table class="min-w-full">
             <thead>
                 <tr class="border-b border-gray-200/50 bg-gray-100/40 text-left text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
-                    <th class="py-2 pl-3">Point</th>
-                    <th class="py-2 text-right">T(°C)</th>
-                    <th class="py-2 text-right">P(bar)</th>
-                    <th class="py-2 text-right hidden sm:table-cell">h(kJ)</th>
-                    <th class="py-2 pr-3 text-right">m(kg/s)</th>
+                    <th class="py-2 pl-3 whitespace-nowrap sticky left-0 z-10 bg-gray-50/80 backdrop-blur-[2px]">Point</th>
+                    <th class="py-2 text-right whitespace-nowrap">T(°C)</th>
+                    <th class="py-2 text-right whitespace-nowrap">P(bar)</th>
+                    <th class="py-2 text-right whitespace-nowrap">h(kJ)</th>
+                    <th class="py-2 pr-3 text-right whitespace-nowrap">m(kg/s)</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100/30">

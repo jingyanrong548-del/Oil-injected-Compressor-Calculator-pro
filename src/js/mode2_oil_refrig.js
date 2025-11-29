@@ -1,6 +1,6 @@
 // =====================================================================
-// mode2_oil_refrig.js: 模式一 (制冷热泵) - v3.7 History Enabled
-// 职责: 计算核心 -> 渲染可视化 -> 自动保存历史记录
+// mode2_oil_refrig.js: 模式一 (制冷热泵) - v3.8 ECO Matrix Edition
+// 职责: 核心计算 -> 影子计算(基准对比) -> 生成效益矩阵 -> 双向渲染
 // =====================================================================
 
 import { updateFluidInfo } from './coolprop_loader.js';
@@ -9,12 +9,12 @@ import {
     createKpiCard, 
     createDetailRow, 
     createSectionHeader, 
-    createEcoBadge, 
     createErrorCard,
-    createStateTable 
+    createStateTable,
+    createEcoImpactGrid // [New] 引入矩阵组件
 } from './components.js';
 import { drawPHDiagram } from './charts.js';
-import { HistoryDB, SessionState } from './storage.js'; // [New] 引入存储模块
+import { HistoryDB, SessionState } from './storage.js';
 
 let CP_INSTANCE = null;
 let lastCalculationData = null; 
@@ -155,19 +155,18 @@ function calculateMode2() {
             const V_act_m3_s = V_th_m3_s * eta_v;
             const m_dot_suc = V_act_m3_s * rho_1;
 
-            // --- ECO Logic ---
+            // --- ECO Calculation & 7-Point Analysis ---
             let m_dot_inj = 0, m_dot_total = m_dot_suc;
             let P_eco_Pa = 0, T_eco_sat_K = 0;
             
+            // Safe Init
             let h_4 = 0, h_5 = 0, h_6 = 0, h_7 = 0;
             let m_p5 = 0, m_p6 = 0, m_p7 = 0; 
             
             h_5 = h_3; h_4 = h_3; 
-            const Q_evap_W_no_eco = m_dot_suc * (h_1 - h_3);
-            let eco_badge_val = 0;
-
+            
+            // Visualization Arrays
             let mainPoints = [], ecoLiquidPoints = [], ecoVaporPoints = [];  
-
             const point = (name, h, p_pa, pos='top') => ({ name, value: [h/1000, p_pa/1e5], label: { position: pos, show: true } });
             const rawP = (h, p_pa) => [h/1000, p_pa/1e5];
 
@@ -237,8 +236,8 @@ function calculateMode2() {
                 ecoVaporPoints = [];
             }
 
+            // Calc Cooling
             const Q_evap_W = m_dot_suc * (h_1 - h_4);
-            if (isEcoEnabled) eco_badge_val = ((Q_evap_W - Q_evap_W_no_eco) / Q_evap_W_no_eco) * 100;
 
             // Power
             let W_ideal_W = 0;
@@ -286,10 +285,53 @@ function calculateMode2() {
             const h_2a_final = (h_system_in + W_shaft_W - Q_oil_W) / m_dot_total;
             const Q_cond_W = m_dot_total * (h_2a_final - h_3);
             const Q_heating_total_W = Q_cond_W + Q_oil_W;
+
             const COP_R = Q_evap_W / W_input_W;
             const COP_H = Q_heating_total_W / W_input_W;
 
-            // Finalize Chart
+            // --- Shadow Calculation (Baseline Analysis) ---
+            let ecoGridHtml = '';
+            if (isEcoEnabled) {
+                // 1. Base Cooling (h4_base = h3)
+                const Q_c0 = m_dot_suc * (h_1 - h_3);
+                
+                // 2. Base Power (Single Stage)
+                const h_2s_base = CP_INSTANCE.PropsSI('H', 'P', Pc_Pa, 'S', s_1, fluid);
+                const W_ideal0 = m_dot_suc * (h_2s_base - h_1);
+                
+                let W_in0 = 0, W_shaft0 = 0;
+                if (eff_mode === 'shaft') {
+                    // Use same eta_s input for baseline
+                    W_shaft0 = W_ideal0 / eta_s_input;
+                    W_in0 = W_shaft0 / motor_eff;
+                } else {
+                    W_in0 = W_ideal0 / eta_s_input; // eta_s_input is total eff
+                    W_shaft0 = W_in0 * motor_eff;
+                }
+
+                // 3. Base Heating (Q_c0 + W_shaft0 - Q_oil?) 
+                // Approx Heat = Q_c0 + W_shaft0. (Assume similar oil load or ignore)
+                // Better: Q_h0 = Q_c0 + W_shaft0.
+                const Q_h0 = Q_c0 + W_shaft0;
+
+                // 4. Base COPs
+                const COP_c0 = Q_c0 / W_in0;
+                const COP_h0 = Q_h0 / W_in0;
+
+                // 5. Diff Helper
+                const getDiff = (curr, base) => ((curr - base) / base) * 100;
+
+                const ecoData = {
+                    Qc: { val: (Q_evap_W/1000).toFixed(2), diff: getDiff(Q_evap_W, Q_c0) },
+                    Qh: { val: (Q_heating_total_W/1000).toFixed(2), diff: getDiff(Q_heating_total_W, Q_h0) },
+                    COPc: { val: COP_R.toFixed(2), diff: getDiff(COP_R, COP_c0) },
+                    COPh: { val: COP_H.toFixed(2), diff: getDiff(COP_H, COP_h0) }
+                };
+
+                ecoGridHtml = createEcoImpactGrid(ecoData);
+            }
+
+            // --- Chart Finalization ---
             const pt2 = point('2', h_2a_final, Pc_Pa, 'top');
             const pt3 = point('3', h_3, Pc_Pa, 'top');
             const pt4 = point('4', h_4, Pe_Pa, 'bottom');
@@ -342,14 +384,12 @@ function calculateMode2() {
                 );
             }
             
-            const T_4_K = CP_INSTANCE.PropsSI('T', 'P', Pe_Pa, 'H', h_4, fluid);
             statePoints.push(
                 { name: '4', desc: 'Evap In', temp: T_4_disp, press: (Pe_Pa/1e5).toFixed(2), enth: (h_4/1000).toFixed(1), flow: m_dot_suc.toFixed(3) }
             );
 
             statePoints.sort((a, b) => parseInt(a.name) - parseInt(b.name));
 
-            // HTML
             let html = `
                 <div class="grid grid-cols-2 gap-4 mb-6">
                     ${createKpiCard('制冷量 (Cooling)', (Q_evap_W/1000).toFixed(2), 'kW', `COP: ${COP_R.toFixed(2)}`, 'blue')}
@@ -360,7 +400,13 @@ function calculateMode2() {
                     ${createDetailRow('Input Power', `${(W_input_W/1000).toFixed(2)} kW`, true)}
                     ${createDetailRow('Shaft Power', `${(W_shaft_W/1000).toFixed(2)} kW`)}
                     ${createDetailRow('Oil Load', `${(Q_oil_W/1000).toFixed(2)} kW`)}
-                    ${isEcoEnabled ? `${createSectionHeader('Economizer', '⚡')}${createDetailRow('P_eco', `${(P_eco_Pa/1e5).toFixed(2)} bar ${createEcoBadge(eco_badge_val)}`)}` : ''}
+                    
+                    ${isEcoEnabled ? `
+                        ${createSectionHeader('Economizer Benefit', '⚡')}
+                        ${createDetailRow('P_eco', `${(P_eco_Pa/1e5).toFixed(2)} bar`)}
+                        ${ecoGridHtml}
+                    ` : ''}
+
                     ${createSectionHeader('7-Point Analysis (Flow)', '📊')}
                     ${createStateTable(statePoints)}
                 </div>
@@ -373,13 +419,10 @@ function calculateMode2() {
 
             lastCalculationData = { fluid, statePoints, COP_R, COP_H, Q_evap_W, Q_cond_W, Q_oil_W };
 
-            // --- [New] Auto Save to History ---
+            // Auto Save
             const inputState = SessionState.collectInputs('calc-form-mode-2');
             const historyTitle = `${fluid} • ${(Q_evap_W/1000).toFixed(1)} kW`;
-            const historySummary = {
-                'COP': COP_R.toFixed(2),
-                'Power': `${(W_input_W/1000).toFixed(1)} kW`
-            };
+            const historySummary = { 'COP': COP_R.toFixed(2), 'Power': `${(W_input_W/1000).toFixed(1)} kW` };
             HistoryDB.add('M2', historyTitle, inputState, historySummary);
 
         } catch (error) {
@@ -390,7 +433,7 @@ function calculateMode2() {
     }, 50);
 }
 
-// ... (Rest of Init Code) ...
+// ... Init & Exports
 export function initMode2(CP) {
     CP_INSTANCE = CP;
     calcButtonM2 = document.getElementById('calc-button-mode-2');
@@ -413,22 +456,17 @@ export function initMode2(CP) {
 
     if (calcFormM2) {
         calcFormM2.addEventListener('submit', (e) => { e.preventDefault(); calculateMode2(); });
-        
         calcFormM2.querySelectorAll('input, select').forEach(input => {
             input.addEventListener('input', setButtonStale2);
             input.addEventListener('change', setButtonStale2);
         });
-
         fluidSelectM2.addEventListener('change', () => updateFluidInfo(fluidSelectM2, fluidInfoDivM2, CP_INSTANCE));
-        
-        // Use safe function
         [tempEvapM2, tempCondM2, autoEffCheckboxM2].forEach(el => {
             if(el) el.addEventListener('change', updateAndDisplayEfficienciesM2);
         });
-        
         if (printButtonM2) printButtonM2.addEventListener('click', printReportMode2);
     }
-    console.log("Mode 2 (History Enabled) initialized.");
+    console.log("Mode 2 (ECO Matrix) initialized.");
 }
 
 function printReportMode2() {

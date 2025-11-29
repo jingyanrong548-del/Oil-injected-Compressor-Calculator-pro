@@ -15,7 +15,7 @@
         <header class="relative mb-8 pt-2 flex items-center justify-center">
             <div class="text-center">
                 <h1 class="text-3xl md:text-4xl font-bold tracking-tight text-gray-900 mb-2 drop-shadow-sm">Compressor Pro</h1>
-                <p class="text-xs md:text-sm font-medium text-ios-text-secondary uppercase tracking-widest">Industrial Heat Pump Calculator v3.2</p>
+                <p class="text-xs md:text-sm font-medium text-ios-text-secondary uppercase tracking-widest">Industrial Heat Pump Calculator v3.4</p>
             </div>
             
             <button id="history-btn" class="absolute right-0 top-2 z-50 p-2.5 rounded-full bg-white/60 hover:bg-white text-gray-600 hover:text-indigo-600 shadow-sm transition-all active:scale-90 backdrop-blur-md border border-white/40 cursor-pointer group" title="History">
@@ -265,7 +265,7 @@
                             </div>
                         </div>
                         <div class="flex-grow overflow-y-auto p-6 bg-gray-50/50">
-                            <div id="chart-mobile-m2" class="w-full h-56 bg-white/40 rounded-xl mb-4 hidden border border-white/20"></div>
+                            <div id="chart-mobile-m2" class="w-full h-64 bg-white/40 rounded-xl mb-4 hidden border border-white/20"></div>
                             <div id="mobile-results-m2">
                                 <div class="text-center text-gray-400 py-10">
                                     <p class="text-sm">Pull up for details</p>
@@ -458,7 +458,7 @@
                             </div>
                         </div>
                         <div class="flex-grow overflow-y-auto p-6 bg-gray-50/50">
-                            <div id="chart-mobile-m3" class="w-full h-56 bg-white/40 rounded-xl mb-4 hidden border border-white/20"></div>
+                            <div id="chart-mobile-m3" class="w-full h-64 bg-white/40 rounded-xl mb-4 hidden border border-white/20"></div>
                             <div id="mobile-results-m3">
                                 <div class="text-center text-gray-400 py-10">
                                     <p class="text-sm">Pull up for details</p>
@@ -474,18 +474,18 @@
             </div>
         </div>
 
-        <div id="history-drawer" class="fixed inset-y-0 right-0 w-full md:w-96 bg-white/90 backdrop-blur-2xl shadow-2xl transform translate-x-full transition-transform duration-300 ease-ios z-[100] flex flex-col">
-            <div class="flex items-center justify-between p-4 border-b border-gray-200/50">
+        <div id="history-drawer" class="fixed inset-y-0 right-0 w-full md:w-96 bg-white/95 backdrop-blur-2xl shadow-2xl transform translate-x-full transition-transform duration-300 ease-ios z-[100] flex flex-col border-l border-white/50">
+            <div class="flex items-center justify-between p-4 border-b border-gray-200/50 bg-white/50 backdrop-blur-md">
                 <h2 class="text-lg font-bold text-gray-900">History</h2>
-                <button id="history-close-btn" class="p-2 text-gray-500 hover:text-gray-900 bg-gray-100 rounded-full">
+                <button id="history-close-btn" class="p-2 text-gray-500 hover:text-gray-900 bg-gray-100 rounded-full transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
-            <div id="history-list" class="flex-grow overflow-y-auto p-4 space-y-3">
+            <div id="history-list" class="flex-grow overflow-y-auto p-4 space-y-3 bg-gray-50/50">
                 <div class="text-center text-gray-400 mt-20"><p>No records yet</p></div>
             </div>
-            <div class="p-4 border-t border-gray-200/50 safe-area-bottom">
-                <button id="history-clear-btn" class="w-full py-3 rounded-xl text-red-600 font-semibold hover:bg-red-50 transition-colors">Clear History</button>
+            <div class="p-4 border-t border-gray-200/50 safe-area-bottom bg-white/80 backdrop-blur-md">
+                <button id="history-clear-btn" class="w-full py-3 rounded-xl text-red-600 font-semibold hover:bg-red-50 active:scale-95 transition-all">Clear History</button>
             </div>
         </div>
 
