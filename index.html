@@ -15,17 +15,17 @@
         <header class="relative mb-8 pt-2 flex items-center justify-center">
             <div class="text-center">
                 <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-2 drop-shadow-sm">Oil-injected Compressor Calculator</h1>
-                <p class="text-xs md:text-sm font-medium text-ios-text-secondary uppercase tracking-widest">OCC Pro v3.9</p>
+                <p class="text-xs md:text-sm font-medium text-ios-text-secondary uppercase tracking-widest">OCC Pro v5.1 (Reverse Calc)</p>
             </div>
             
-            <button id="history-btn" class="absolute right-0 top-2 z-50 p-2.5 rounded-full bg-white/60 hover:bg-white text-gray-600 hover:text-indigo-600 shadow-sm transition-all active:scale-90 backdrop-blur-md border border-white/40 cursor-pointer group" title="History">
+            <button id="history-btn" class="absolute right-0 top-2 z-50 p-2.5 rounded-full bg-white/60 hover:bg-white text-gray-600 hover:text-teal-600 shadow-sm transition-all active:scale-90 backdrop-blur-md border border-white/40 cursor-pointer group" title="History">
                 <svg class="w-6 h-6 group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
             </button>
         </header>
         
         <nav class="max-w-md mx-auto mb-10 sticky top-2 z-30">
             <div class="glass-panel p-1 rounded-xl flex shadow-glass-hover backdrop-blur-md">
-                <button id="tab-btn-m2" class="flex-1 py-2.5 rounded-[10px] text-sm font-semibold transition-all duration-300 ease-ios text-gray-600 hover:text-gray-900 active bg-white shadow-sm ring-1 ring-black/5">制冷热泵</button>
+                <button id="tab-btn-m2" class="flex-1 py-2.5 rounded-[10px] text-sm font-semibold transition-all duration-300 ease-ios text-gray-900 bg-white shadow-sm ring-1 ring-black/5">制冷热泵</button>
                 <button id="tab-btn-m3" class="flex-1 py-2.5 rounded-[10px] text-sm font-semibold transition-all duration-300 ease-ios text-gray-500 hover:text-gray-900 hover:bg-white/50">气体压缩</button>
             </div>
         </nav>
@@ -37,11 +37,13 @@
                     <form id="calc-form-mode-2" class="space-y-6">
                         
                         <div class="glass-panel rounded-3xl p-6">
-                            <div class="flex items-center space-x-3 mb-5">
-                                <div class="w-8 h-8 rounded-xl bg-teal-100 flex items-center justify-center text-teal-600 shadow-sm">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                            <div class="flex items-center justify-between mb-5">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 rounded-xl bg-teal-100 flex items-center justify-center text-teal-600 shadow-sm">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                                    </div>
+                                    <h3 class="text-base font-bold text-gray-900">核心参数</h3>
                                 </div>
-                                <h3 class="text-base font-bold text-gray-900">工质与流量</h3>
                             </div>
                             
                             <div class="space-y-5">
@@ -60,29 +62,136 @@
 
                                 <div class="bg-gray-100/80 p-1 rounded-xl flex shadow-inner-ios">
                                     <label class="flex-1 cursor-pointer">
-                                        <input type="radio" name="flow_mode_m2" value="rpm" class="peer sr-only" checked>
-                                        <div class="py-2 text-xs font-semibold text-gray-500 text-center rounded-[8px] transition-all peer-checked:bg-white peer-checked:text-gray-900 peer-checked:shadow-sm">转速模式</div>
+                                        <input type="radio" name="model_select_m2" value="geometry" class="peer sr-only" checked>
+                                        <div class="py-2 text-xs font-semibold text-gray-500 text-center rounded-[8px] transition-all peer-checked:bg-white peer-checked:text-teal-600 peer-checked:shadow-sm flex items-center justify-center gap-1">
+                                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" /></svg>
+                                            几何排量模型
+                                        </div>
                                     </label>
                                     <label class="flex-1 cursor-pointer">
-                                        <input type="radio" name="flow_mode_m2" value="vol" class="peer sr-only">
-                                        <div class="py-2 text-xs font-semibold text-gray-500 text-center rounded-[8px] transition-all peer-checked:bg-white peer-checked:text-gray-900 peer-checked:shadow-sm">流量模式</div>
+                                        <input type="radio" name="model_select_m2" value="polynomial" class="peer sr-only">
+                                        <div class="py-2 text-xs font-semibold text-gray-500 text-center rounded-[8px] transition-all peer-checked:bg-white peer-checked:text-purple-600 peer-checked:shadow-sm flex items-center justify-center gap-1">
+                                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" /></svg>
+                                            AHRI 拟合模型
+                                        </div>
                                     </label>
                                 </div>
 
-                                <div id="rpm-inputs-m2" class="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-xs text-gray-500 mb-1 ml-1">转速 (RPM)</label>
-                                        <input type="number" id="rpm_m2" value="2900" step="any" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium bg-gray-50/50" required>
+                                <div id="geometry-input-panel" class="space-y-5 animate-fade-in">
+                                    <div class="bg-gray-50/50 rounded-xl p-1 flex">
+                                        <label class="flex-1 cursor-pointer">
+                                            <input type="radio" name="flow_mode_m2" value="rpm" class="peer sr-only" checked>
+                                            <div class="py-1.5 text-[10px] font-semibold text-gray-400 text-center rounded-lg transition-all peer-checked:bg-white peer-checked:text-gray-800 peer-checked:shadow-sm">转速定义</div>
+                                        </label>
+                                        <label class="flex-1 cursor-pointer">
+                                            <input type="radio" name="flow_mode_m2" value="vol" class="peer sr-only">
+                                            <div class="py-1.5 text-[10px] font-semibold text-gray-400 text-center rounded-lg transition-all peer-checked:bg-white peer-checked:text-gray-800 peer-checked:shadow-sm">流量定义</div>
+                                        </label>
                                     </div>
-                                    <div>
-                                        <label class="block text-xs text-gray-500 mb-1 ml-1">排量 (cm³/rev)</label>
-                                        <input type="number" id="displacement_m2" value="437.5" step="any" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium bg-gray-50/50" required>
+
+                                    <div id="rpm-inputs-m2" class="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-xs text-gray-500 mb-1 ml-1">转速 (RPM)</label>
+                                            <input type="number" id="rpm_m2" value="2900" step="any" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs text-gray-500 mb-1 ml-1">排量 (cm³/rev)</label>
+                                            <input type="number" id="displacement_m2" value="437.5" step="any" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium">
+                                        </div>
+                                    </div>
+                                    <div id="vol-inputs-m2" style="display: none;">
+                                        <label class="block text-xs text-gray-500 mb-1 ml-1">理论流量 (m³/h)</label>
+                                        <input type="number" id="flow_m3h_m2" value="100" step="any" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium">
                                     </div>
                                 </div>
-                                <div id="vol-inputs-m2" style="display: none;">
-                                    <label class="block text-xs text-gray-500 mb-1 ml-1">理论流量 (m³/h)</label>
-                                    <input type="number" id="flow_m3h_m2" value="100" step="any" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium bg-gray-50/50">
+
+                                <div id="polynomial-input-panel" class="hidden space-y-4 animate-fade-in">
+                                    
+                                    <div class="bg-blue-50/60 rounded-xl p-3 border border-blue-100/50 text-[10px] text-blue-800 space-y-2">
+                                        <div class="flex items-start gap-2">
+                                            <svg class="w-4 h-4 text-blue-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                            <div>
+                                                <p class="font-bold mb-1">💡 智能粘贴 (Smart Paste):</p>
+                                                <p class="opacity-80">直接从 Excel 复制整行系数，选中 <b class="bg-blue-100 px-1 rounded">C0</b> 或 <b class="bg-blue-100 px-1 rounded">D0</b> 输入框，按下 <kbd class="font-mono bg-white border border-blue-200 rounded px-1">Ctrl+V</kbd> 即可自动填充。</p>
+                                            </div>
+                                        </div>
+                                        <div class="border-t border-blue-200/50 pt-2 mt-1">
+                                            <p class="font-mono text-blue-900/70 overflow-x-auto whitespace-nowrap pb-1">
+                                                <span class="font-bold">AHRI 540:</span> X = C₀ + C₁S + C₂D + C₃S² ... + C₉D³
+                                            </p>
+                                            <div class="flex gap-3 text-blue-600/60 font-mono mt-0.5">
+                                                <span>S = T_evap (°C)</span>
+                                                <span>D = T_cond (°C)</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="bg-purple-50/50 p-4 rounded-2xl border border-purple-100 transition-all hover:shadow-sm group focus-within:ring-2 focus-within:ring-purple-100">
+                                        <div class="flex justify-between items-center mb-2">
+                                            <div class="flex items-center gap-2">
+                                                <div class="w-1.5 h-4 bg-purple-400 rounded-full"></div>
+                                                <label class="text-xs font-bold text-purple-700">流量系数 (Mass Flow)</label>
+                                            </div>
+                                            <span class="text-[9px] font-mono text-purple-400">Unit: kg/s</span>
+                                        </div>
+                                        <div class="grid grid-cols-5 gap-2">
+                                            <input type="text" name="poly_flow" data-index="0" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-purple-100 focus:ring-2 focus:ring-purple-500 placeholder-purple-200 font-mono transition-all" placeholder="C0">
+                                            <input type="text" name="poly_flow" data-index="1" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-purple-100 focus:ring-2 focus:ring-purple-500 placeholder-purple-200 font-mono transition-all" placeholder="C1 (S)">
+                                            <input type="text" name="poly_flow" data-index="2" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-purple-100 focus:ring-2 focus:ring-purple-500 placeholder-purple-200 font-mono transition-all" placeholder="C2 (D)">
+                                            <input type="text" name="poly_flow" data-index="3" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-purple-100 focus:ring-2 focus:ring-purple-500 placeholder-purple-200 font-mono transition-all" placeholder="C3 (S²)">
+                                            <input type="text" name="poly_flow" data-index="4" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-purple-100 focus:ring-2 focus:ring-purple-500 placeholder-purple-200 font-mono transition-all" placeholder="C4 (SD)">
+                                            <input type="text" name="poly_flow" data-index="5" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-purple-100 focus:ring-2 focus:ring-purple-500 placeholder-purple-200 font-mono transition-all" placeholder="C5 (D²)">
+                                            <input type="text" name="poly_flow" data-index="6" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-purple-100 focus:ring-2 focus:ring-purple-500 placeholder-purple-200 font-mono transition-all" placeholder="C6 (S³)">
+                                            <input type="text" name="poly_flow" data-index="7" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-purple-100 focus:ring-2 focus:ring-purple-500 placeholder-purple-200 font-mono transition-all" placeholder="C7">
+                                            <input type="text" name="poly_flow" data-index="8" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-purple-100 focus:ring-2 focus:ring-purple-500 placeholder-purple-200 font-mono transition-all" placeholder="C8">
+                                            <input type="text" name="poly_flow" data-index="9" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-purple-100 focus:ring-2 focus:ring-purple-500 placeholder-purple-200 font-mono transition-all" placeholder="C9">
+                                        </div>
+                                    </div>
+
+                                    <div class="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100 transition-all hover:shadow-sm group focus-within:ring-2 focus-within:ring-indigo-100">
+                                        <div class="flex justify-between items-center mb-2">
+                                            <div class="flex items-center gap-2">
+                                                <div class="w-1.5 h-4 bg-indigo-400 rounded-full"></div>
+                                                <label class="text-xs font-bold text-indigo-700">功率系数 (Power)</label>
+                                            </div>
+                                            <span class="text-[9px] font-mono text-indigo-400">Unit: kW</span>
+                                        </div>
+                                        <div class="grid grid-cols-5 gap-2">
+                                            <input type="text" name="poly_power" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-indigo-100 focus:ring-2 focus:ring-indigo-500 placeholder-indigo-200 font-mono transition-all" placeholder="D0">
+                                            <input type="text" name="poly_power" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-indigo-100 focus:ring-2 focus:ring-indigo-500 placeholder-indigo-200 font-mono transition-all" placeholder="D1 (S)">
+                                            <input type="text" name="poly_power" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-indigo-100 focus:ring-2 focus:ring-indigo-500 placeholder-indigo-200 font-mono transition-all" placeholder="D2 (D)">
+                                            <input type="text" name="poly_power" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-indigo-100 focus:ring-2 focus:ring-indigo-500 placeholder-indigo-200 font-mono transition-all" placeholder="D3 (S²)">
+                                            <input type="text" name="poly_power" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-indigo-100 focus:ring-2 focus:ring-indigo-500 placeholder-indigo-200 font-mono transition-all" placeholder="D4 (SD)">
+                                            <input type="text" name="poly_power" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-indigo-100 focus:ring-2 focus:ring-indigo-500 placeholder-indigo-200 font-mono transition-all" placeholder="D5 (D²)">
+                                            <input type="text" name="poly_power" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-indigo-100 focus:ring-2 focus:ring-indigo-500 placeholder-indigo-200 font-mono transition-all" placeholder="D6 (S³)">
+                                            <input type="text" name="poly_power" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-indigo-100 focus:ring-2 focus:ring-indigo-500 placeholder-indigo-200 font-mono transition-all" placeholder="D7">
+                                            <input type="text" name="poly_power" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-indigo-100 focus:ring-2 focus:ring-indigo-500 placeholder-indigo-200 font-mono transition-all" placeholder="D8">
+                                            <input type="text" name="poly_power" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-indigo-100 focus:ring-2 focus:ring-indigo-500 placeholder-indigo-200 font-mono transition-all" placeholder="D9">
+                                        </div>
+                                    </div>
+
+                                    <div class="bg-gray-50/50 p-4 rounded-2xl border border-gray-200/50">
+                                        <div class="flex justify-between items-center mb-3">
+                                            <div class="flex items-center gap-2">
+                                                <div class="w-1.5 h-4 bg-gray-400 rounded-full"></div>
+                                                <label class="text-xs font-bold text-gray-700">几何参考参数 (可选)</label>
+                                            </div>
+                                            <span class="text-[9px] text-gray-400">用于反推效率 η_v / η_s</span>
+                                        </div>
+                                        <div class="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label class="block text-[10px] text-gray-500 mb-1 ml-1">参考转速 (RPM)</label>
+                                                <input type="number" id="poly_ref_rpm" placeholder="Optional" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium text-xs">
+                                            </div>
+                                            <div>
+                                                <label class="block text-[10px] text-gray-500 mb-1 ml-1">参考排量 (cm³/rev)</label>
+                                                <input type="number" id="poly_ref_disp" placeholder="Optional" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium text-xs">
+                                            </div>
+                                        </div>
+                                    </div>
+
                                 </div>
+
                             </div>
                         </div>
 
@@ -173,7 +282,7 @@
                             <div id="eco-placeholder-m2" class="text-xs text-gray-400 italic py-1 text-center">ECO Disabled</div>
                         </div>
 
-                        <div class="glass-panel rounded-3xl p-6">
+                        <div class="glass-panel rounded-3xl p-6" id="efficiency-panel-m2">
                             <div class="flex items-center justify-between mb-5">
                                 <div class="flex items-center space-x-3">
                                     <div class="w-8 h-8 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600 shadow-sm">
@@ -499,7 +608,6 @@
     <footer class="mt-12 pb-6 text-center text-gray-400 text-[10px] md:text-xs">
         <p class="mb-1 font-medium">Designed & Developed by <span class="text-gray-500">Jing Yanrong (荆炎荣)</span></p>
         <p class="opacity-80 max-w-md mx-auto">Disclaimer: Results are for reference only. Please verify with official data.</p>
-        <p class="opacity-60 text-[9px] mt-1">通用免责声明：本工具计算结果仅供参考，工程应用请以厂家官方数据为准。</p>
     </footer>
 
     </div>
@@ -509,7 +617,6 @@
         <table class="print-table w-full text-left mb-6 border-collapse"></table>
         <div class="print-results font-mono whitespace-pre-wrap"></div>
         <p class="mt-8 text-sm text-gray-400">Generated by Compressor Efficiency Pro</p>
-        <p class="mt-1 text-xs text-gray-400">Designed by Jing Yanrong. Disclaimer: Results for reference only.</p>
     </div>
 
     <script type="module" src="/src/js/main.js"></script>

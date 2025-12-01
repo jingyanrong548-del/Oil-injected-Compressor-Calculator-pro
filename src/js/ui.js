@@ -1,16 +1,17 @@
 // =====================================================================
-// ui.js: UI 交互逻辑 (v4.0 Smart Suggestion)
-// 职责: 增加手动模式下的“智能推荐值”填充功能
+// ui.js: UI 交互逻辑 (v5.0 Polynomial Support)
+// 职责: 界面事件监听、显隐控制、历史记录管理、智能粘贴、图表自适应
 // =====================================================================
 
 import { HistoryDB } from './storage.js';
 import { resizeAllCharts } from './charts.js';
+import { AppState } from './state.js'; // [New] 引入状态管理
 
 export function initUI() {
-    console.log("🚀 UI Initializing (v4.0)...");
+    console.log("🚀 UI Initializing (v5.0 with Polynomial Support)...");
 
     // -----------------------------------------------------------------
-    // 1. History Drawer Logic
+    // 1. History Drawer Logic (历史记录侧边栏)
     // -----------------------------------------------------------------
     const historyBtn = document.getElementById('history-btn');
     const historyDrawer = document.getElementById('history-drawer');
@@ -79,7 +80,7 @@ export function initUI() {
     }
 
     // -----------------------------------------------------------------
-    // 2. Tab & Restore Logic
+    // 2. Tab & Restore Logic (标签页切换与数据恢复)
     // -----------------------------------------------------------------
     const tabs = [
         { btnId: 'tab-btn-m2', contentId: 'tab-content-m2', sheetId: 'mobile-sheet-m2', calcBtnId: 'calc-button-mode-2' },
@@ -111,7 +112,7 @@ export function initUI() {
     function loadRecord(rec) {
         const idx = rec.mode === 'M2' ? 0 : 1;
         switchTab(idx);
-        const formId = rec.mode === 'M2' ? 'calc-form-mode-2' : 'calc-form-mode-3';
+        // const formId = rec.mode === 'M2' ? 'calc-form-mode-2' : 'calc-form-mode-3'; // Unused
         const inputs = rec.inputs;
         if (inputs) {
             Object.keys(inputs).forEach(k => {
@@ -120,10 +121,12 @@ export function initUI() {
                     if(el.type==='checkbox') { el.checked = inputs[k]; el.dispatchEvent(new Event('change')); }
                     else if (el.type !== 'radio') { el.value = inputs[k]; el.dispatchEvent(new Event('input')); el.dispatchEvent(new Event('change')); }
                 } else {
+                    // Check radio buttons
                     const radios = document.querySelectorAll(`input[name="${k}"]`);
                     radios.forEach(r => { if(r.value === inputs[k]) { r.checked=true; r.dispatchEvent(new Event('change')); }});
                 }
             });
+            // Try auto-calculate after loading
             setTimeout(() => {
                 const btn = document.getElementById(tabs[idx].calcBtnId);
                 if(btn) btn.click();
@@ -132,7 +135,7 @@ export function initUI() {
     }
 
     // -----------------------------------------------------------------
-    // 3. Mobile Sheet Logic
+    // 3. Mobile Sheet Logic (移动端底部抽屉)
     // -----------------------------------------------------------------
     function setupBottomSheet(sId, hId, cId) {
         const s = document.getElementById(sId), h = document.getElementById(hId), c = document.getElementById(cId);
@@ -158,17 +161,19 @@ export function initUI() {
     setupBottomSheet('mobile-sheet-m3', 'sheet-handle-m3', 'mobile-close-m3');
 
     // -----------------------------------------------------------------
-    // 4. Inputs Setup & Mode Logic
+    // 4. Inputs Setup & Standard Logic (普通模式输入控制)
     // -----------------------------------------------------------------
     function setupRadioToggle(name, cb) {
         document.querySelectorAll(`input[name="${name}"]`).forEach(r => r.addEventListener('change', () => { if(r.checked) cb(r.value); }));
         const c = document.querySelector(`input[name="${name}"]:checked`); if(c) cb(c.value);
     }
     
-    // Mode 2: Refrigeration
+    // Mode 2: Refrigeration Settings
     setupRadioToggle('flow_mode_m2', v => {
-        document.getElementById('rpm-inputs-m2').style.display = v==='rpm'?'grid':'none';
-        document.getElementById('vol-inputs-m2').style.display = v==='vol'?'block':'none';
+        const rpmPanel = document.getElementById('rpm-inputs-m2');
+        const volPanel = document.getElementById('vol-inputs-m2');
+        if(rpmPanel) rpmPanel.style.display = v==='rpm'?'grid':'none';
+        if(volPanel) volPanel.style.display = v==='vol'?'block':'none';
     });
     
     const ecoCb = document.getElementById('enable_eco_m2');
@@ -184,7 +189,7 @@ export function initUI() {
         }
     });
 
-    // [Update] Smart Suggestion for Manual ECO Pressure
+    // Smart Suggestion for Manual ECO Pressure
     setupRadioToggle('eco_press_mode_m2', v => {
         const e = document.getElementById('temp_eco_sat_m2');
         if (!e) return;
@@ -204,29 +209,32 @@ export function initUI() {
                 const Tc = parseFloat(document.getElementById('temp_cond_m2').value) || 40;
                 
                 // 计算开尔文下的几何平均，再转回摄氏度
-                // T_mid = sqrt(T_evap_K * T_cond_K)
                 const Te_K = Te + 273.15;
                 const Tc_K = Tc + 273.15;
                 const T_rec = Math.sqrt(Te_K * Tc_K) - 273.15;
                 
-                e.value = T_rec.toFixed(1); // 填入推荐值
+                e.value = T_rec.toFixed(1); 
             }
             e.placeholder = 'e.g. ' + e.value;
         }
     });
 
     setupRadioToggle('eff_mode_m2', v => {
-        document.getElementById('motor-eff-group-m2').style.display = v==='input'?'block':'none';
-        document.getElementById('eta_s_label_m2').textContent = v==='input'?'总等熵效率':'等熵效率';
+        const motorGroup = document.getElementById('motor-eff-group-m2');
+        const label = document.getElementById('eta_s_label_m2');
+        if(motorGroup) motorGroup.style.display = v==='input'?'block':'none';
+        if(label) label.textContent = v==='input'?'总等熵效率':'等熵效率';
     });
     
-    // Mode 3: Gas
+    // Mode 3: Gas Settings
     setupRadioToggle('flow_mode_m3', v => {
-        document.getElementById('rpm-inputs-m3').style.display = v==='rpm'?'grid':'none';
-        document.getElementById('vol-inputs-m3').style.display = v==='vol'?'block':'none';
+        const rpmPanel = document.getElementById('rpm-inputs-m3');
+        const volPanel = document.getElementById('vol-inputs-m3');
+        if(rpmPanel) rpmPanel.style.display = v==='rpm'?'grid':'none';
+        if(volPanel) volPanel.style.display = v==='vol'?'block':'none';
     });
 
-    // Auto Lock Helpers
+    // Auto Lock Helpers (Checkboxes)
     const setupLock = (id, ids) => {
         const b = document.getElementById(id);
         if(!b) return;
@@ -238,12 +246,110 @@ export function initUI() {
     setupLock('auto-eff-m2', ['eta_s_m2', 'eta_v_m2']);
     setupLock('auto-eff-m3', ['eta_iso_m3', 'eta_v_m3']);
 
-    // Global Buttons
+    // -----------------------------------------------------------------
+    // 5. Polynomial Mode Logic (✨ 新增：多项式拟合交互)
+    // -----------------------------------------------------------------
+    
+    // 模型切换 Toggle 监听
+    const setupModelToggle = () => {
+        // 监听名为 'model_select_m2' 的所有 radio input
+        const toggles = document.querySelectorAll('input[name="model_select_m2"]');
+        const geoPanel = document.getElementById('geometry-input-panel');
+        const polyPanel = document.getElementById('polynomial-input-panel');
+        
+        const updateDisplay = (mode) => {
+            if (mode === AppState.MODES.GEOMETRY) {
+                if (geoPanel) geoPanel.classList.remove('hidden');
+                if (polyPanel) polyPanel.classList.add('hidden');
+                AppState.setMode(AppState.MODES.GEOMETRY);
+            } else {
+                if (geoPanel) geoPanel.classList.add('hidden');
+                if (polyPanel) polyPanel.classList.remove('hidden');
+                AppState.setMode(AppState.MODES.POLYNOMIAL);
+            }
+        };
+
+        toggles.forEach(t => {
+            t.addEventListener('change', (e) => {
+                if(e.target.checked) updateDisplay(e.target.value);
+            });
+        });
+        
+        // 初始化：读取当前选中的 radio (若 HTML 中有 checked 属性)
+        const checked = document.querySelector('input[name="model_select_m2"]:checked');
+        if (checked) updateDisplay(checked.value);
+    };
+
+    // Excel 智能粘贴监听器
+    const setupSmartPaste = () => {
+        // 使用事件委托或直接绑定
+        // 假设我们在 HTML 中会给系数 Input 添加 'poly-coeff-input' 类
+        // 并且它们在 DOM 中的顺序就是 C0-C9
+        const polyInputs = document.querySelectorAll('.poly-coeff-input');
+        
+        polyInputs.forEach(input => {
+            input.addEventListener('paste', (e) => {
+                e.preventDefault(); // 阻止默认粘贴
+                
+                // 1. 获取剪贴板数据
+                const clipboardData = (e.clipboardData || window.clipboardData).getData('text');
+                if (!clipboardData) return;
+
+                // 2. 解析数据 (支持 Tab, 逗号, 空格, 换行分隔)
+                // 过滤掉空字符串，只保留有效数值
+                const values = clipboardData
+                    .split(/[\t,\s\n]+/)
+                    .map(v => v.trim())
+                    .filter(v => v !== '' && !isNaN(parseFloat(v)));
+
+                if (values.length === 0) return;
+
+                // 3. 确定粘贴目标组
+                // 找到当前 input 所在的容器（例如 Mass Flow 或 Power 的 grid）
+                // 从而只填充该组内的 input
+                const container = input.closest('.grid'); 
+                if (!container) return;
+
+                // 获取该组内所有的系数输入框
+                const groupInputs = Array.from(container.querySelectorAll('.poly-coeff-input'));
+                const startIndex = groupInputs.indexOf(input);
+
+                if (startIndex === -1) return;
+
+                // 4. 填充数据
+                let pasteCount = 0;
+                for (let i = 0; i < values.length; i++) {
+                    const targetIndex = startIndex + i;
+                    if (targetIndex < groupInputs.length) {
+                        groupInputs[targetIndex].value = values[i];
+                        // 触发 input 事件以确保任何绑定的状态更新逻辑被执行
+                        groupInputs[targetIndex].dispatchEvent(new Event('input'));
+                        pasteCount++;
+                    }
+                }
+
+                // 5. 反馈
+                console.log(`[Smart Paste] Pasted ${pasteCount} coefficients starting from index ${startIndex}`);
+                
+                // 视觉反馈: 添加临时的蓝色边框
+                input.classList.add('ring-2', 'ring-teal-500');
+                setTimeout(() => input.classList.remove('ring-2', 'ring-teal-500'), 600);
+            });
+        });
+    };
+
+    // 执行新功能的初始化
+    setupModelToggle();
+    setupSmartPaste();
+
+    // -----------------------------------------------------------------
+    // 6. Global UI Effects
+    // -----------------------------------------------------------------
     document.querySelectorAll('button').forEach(btn => {
         btn.addEventListener('mousedown', () => btn.classList.add('scale-[0.98]'));
         btn.addEventListener('mouseup', () => btn.classList.remove('scale-[0.98]'));
         btn.addEventListener('mouseleave', () => btn.classList.remove('scale-[0.98]'));
     });
 
-    console.log("✅ UI v4.0 Initialized.");
+    console.log("✅ UI v5.0 Initialized.");
 }
