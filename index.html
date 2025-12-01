@@ -15,7 +15,7 @@
         <header class="relative mb-8 pt-2 flex items-center justify-center">
             <div class="text-center">
                 <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-2 drop-shadow-sm">Oil-injected Compressor Calculator</h1>
-                <p class="text-xs md:text-sm font-medium text-ios-text-secondary uppercase tracking-widest">OCC Pro v5.1 (Reverse Calc)</p>
+                <p class="text-xs md:text-sm font-medium text-ios-text-secondary uppercase tracking-widest">OCC Pro v5.3 (Defaults Fixed)</p>
             </div>
             
             <button id="history-btn" class="absolute right-0 top-2 z-50 p-2.5 rounded-full bg-white/60 hover:bg-white text-gray-600 hover:text-teal-600 shadow-sm transition-all active:scale-90 backdrop-blur-md border border-white/40 cursor-pointer group" title="History">
@@ -135,16 +135,16 @@
                                             <span class="text-[9px] font-mono text-purple-400">Unit: kg/s</span>
                                         </div>
                                         <div class="grid grid-cols-5 gap-2">
-                                            <input type="text" name="poly_flow" data-index="0" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-purple-100 focus:ring-2 focus:ring-purple-500 placeholder-purple-200 font-mono transition-all" placeholder="C0">
-                                            <input type="text" name="poly_flow" data-index="1" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-purple-100 focus:ring-2 focus:ring-purple-500 placeholder-purple-200 font-mono transition-all" placeholder="C1 (S)">
-                                            <input type="text" name="poly_flow" data-index="2" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-purple-100 focus:ring-2 focus:ring-purple-500 placeholder-purple-200 font-mono transition-all" placeholder="C2 (D)">
-                                            <input type="text" name="poly_flow" data-index="3" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-purple-100 focus:ring-2 focus:ring-purple-500 placeholder-purple-200 font-mono transition-all" placeholder="C3 (S²)">
-                                            <input type="text" name="poly_flow" data-index="4" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-purple-100 focus:ring-2 focus:ring-purple-500 placeholder-purple-200 font-mono transition-all" placeholder="C4 (SD)">
-                                            <input type="text" name="poly_flow" data-index="5" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-purple-100 focus:ring-2 focus:ring-purple-500 placeholder-purple-200 font-mono transition-all" placeholder="C5 (D²)">
-                                            <input type="text" name="poly_flow" data-index="6" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-purple-100 focus:ring-2 focus:ring-purple-500 placeholder-purple-200 font-mono transition-all" placeholder="C6 (S³)">
-                                            <input type="text" name="poly_flow" data-index="7" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-purple-100 focus:ring-2 focus:ring-purple-500 placeholder-purple-200 font-mono transition-all" placeholder="C7">
-                                            <input type="text" name="poly_flow" data-index="8" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-purple-100 focus:ring-2 focus:ring-purple-500 placeholder-purple-200 font-mono transition-all" placeholder="C8">
-                                            <input type="text" name="poly_flow" data-index="9" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-purple-100 focus:ring-2 focus:ring-purple-500 placeholder-purple-200 font-mono transition-all" placeholder="C9">
+                                            <input type="text" value="0.18" name="poly_flow" data-index="0" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-purple-100 focus:ring-2 focus:ring-purple-500 placeholder-purple-200 font-mono transition-all" placeholder="C0">
+                                            <input type="text" value="0.003" name="poly_flow" data-index="1" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-purple-100 focus:ring-2 focus:ring-purple-500 placeholder-purple-200 font-mono transition-all" placeholder="C1 (S)">
+                                            <input type="text" value="-0.0002" name="poly_flow" data-index="2" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-purple-100 focus:ring-2 focus:ring-purple-500 placeholder-purple-200 font-mono transition-all" placeholder="C2 (D)">
+                                            <input type="text" value="0" name="poly_flow" data-index="3" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-purple-100 focus:ring-2 focus:ring-purple-500 placeholder-purple-200 font-mono transition-all" placeholder="C3 (S²)">
+                                            <input type="text" value="0" name="poly_flow" data-index="4" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-purple-100 focus:ring-2 focus:ring-purple-500 placeholder-purple-200 font-mono transition-all" placeholder="C4 (SD)">
+                                            <input type="text" value="0" name="poly_flow" data-index="5" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-purple-100 focus:ring-2 focus:ring-purple-500 placeholder-purple-200 font-mono transition-all" placeholder="C5 (D²)">
+                                            <input type="text" value="0" name="poly_flow" data-index="6" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-purple-100 focus:ring-2 focus:ring-purple-500 placeholder-purple-200 font-mono transition-all" placeholder="C6 (S³)">
+                                            <input type="text" value="0" name="poly_flow" data-index="7" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-purple-100 focus:ring-2 focus:ring-purple-500 placeholder-purple-200 font-mono transition-all" placeholder="C7">
+                                            <input type="text" value="0" name="poly_flow" data-index="8" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-purple-100 focus:ring-2 focus:ring-purple-500 placeholder-purple-200 font-mono transition-all" placeholder="C8">
+                                            <input type="text" value="0" name="poly_flow" data-index="9" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-purple-100 focus:ring-2 focus:ring-purple-500 placeholder-purple-200 font-mono transition-all" placeholder="C9">
                                         </div>
                                     </div>
 
@@ -157,16 +157,16 @@
                                             <span class="text-[9px] font-mono text-indigo-400">Unit: kW</span>
                                         </div>
                                         <div class="grid grid-cols-5 gap-2">
-                                            <input type="text" name="poly_power" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-indigo-100 focus:ring-2 focus:ring-indigo-500 placeholder-indigo-200 font-mono transition-all" placeholder="D0">
-                                            <input type="text" name="poly_power" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-indigo-100 focus:ring-2 focus:ring-indigo-500 placeholder-indigo-200 font-mono transition-all" placeholder="D1 (S)">
-                                            <input type="text" name="poly_power" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-indigo-100 focus:ring-2 focus:ring-indigo-500 placeholder-indigo-200 font-mono transition-all" placeholder="D2 (D)">
-                                            <input type="text" name="poly_power" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-indigo-100 focus:ring-2 focus:ring-indigo-500 placeholder-indigo-200 font-mono transition-all" placeholder="D3 (S²)">
-                                            <input type="text" name="poly_power" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-indigo-100 focus:ring-2 focus:ring-indigo-500 placeholder-indigo-200 font-mono transition-all" placeholder="D4 (SD)">
-                                            <input type="text" name="poly_power" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-indigo-100 focus:ring-2 focus:ring-indigo-500 placeholder-indigo-200 font-mono transition-all" placeholder="D5 (D²)">
-                                            <input type="text" name="poly_power" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-indigo-100 focus:ring-2 focus:ring-indigo-500 placeholder-indigo-200 font-mono transition-all" placeholder="D6 (S³)">
-                                            <input type="text" name="poly_power" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-indigo-100 focus:ring-2 focus:ring-indigo-500 placeholder-indigo-200 font-mono transition-all" placeholder="D7">
-                                            <input type="text" name="poly_power" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-indigo-100 focus:ring-2 focus:ring-indigo-500 placeholder-indigo-200 font-mono transition-all" placeholder="D8">
-                                            <input type="text" name="poly_power" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-indigo-100 focus:ring-2 focus:ring-indigo-500 placeholder-indigo-200 font-mono transition-all" placeholder="D9">
+                                            <input type="text" value="1.5" name="poly_power" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-indigo-100 focus:ring-2 focus:ring-indigo-500 placeholder-indigo-200 font-mono transition-all" placeholder="D0">
+                                            <input type="text" value="0.05" name="poly_power" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-indigo-100 focus:ring-2 focus:ring-indigo-500 placeholder-indigo-200 font-mono transition-all" placeholder="D1 (S)">
+                                            <input type="text" value="0.09" name="poly_power" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-indigo-100 focus:ring-2 focus:ring-indigo-500 placeholder-indigo-200 font-mono transition-all" placeholder="D2 (D)">
+                                            <input type="text" value="0.0005" name="poly_power" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-indigo-100 focus:ring-2 focus:ring-indigo-500 placeholder-indigo-200 font-mono transition-all" placeholder="D3 (S²)">
+                                            <input type="text" value="0" name="poly_power" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-indigo-100 focus:ring-2 focus:ring-indigo-500 placeholder-indigo-200 font-mono transition-all" placeholder="D4 (SD)">
+                                            <input type="text" value="0" name="poly_power" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-indigo-100 focus:ring-2 focus:ring-indigo-500 placeholder-indigo-200 font-mono transition-all" placeholder="D5 (D²)">
+                                            <input type="text" value="0" name="poly_power" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-indigo-100 focus:ring-2 focus:ring-indigo-500 placeholder-indigo-200 font-mono transition-all" placeholder="D6 (S³)">
+                                            <input type="text" value="0" name="poly_power" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-indigo-100 focus:ring-2 focus:ring-indigo-500 placeholder-indigo-200 font-mono transition-all" placeholder="D7">
+                                            <input type="text" value="0" name="poly_power" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-indigo-100 focus:ring-2 focus:ring-indigo-500 placeholder-indigo-200 font-mono transition-all" placeholder="D8">
+                                            <input type="text" value="0" name="poly_power" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-indigo-100 focus:ring-2 focus:ring-indigo-500 placeholder-indigo-200 font-mono transition-all" placeholder="D9">
                                         </div>
                                     </div>
 
@@ -181,11 +181,11 @@
                                         <div class="grid grid-cols-2 gap-4">
                                             <div>
                                                 <label class="block text-[10px] text-gray-500 mb-1 ml-1">参考转速 (RPM)</label>
-                                                <input type="number" id="poly_ref_rpm" placeholder="Optional" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium text-xs">
+                                                <input type="number" id="poly_ref_rpm" value="2900" placeholder="Optional" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium text-xs">
                                             </div>
                                             <div>
                                                 <label class="block text-[10px] text-gray-500 mb-1 ml-1">参考排量 (cm³/rev)</label>
-                                                <input type="number" id="poly_ref_disp" placeholder="Optional" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium text-xs">
+                                                <input type="number" id="poly_ref_disp" value="437.5" placeholder="Optional" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium text-xs">
                                             </div>
                                         </div>
                                     </div>

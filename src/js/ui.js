@@ -1,14 +1,14 @@
 // =====================================================================
-// ui.js: UI 交互逻辑 (v5.0 Polynomial Support)
+// ui.js: UI 交互逻辑 (v5.2 Streamlined & Smart Paste)
 // 职责: 界面事件监听、显隐控制、历史记录管理、智能粘贴、图表自适应
 // =====================================================================
 
 import { HistoryDB } from './storage.js';
 import { resizeAllCharts } from './charts.js';
-import { AppState } from './state.js'; // [New] 引入状态管理
+import { AppState } from './state.js';
 
 export function initUI() {
-    console.log("🚀 UI Initializing (v5.0 with Polynomial Support)...");
+    console.log("🚀 UI Initializing (v5.2 Streamlined)...");
 
     // -----------------------------------------------------------------
     // 1. History Drawer Logic (历史记录侧边栏)
@@ -112,7 +112,6 @@ export function initUI() {
     function loadRecord(rec) {
         const idx = rec.mode === 'M2' ? 0 : 1;
         switchTab(idx);
-        // const formId = rec.mode === 'M2' ? 'calc-form-mode-2' : 'calc-form-mode-3'; // Unused
         const inputs = rec.inputs;
         if (inputs) {
             Object.keys(inputs).forEach(k => {
@@ -121,12 +120,10 @@ export function initUI() {
                     if(el.type==='checkbox') { el.checked = inputs[k]; el.dispatchEvent(new Event('change')); }
                     else if (el.type !== 'radio') { el.value = inputs[k]; el.dispatchEvent(new Event('input')); el.dispatchEvent(new Event('change')); }
                 } else {
-                    // Check radio buttons
                     const radios = document.querySelectorAll(`input[name="${k}"]`);
                     radios.forEach(r => { if(r.value === inputs[k]) { r.checked=true; r.dispatchEvent(new Event('change')); }});
                 }
             });
-            // Try auto-calculate after loading
             setTimeout(() => {
                 const btn = document.getElementById(tabs[idx].calcBtnId);
                 if(btn) btn.click();
@@ -161,7 +158,7 @@ export function initUI() {
     setupBottomSheet('mobile-sheet-m3', 'sheet-handle-m3', 'mobile-close-m3');
 
     // -----------------------------------------------------------------
-    // 4. Inputs Setup & Standard Logic (普通模式输入控制)
+    // 4. Inputs Setup & Standard Logic
     // -----------------------------------------------------------------
     function setupRadioToggle(name, cb) {
         document.querySelectorAll(`input[name="${name}"]`).forEach(r => r.addEventListener('change', () => { if(r.checked) cb(r.value); }));
@@ -203,12 +200,10 @@ export function initUI() {
             e.disabled = false; 
             e.classList.remove('opacity-50', 'bg-gray-100/50');
             
-            // 智能推荐逻辑: 如果输入框为空，计算几何平均温度推荐值
             if (e.value === '') {
                 const Te = parseFloat(document.getElementById('temp_evap_m2').value) || 0;
                 const Tc = parseFloat(document.getElementById('temp_cond_m2').value) || 40;
                 
-                // 计算开尔文下的几何平均，再转回摄氏度
                 const Te_K = Te + 273.15;
                 const Tc_K = Tc + 273.15;
                 const T_rec = Math.sqrt(Te_K * Tc_K) - 273.15;
@@ -234,7 +229,7 @@ export function initUI() {
         if(volPanel) volPanel.style.display = v==='vol'?'block':'none';
     });
 
-    // Auto Lock Helpers (Checkboxes)
+    // Auto Lock Helpers
     const setupLock = (id, ids) => {
         const b = document.getElementById(id);
         if(!b) return;
@@ -247,24 +242,32 @@ export function initUI() {
     setupLock('auto-eff-m3', ['eta_iso_m3', 'eta_v_m3']);
 
     // -----------------------------------------------------------------
-    // 5. Polynomial Mode Logic (✨ 新增：多项式拟合交互)
+    // 5. Polynomial Mode Logic (核心：显隐控制与智能粘贴)
     // -----------------------------------------------------------------
     
     // 模型切换 Toggle 监听
     const setupModelToggle = () => {
-        // 监听名为 'model_select_m2' 的所有 radio input
         const toggles = document.querySelectorAll('input[name="model_select_m2"]');
         const geoPanel = document.getElementById('geometry-input-panel');
         const polyPanel = document.getElementById('polynomial-input-panel');
+        const effPanel = document.getElementById('efficiency-panel-m2'); // [New] 效率卡片
         
         const updateDisplay = (mode) => {
             if (mode === AppState.MODES.GEOMETRY) {
+                // 显示几何面板，隐藏拟合面板
                 if (geoPanel) geoPanel.classList.remove('hidden');
                 if (polyPanel) polyPanel.classList.add('hidden');
+                // [New] 几何模式下：显示效率设定
+                if (effPanel) effPanel.classList.remove('hidden');
+                
                 AppState.setMode(AppState.MODES.GEOMETRY);
             } else {
+                // 隐藏几何面板，显示拟合面板
                 if (geoPanel) geoPanel.classList.add('hidden');
                 if (polyPanel) polyPanel.classList.remove('hidden');
+                // [New] 拟合模式下：隐藏效率设定 (因为是反推的)
+                if (effPanel) effPanel.classList.add('hidden');
+                
                 AppState.setMode(AppState.MODES.POLYNOMIAL);
             }
         };
@@ -275,28 +278,23 @@ export function initUI() {
             });
         });
         
-        // 初始化：读取当前选中的 radio (若 HTML 中有 checked 属性)
+        // 初始化读取状态
         const checked = document.querySelector('input[name="model_select_m2"]:checked');
         if (checked) updateDisplay(checked.value);
     };
 
     // Excel 智能粘贴监听器
     const setupSmartPaste = () => {
-        // 使用事件委托或直接绑定
-        // 假设我们在 HTML 中会给系数 Input 添加 'poly-coeff-input' 类
-        // 并且它们在 DOM 中的顺序就是 C0-C9
         const polyInputs = document.querySelectorAll('.poly-coeff-input');
         
         polyInputs.forEach(input => {
             input.addEventListener('paste', (e) => {
-                e.preventDefault(); // 阻止默认粘贴
+                e.preventDefault(); 
                 
-                // 1. 获取剪贴板数据
                 const clipboardData = (e.clipboardData || window.clipboardData).getData('text');
                 if (!clipboardData) return;
 
-                // 2. 解析数据 (支持 Tab, 逗号, 空格, 换行分隔)
-                // 过滤掉空字符串，只保留有效数值
+                // 支持 Tab, 逗号, 空格, 换行分隔
                 const values = clipboardData
                     .split(/[\t,\s\n]+/)
                     .map(v => v.trim())
@@ -304,41 +302,34 @@ export function initUI() {
 
                 if (values.length === 0) return;
 
-                // 3. 确定粘贴目标组
-                // 找到当前 input 所在的容器（例如 Mass Flow 或 Power 的 grid）
-                // 从而只填充该组内的 input
+                // 确定粘贴目标组 (只填充当前 grid 内的 input)
                 const container = input.closest('.grid'); 
                 if (!container) return;
 
-                // 获取该组内所有的系数输入框
                 const groupInputs = Array.from(container.querySelectorAll('.poly-coeff-input'));
                 const startIndex = groupInputs.indexOf(input);
 
                 if (startIndex === -1) return;
 
-                // 4. 填充数据
                 let pasteCount = 0;
                 for (let i = 0; i < values.length; i++) {
                     const targetIndex = startIndex + i;
                     if (targetIndex < groupInputs.length) {
                         groupInputs[targetIndex].value = values[i];
-                        // 触发 input 事件以确保任何绑定的状态更新逻辑被执行
                         groupInputs[targetIndex].dispatchEvent(new Event('input'));
                         pasteCount++;
                     }
                 }
 
-                // 5. 反馈
-                console.log(`[Smart Paste] Pasted ${pasteCount} coefficients starting from index ${startIndex}`);
+                console.log(`[Smart Paste] Pasted ${pasteCount} coefficients.`);
                 
-                // 视觉反馈: 添加临时的蓝色边框
+                // 视觉反馈
                 input.classList.add('ring-2', 'ring-teal-500');
                 setTimeout(() => input.classList.remove('ring-2', 'ring-teal-500'), 600);
             });
         });
     };
 
-    // 执行新功能的初始化
     setupModelToggle();
     setupSmartPaste();
 
@@ -351,5 +342,5 @@ export function initUI() {
         btn.addEventListener('mouseleave', () => btn.classList.remove('scale-[0.98]'));
     });
 
-    console.log("✅ UI v5.0 Initialized.");
+    console.log("✅ UI v5.2 Initialized.");
 }
