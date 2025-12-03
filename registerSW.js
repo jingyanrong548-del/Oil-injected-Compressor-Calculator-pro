@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/Oil-injected-Compressor-Calculator-pro/sw.js', { scope: '/Oil-injected-Compressor-Calculator-pro/' })})}
