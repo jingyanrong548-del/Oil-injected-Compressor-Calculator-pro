@@ -22,7 +22,7 @@ export function initUI() {
     function toggleHistory(show) {
         if (!historyDrawer) return;
         if (show) {
-            historyDrawer.classList.remove('translate-x-full'); 
+            historyDrawer.classList.remove('translate-x-full');
             renderHistoryList();
         } else {
             historyDrawer.classList.add('translate-x-full');
@@ -37,7 +37,7 @@ export function initUI() {
     }
 
     if (historyCloseBtn) historyCloseBtn.addEventListener('click', () => toggleHistory(false));
-    
+
     document.addEventListener('click', (e) => {
         if (historyDrawer && !historyDrawer.classList.contains('translate-x-full')) {
             if (!historyDrawer.contains(e.target) && !historyBtn.contains(e.target)) {
@@ -48,13 +48,13 @@ export function initUI() {
 
     if (historyClearBtn) {
         historyClearBtn.addEventListener('click', () => {
-            if(confirm('Clear history?')) { HistoryDB.clear(); renderHistoryList(); }
+            if (confirm('Clear history?')) { HistoryDB.clear(); renderHistoryList(); }
         });
     }
 
     function renderHistoryList() {
         const records = HistoryDB.getAll();
-        if(!historyList) return;
+        if (!historyList) return;
         historyList.innerHTML = '';
         if (records.length === 0) {
             historyList.innerHTML = `<div class="text-center text-gray-400 mt-20 text-sm">No records yet.<br>Calculate to save.</div>`;
@@ -92,21 +92,21 @@ export function initUI() {
             const btn = document.getElementById(t.btnId);
             const content = document.getElementById(t.contentId);
             const sheet = document.getElementById(t.sheetId);
-            if(i===idx) {
-                if(btn) { btn.classList.add('bg-white', 'shadow-sm', 'text-gray-900'); btn.classList.remove('text-gray-500'); }
-                if(content) { content.classList.remove('hidden', 'opacity-0'); content.classList.add('opacity-100'); }
-                if(sheet) sheet.classList.remove('hidden');
+            if (i === idx) {
+                if (btn) { btn.classList.add('bg-white', 'shadow-sm', 'text-gray-900'); btn.classList.remove('text-gray-500'); }
+                if (content) { content.classList.remove('hidden', 'opacity-0'); content.classList.add('opacity-100'); }
+                if (sheet) sheet.classList.remove('hidden');
             } else {
-                if(btn) { btn.classList.remove('bg-white', 'shadow-sm', 'text-gray-900'); btn.classList.add('text-gray-500'); }
-                if(content) { content.classList.add('hidden', 'opacity-0'); content.classList.remove('opacity-100'); }
-                if(sheet) sheet.classList.add('hidden');
+                if (btn) { btn.classList.remove('bg-white', 'shadow-sm', 'text-gray-900'); btn.classList.add('text-gray-500'); }
+                if (content) { content.classList.add('hidden', 'opacity-0'); content.classList.remove('opacity-100'); }
+                if (sheet) sheet.classList.add('hidden');
             }
         });
     }
-    
+
     tabs.forEach((t, i) => {
         const btn = document.getElementById(t.btnId);
-        if(btn) btn.addEventListener('click', () => switchTab(i));
+        if (btn) btn.addEventListener('click', () => switchTab(i));
     });
 
     function loadRecord(rec) {
@@ -116,17 +116,17 @@ export function initUI() {
         if (inputs) {
             Object.keys(inputs).forEach(k => {
                 const el = document.getElementById(k);
-                if(el) {
-                    if(el.type==='checkbox') { el.checked = inputs[k]; el.dispatchEvent(new Event('change')); }
+                if (el) {
+                    if (el.type === 'checkbox') { el.checked = inputs[k]; el.dispatchEvent(new Event('change')); }
                     else if (el.type !== 'radio') { el.value = inputs[k]; el.dispatchEvent(new Event('input')); el.dispatchEvent(new Event('change')); }
                 } else {
                     const radios = document.querySelectorAll(`input[name="${k}"]`);
-                    radios.forEach(r => { if(r.value === inputs[k]) { r.checked=true; r.dispatchEvent(new Event('change')); }});
+                    radios.forEach(r => { if (r.value === inputs[k]) { r.checked = true; r.dispatchEvent(new Event('change')); } });
                 }
             });
             setTimeout(() => {
                 const btn = document.getElementById(tabs[idx].calcBtnId);
-                if(btn) btn.click();
+                if (btn) btn.click();
             }, 100);
         }
     }
@@ -136,10 +136,10 @@ export function initUI() {
     // -----------------------------------------------------------------
     function setupBottomSheet(sId, hId, cId) {
         const s = document.getElementById(sId), h = document.getElementById(hId), c = document.getElementById(cId);
-        if(!s || !h) return;
-        
+        if (!s || !h) return;
+
         let isExpanded = false;
-        
+
         const toggle = (force) => {
             isExpanded = force !== undefined ? force : !isExpanded;
             s.classList.toggle('translate-y-0', isExpanded);
@@ -152,7 +152,7 @@ export function initUI() {
         };
 
         h.addEventListener('click', () => toggle());
-        if(c) c.addEventListener('click', (e) => { e.stopPropagation(); toggle(false); });
+        if (c) c.addEventListener('click', (e) => { e.stopPropagation(); toggle(false); });
     }
     setupBottomSheet('mobile-sheet-m2', 'sheet-handle-m2', 'mobile-close-m2');
     setupBottomSheet('mobile-sheet-m3', 'sheet-handle-m3', 'mobile-close-m3');
@@ -161,27 +161,27 @@ export function initUI() {
     // 4. Inputs Setup & Standard Logic
     // -----------------------------------------------------------------
     function setupRadioToggle(name, cb) {
-        document.querySelectorAll(`input[name="${name}"]`).forEach(r => r.addEventListener('change', () => { if(r.checked) cb(r.value); }));
-        const c = document.querySelector(`input[name="${name}"]:checked`); if(c) cb(c.value);
+        document.querySelectorAll(`input[name="${name}"]`).forEach(r => r.addEventListener('change', () => { if (r.checked) cb(r.value); }));
+        const c = document.querySelector(`input[name="${name}"]:checked`); if (c) cb(c.value);
     }
-    
+
     // Mode 2: Refrigeration Settings
     setupRadioToggle('flow_mode_m2', v => {
         const rpmPanel = document.getElementById('rpm-inputs-m2');
         const volPanel = document.getElementById('vol-inputs-m2');
-        if(rpmPanel) rpmPanel.style.display = v==='rpm'?'grid':'none';
-        if(volPanel) volPanel.style.display = v==='vol'?'block':'none';
+        if (rpmPanel) rpmPanel.style.display = v === 'rpm' ? 'grid' : 'none';
+        if (volPanel) volPanel.style.display = v === 'vol' ? 'block' : 'none';
     });
-    
+
     const ecoCb = document.getElementById('enable_eco_m2');
-    if(ecoCb) ecoCb.addEventListener('change', () => {
+    if (ecoCb) ecoCb.addEventListener('change', () => {
         document.getElementById('eco-settings-m2').classList.toggle('hidden', !ecoCb.checked);
         document.getElementById('eco-placeholder-m2').classList.toggle('hidden', ecoCb.checked);
     });
-    
+
     setupRadioToggle('eco_type_m2', v => {
         const subcoolerInputs = document.getElementById('eco-subcooler-inputs-m2');
-        if(subcoolerInputs) {
+        if (subcoolerInputs) {
             subcoolerInputs.classList.toggle('hidden', v !== 'subcooler');
         }
     });
@@ -190,25 +190,25 @@ export function initUI() {
     setupRadioToggle('eco_press_mode_m2', v => {
         const e = document.getElementById('temp_eco_sat_m2');
         if (!e) return;
-        
+
         if (v === 'auto') {
-            e.disabled = true; 
-            e.value = ''; 
+            e.disabled = true;
+            e.value = '';
             e.placeholder = 'Auto';
             e.classList.add('opacity-50', 'bg-gray-100/50');
         } else {
-            e.disabled = false; 
+            e.disabled = false;
             e.classList.remove('opacity-50', 'bg-gray-100/50');
-            
+
             if (e.value === '') {
                 const Te = parseFloat(document.getElementById('temp_evap_m2').value) || 0;
                 const Tc = parseFloat(document.getElementById('temp_cond_m2').value) || 40;
-                
+
                 const Te_K = Te + 273.15;
                 const Tc_K = Tc + 273.15;
                 const T_rec = Math.sqrt(Te_K * Tc_K) - 273.15;
-                
-                e.value = T_rec.toFixed(1); 
+
+                e.value = T_rec.toFixed(1);
             }
             e.placeholder = 'e.g. ' + e.value;
         }
@@ -217,41 +217,68 @@ export function initUI() {
     setupRadioToggle('eff_mode_m2', v => {
         const motorGroup = document.getElementById('motor-eff-group-m2');
         const label = document.getElementById('eta_s_label_m2');
-        if(motorGroup) motorGroup.style.display = v==='input'?'block':'none';
-        if(label) label.textContent = v==='input'?'总等熵效率':'等熵效率';
+        if (motorGroup) motorGroup.style.display = v === 'input' ? 'block' : 'none';
+        if (label) label.textContent = v === 'input' ? '总等熵效率' : '等熵效率';
     });
-    
+
     // Mode 3: Gas Settings
     setupRadioToggle('flow_mode_m3', v => {
         const rpmPanel = document.getElementById('rpm-inputs-m3');
         const volPanel = document.getElementById('vol-inputs-m3');
-        if(rpmPanel) rpmPanel.style.display = v==='rpm'?'grid':'none';
-        if(volPanel) volPanel.style.display = v==='vol'?'block':'none';
+        if (rpmPanel) rpmPanel.style.display = v === 'rpm' ? 'grid' : 'none';
+        if (volPanel) volPanel.style.display = v === 'vol' ? 'block' : 'none';
     });
 
     // Auto Lock Helpers
     const setupLock = (id, ids) => {
         const b = document.getElementById(id);
-        if(!b) return;
+        if (!b) return;
         b.addEventListener('change', () => ids.forEach(i => {
-            const e = document.getElementById(i); if(e) { e.disabled=b.checked; e.classList.toggle('opacity-50', b.checked); }
+            const e = document.getElementById(i); if (e) { e.disabled = b.checked; e.classList.toggle('opacity-50', b.checked); }
         }));
         const event = new Event('change'); b.dispatchEvent(event);
     }
     setupLock('auto-eff-m2', ['eta_s_m2', 'eta_v_m2']);
     setupLock('auto-eff-m3', ['eta_iso_m3', 'eta_v_m3']);
+    // [New] Mode 3 Smart Moisture Unit Switcher
+    const fluidM3 = document.getElementById('fluid_m3');
+    const moistTypeM3 = document.getElementById('moisture_type_m3');
+    const moistValM3 = document.getElementById('moisture_val_m3');
+
+    if (fluidM3 && moistTypeM3 && moistValM3) {
+        fluidM3.addEventListener('change', () => {
+            const fluid = fluidM3.value;
+            // 如果是 Air，默认用相对湿度 RH%
+            if (fluid === 'Air') {
+                moistTypeM3.value = 'rh';
+                moistValM3.value = '50'; // Default 50% RH
+            }
+            // 如果是 Water (Steam)，湿度无意义 (纯物质)
+            else if (fluid === 'Water') {
+                moistTypeM3.value = 'rh';
+                moistValM3.value = '0';
+                moistValM3.disabled = true;
+            }
+            // 其他工艺气体 (H2, N2, CO2...)，默认用 PPMw (化工常用)
+            else {
+                moistTypeM3.value = 'ppmw';
+                moistValM3.value = '100'; // Default 100 PPMw
+                moistValM3.disabled = false;
+            }
+        });
+    }
 
     // -----------------------------------------------------------------
     // 5. Polynomial Mode Logic (核心：显隐控制与智能粘贴)
     // -----------------------------------------------------------------
-    
+
     // 模型切换 Toggle 监听
     const setupModelToggle = () => {
         const toggles = document.querySelectorAll('input[name="model_select_m2"]');
         const geoPanel = document.getElementById('geometry-input-panel');
         const polyPanel = document.getElementById('polynomial-input-panel');
         const effPanel = document.getElementById('efficiency-panel-m2'); // [New] 效率卡片
-        
+
         const updateDisplay = (mode) => {
             if (mode === AppState.MODES.GEOMETRY) {
                 // 显示几何面板，隐藏拟合面板
@@ -259,7 +286,7 @@ export function initUI() {
                 if (polyPanel) polyPanel.classList.add('hidden');
                 // [New] 几何模式下：显示效率设定
                 if (effPanel) effPanel.classList.remove('hidden');
-                
+
                 AppState.setMode(AppState.MODES.GEOMETRY);
             } else {
                 // 隐藏几何面板，显示拟合面板
@@ -267,17 +294,17 @@ export function initUI() {
                 if (polyPanel) polyPanel.classList.remove('hidden');
                 // [New] 拟合模式下：隐藏效率设定 (因为是反推的)
                 if (effPanel) effPanel.classList.add('hidden');
-                
+
                 AppState.setMode(AppState.MODES.POLYNOMIAL);
             }
         };
 
         toggles.forEach(t => {
             t.addEventListener('change', (e) => {
-                if(e.target.checked) updateDisplay(e.target.value);
+                if (e.target.checked) updateDisplay(e.target.value);
             });
         });
-        
+
         // 初始化读取状态
         const checked = document.querySelector('input[name="model_select_m2"]:checked');
         if (checked) updateDisplay(checked.value);
@@ -286,11 +313,11 @@ export function initUI() {
     // Excel 智能粘贴监听器
     const setupSmartPaste = () => {
         const polyInputs = document.querySelectorAll('.poly-coeff-input');
-        
+
         polyInputs.forEach(input => {
             input.addEventListener('paste', (e) => {
-                e.preventDefault(); 
-                
+                e.preventDefault();
+
                 const clipboardData = (e.clipboardData || window.clipboardData).getData('text');
                 if (!clipboardData) return;
 
@@ -303,7 +330,7 @@ export function initUI() {
                 if (values.length === 0) return;
 
                 // 确定粘贴目标组 (只填充当前 grid 内的 input)
-                const container = input.closest('.grid'); 
+                const container = input.closest('.grid');
                 if (!container) return;
 
                 const groupInputs = Array.from(container.querySelectorAll('.poly-coeff-input'));
@@ -322,7 +349,7 @@ export function initUI() {
                 }
 
                 console.log(`[Smart Paste] Pasted ${pasteCount} coefficients.`);
-                
+
                 // 视觉反馈
                 input.classList.add('ring-2', 'ring-teal-500');
                 setTimeout(() => input.classList.remove('ring-2', 'ring-teal-500'), 600);
@@ -343,4 +370,16 @@ export function initUI() {
     });
 
     console.log("✅ UI v5.2 Initialized.");
+}
+// [New] 导出函数：自动展开移动端结果面板
+export function openMobileSheet(mode) {
+    const sheet = document.getElementById(`mobile-sheet-${mode}`);
+    const handle = document.getElementById(`sheet-handle-${mode}`);
+    
+    // 检查是否处于收起状态 (包含 translate-y-[...])
+    // 如果是收起的，则模拟点击 Handle 进行展开，这样能复用 setupBottomSheet 里的状态管理和图表 resize 逻辑
+    if (sheet && handle && sheet.classList.contains('translate-y-[calc(100%-80px)]')) {
+        console.log(`[UI] Auto-expanding mobile sheet for ${mode}`);
+        handle.click();
+    }
 }

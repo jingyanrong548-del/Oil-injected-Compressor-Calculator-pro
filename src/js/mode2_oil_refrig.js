@@ -1,15 +1,16 @@
 // =====================================================================
-// mode2_oil_refrig.js: 模式一 (制冷热泵) - v6.0 Unit Audit
-// 职责: 实现“双核计算策略”，并经过严格的单位审计 (SI -> Engineering)
+// mode2_oil_refrig.js: 模式一 (制冷热泵) - v7.0 VSD & Unit Audit
+// 职责: 实现“双核计算策略” + 变频修正 (VSD) + 严格单位审计
 // =====================================================================
 
+// 在 import 区域添加 openMobileSheet
+import { openMobileSheet } from './ui.js'; // <--- 新增引入
 import { updateFluidInfo } from './coolprop_loader.js';
 import { calculateEmpiricalEfficiencies } from './efficiency_models.js';
 import { 
     createKpiCard, 
     createDetailRow, 
     createSectionHeader, 
-    createEcoBadge, 
     createErrorCard,
     createStateTable,
     createEcoImpactGrid
@@ -17,7 +18,7 @@ import {
 import { drawPHDiagram } from './charts.js';
 import { HistoryDB, SessionState } from './storage.js';
 import { AppState } from './state.js'; 
-import { calculatePoly10 } from './logic/polynomial_models.js';
+import { calculatePoly10, calculatePolyVSD } from './logic/polynomial_models.js';
 
 let CP_INSTANCE = null;
 let lastCalculationData = null; 
@@ -27,8 +28,9 @@ let calcButtonM2, calcFormM2, printButtonM2, fluidSelectM2, fluidInfoDivM2;
 let resultsDesktopM2, resultsMobileM2, summaryMobileM2;
 let autoEffCheckboxM2, tempEvapM2, tempCondM2, etaVM2, etaSM2;
 let ecoCheckbox, ecoSatTempInput, ecoSuperheatInput, ecoDtInput, tempDischargeActualM2;
-// Reference Inputs for Reverse Calc
+// VSD & Poly References
 let polyRefRpmInput, polyRefDispInput;
+let vsdCheckboxM2, ratedRpmInputM2, polyCorrectionPanel;
 
 // Button States
 const BTN_TEXT_CALCULATE = "Calculate Performance";
@@ -104,7 +106,7 @@ function updateAndDisplayEfficienciesM2() {
 }
 
 // ---------------------------------------------------------------------
-// Core Calculation Logic (Dual Strategy Engine)
+// Core Calculation Logic (Dual Strategy + VSD)
 // ---------------------------------------------------------------------
 function calculateMode2() {
     // 1. Loading State
@@ -125,6 +127,17 @@ function calculateMode2() {
             const T_2a_est_C = parseFloat(tempDischargeActualM2.value);
             const motor_eff = parseFloat(document.getElementById('motor_eff_m2').value);
             
+            // [v7.0] VSD Inputs
+            const isVsdEnabled = vsdCheckboxM2.checked;
+            const ratedRpm = parseFloat(ratedRpmInputM2.value) || 2900;
+            // Note: In Geometry mode, rpm_m2 is the operating RPM.
+            // In Poly mode, we also read rpm_m2 as Current RPM for Ratio calculation if VSD is on.
+            const currentRpm = parseFloat(document.getElementById('rpm_m2').value) || 2900;
+            const rpmRatio = isVsdEnabled ? (currentRpm / ratedRpm) : 1.0;
+
+            // Update State
+            AppState.updateVSD(isVsdEnabled, ratedRpm, currentRpm);
+
             // Validation
             if (isNaN(Te_C) || isNaN(Tc_C) || T_2a_est_C <= Tc_C) 
                 throw new Error("Invalid Temp Inputs (Discharge > Cond > Evap).");
@@ -166,10 +179,10 @@ function calculateMode2() {
 
                 let V_th_m3_s = 0;
                 if (flow_mode === 'rpm') {
-                    const rpm = parseFloat(document.getElementById('rpm_m2').value);
                     const disp = parseFloat(document.getElementById('displacement_m2').value);
                     // [Unit Audit] disp: cm3 -> m3 (1e-6)
-                    V_th_m3_s = rpm * (disp / 1e6) / 60.0;
+                    // If VSD is enabled, `currentRpm` is already read from input
+                    V_th_m3_s = currentRpm * (disp / 1e6) / 60.0;
                 } else {
                     const flow_m3h = parseFloat(document.getElementById('flow_m3h_m2').value);
                     V_th_m3_s = flow_m3h / 3600.0;
@@ -179,7 +192,7 @@ function calculateMode2() {
                 
                 eta_v_display = eta_v_input;
                 eta_s_display = eta_s_input; 
-                efficiency_info_text = "Standard Geometry";
+                efficiency_info_text = isVsdEnabled ? `Geo (VSD @ ${currentRpm})` : "Standard Geometry";
 
                 // Ideal Work
                 const h_2s = CP_INSTANCE.PropsSI('H', 'P', Pc_Pa, 'S', s_1, fluid);
@@ -194,36 +207,58 @@ function calculateMode2() {
 
             } 
             // =========================================================
-            // STRATEGY B: Polynomial Model (Reverse)
+            // STRATEGY B: Polynomial Model (Reverse + VSD)
             // =========================================================
             else {
-                console.log("[Poly] Calculating using Polynomials...");
+                console.log("[Poly] Calculating using Polynomials (VSD Enhanced)...");
                 
+                // Collect Coefficients
                 const cInputs = Array.from(document.querySelectorAll('input[name="poly_flow"]')).map(i => i.value);
                 const dInputs = Array.from(document.querySelectorAll('input[name="poly_power"]')).map(i => i.value);
+                // [v7.0] Correction Coeffs
+                const corrInputs = Array.from(document.querySelectorAll('input[name="poly_corr"]')).map(i => i.value);
                 
                 AppState.updateCoeffs('massFlow', cInputs);
                 AppState.updateCoeffs('power', dInputs);
+                AppState.updateCoeffs('correction', corrInputs);
 
                 // [Unit Audit] AHRI typically expects degrees, returns kg/s and kW based on our input assumption
-                const m_poly = calculatePoly10(AppState.polynomial.massFlowCoeffs, Te_C, Tc_C);
-                const P_poly = calculatePoly10(AppState.polynomial.powerCoeffs, Te_C, Tc_C);
+                // VSD Logic applied via calculatePolyVSD
+                const m_poly = calculatePolyVSD(
+                    AppState.polynomial.massFlowCoeffs, 
+                    AppState.polynomial.correctionCoeffs, 
+                    Te_C, 
+                    Tc_C, 
+                    rpmRatio
+                );
+                
+                // Assuming correction curve for power is similar or same coeffs used
+                // In reality, power correction curve might differ. For v7.0 MVP, we share coefficients 
+                // OR use linear scaling (default) if correction coeffs are 0.
+                const P_poly = calculatePolyVSD(
+                    AppState.polynomial.powerCoeffs, 
+                    AppState.polynomial.correctionCoeffs,
+                    Te_C, 
+                    Tc_C, 
+                    rpmRatio
+                );
 
                 if (m_poly <= 0 || P_poly <= 0) {
-                    throw new Error("Polynomial result is zero or negative. Check coeffs or range.");
+                    throw new Error("Polynomial result is zero or negative. Check range or VSD inputs.");
                 }
 
                 m_dot_suc = m_poly; // kg/s
                 W_shaft_W = P_poly * 1000; // kW -> W
                 
                 // Reverse Calculation
-                const refRpm = parseFloat(polyRefRpmInput.value);
-                const refDisp = parseFloat(polyRefDispInput.value);
+                const refRpm = parseFloat(polyRefRpmInput.value) || 2900;
+                const refDisp = parseFloat(polyRefDispInput.value) || 437.5;
 
-                if (!isNaN(refRpm) && !isNaN(refDisp) && refRpm > 0 && refDisp > 0) {
-                    const V_th_ref = refRpm * (refDisp / 1e6) / 60.0;
-                    eta_v_display = m_dot_suc / (rho_1 * V_th_ref);
-                    efficiency_info_text = "Poly-Fit (Rev-Calc)";
+                if (refRpm > 0 && refDisp > 0) {
+                    // Theoretical Vol Flow at CURRENT Speed
+                    const V_th_current = (isVsdEnabled ? currentRpm : refRpm) * (refDisp / 1e6) / 60.0;
+                    eta_v_display = m_dot_suc / (rho_1 * V_th_current);
+                    efficiency_info_text = isVsdEnabled ? "Poly (VSD Corr)" : "Poly-Fit (Rated)";
                 } else {
                     eta_v_display = null;
                     efficiency_info_text = "Poly-Fit";
@@ -247,7 +282,7 @@ function calculateMode2() {
             
             h_5 = h_3; h_4 = h_3; 
             
-            // Chart Point Helpers: ensure [h/1000, p/1e5] for kJ and bar
+            // Chart Point Helpers
             let mainPoints = [], ecoLiquidPoints = [], ecoVaporPoints = [];  
             const point = (name, h_j, p_pa, pos='top') => ({ name, value: [h_j/1000, p_pa/1e5], label: { position: pos, show: true } });
             const rawP = (h_j, p_pa) => [h_j/1000, p_pa/1e5];
@@ -428,7 +463,6 @@ function calculateMode2() {
             statePoints.sort((a, b) => parseInt(a.name) - parseInt(b.name));
 
             // Render HTML
-            // [Unit Audit] Ensure W -> kW
             const displayEtaV = eta_v_display !== null ? eta_v_display.toFixed(3) : "---";
             const displayEtaS = eta_s_display !== null ? eta_s_display.toFixed(3) : "---";
 
@@ -446,6 +480,8 @@ function calculateMode2() {
                     ${createDetailRow('Volumetric Eff (η_v)', displayEtaV, AppState.currentMode === 'polynomial')}
                     ${createDetailRow('Isentropic Eff (η_s)', displayEtaS, AppState.currentMode === 'polynomial')}
                     
+                    ${isVsdEnabled ? createDetailRow('VSD Status', `${currentRpm} RPM / Ratio: ${rpmRatio.toFixed(2)}`) : ''}
+
                     ${isEcoEnabled ? `
                         ${createSectionHeader('Economizer Benefit', '⚡')}
                         ${createDetailRow('P_eco', `${(P_eco_Pa/1e5).toFixed(2)} bar`)}
@@ -463,12 +499,24 @@ function calculateMode2() {
             `;
 
             renderToAllViews(html);
+            // ... inside calculateMode2 success block
+            renderToAllViews(html);
+            updateMobileSummary('Cooling', `${(Q_evap_W/1000).toFixed(1)} kW`, 'COP', COP_R.toFixed(2));
+            
+            // [Fix] 移动端自动弹出结果面板
+            openMobileSheet('m2'); // <--- 新增这行
+            
+            setButtonFresh2();
+            if(printButtonM2) printButtonM2.disabled = false;
+            // ...
             updateMobileSummary('Cooling', `${(Q_evap_W/1000).toFixed(1)} kW`, 'COP', COP_R.toFixed(2));
             setButtonFresh2();
             if(printButtonM2) printButtonM2.disabled = false;
 
             lastCalculationData = { fluid, statePoints, COP_R, COP_H, Q_evap_W, Q_cond_W, Q_oil_W };
             
+            // Save State
+            AppState.updateVSD(isVsdEnabled, ratedRpm, currentRpm);
             const inputState = SessionState.collectInputs('calc-form-mode-2');
             const historyTitle = `${fluid} • ${(Q_evap_W/1000).toFixed(1)} kW [${AppState.currentMode === 'polynomial' ? 'Poly' : 'Geo'}]`;
             const historySummary = { 'COP': COP_R.toFixed(2), 'Power': `${(W_input_W/1000).toFixed(1)} kW` };
@@ -504,8 +552,12 @@ export function initMode2(CP) {
     ecoSuperheatInput = document.getElementById('eco_superheat_m2');
     ecoDtInput = document.getElementById('eco_dt_m2'); 
     
+    // VSD / Poly Inputs
     polyRefRpmInput = document.getElementById('poly_ref_rpm');
     polyRefDispInput = document.getElementById('poly_ref_disp');
+    vsdCheckboxM2 = document.getElementById('enable_vsd_m2');
+    ratedRpmInputM2 = document.getElementById('rated_rpm_m2');
+    polyCorrectionPanel = document.getElementById('poly-correction-panel');
 
     if (calcFormM2) {
         calcFormM2.addEventListener('submit', (e) => { e.preventDefault(); calculateMode2(); });
@@ -521,9 +573,36 @@ export function initMode2(CP) {
             if(el) el.addEventListener('change', updateAndDisplayEfficienciesM2);
         });
 
+        // [New] VSD Toggle Logic
+        if (vsdCheckboxM2) {
+            vsdCheckboxM2.addEventListener('change', () => {
+                const isVSD = vsdCheckboxM2.checked;
+                const vsdInputs = document.getElementById('vsd-inputs-m2');
+                
+                // 1. Show Rated RPM Input
+                if (vsdInputs) vsdInputs.classList.toggle('hidden', !isVSD);
+                
+                // 2. Show Correction Coeffs ONLY if Poly Mode active
+                if (polyCorrectionPanel && AppState.currentMode === AppState.MODES.POLYNOMIAL) {
+                    polyCorrectionPanel.classList.toggle('hidden', !isVSD);
+                }
+                setButtonStale2();
+            });
+        }
+
+        // [New] Monitor Poly/Geo Mode change to show/hide correction panel
+        document.querySelectorAll('input[name="model_select_m2"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                if (polyCorrectionPanel && vsdCheckboxM2.checked) {
+                    // Only show correction coeffs in Poly Mode
+                    polyCorrectionPanel.classList.toggle('hidden', radio.value !== 'polynomial');
+                }
+            });
+        });
+
         if (printButtonM2) printButtonM2.addEventListener('click', printReportMode2);
     }
-    console.log("Mode 2 (Polynomial + Unit Audit) initialized.");
+    console.log("Mode 2 (v7.0 VSD) initialized.");
 }
 
 function printReportMode2() {
