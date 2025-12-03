@@ -7,8 +7,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Oil-injected Compressor Calculator</title>
-  <script type="module" crossorigin src="/Oil-injected-Compressor-Calculator-pro/assets/index-BsvZINy2.js"></script>
-  <link rel="stylesheet" crossorigin href="/Oil-injected-Compressor-Calculator-pro/assets/index-D2EXp4_-.css">
+  <script type="module" crossorigin src="/Oil-injected-Compressor-Calculator-pro/assets/index-CBAIAw6k.js"></script>
+  <link rel="stylesheet" crossorigin href="/Oil-injected-Compressor-Calculator-pro/assets/index-D8-UtsJ9.css">
 <link rel="manifest" href="/Oil-injected-Compressor-Calculator-pro/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/Oil-injected-Compressor-Calculator-pro/registerSW.js"></script></head>
 <body class="font-sans antialiased text-ios-text-primary bg-ios-bg bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-blue-50/60 via-gray-50 to-white min-h-screen selection:bg-primary-500 selection:text-white overflow-x-hidden">
 
@@ -17,7 +17,7 @@
         <header class="relative mb-8 pt-2 flex items-center justify-center">
             <div class="text-center">
                 <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-2 drop-shadow-sm">Oil-injected Compressor Calculator</h1>
-                <p class="text-xs md:text-sm font-medium text-ios-text-secondary uppercase tracking-widest">OCC Pro v6.1 (AC Added)</p>
+                <p class="text-xs md:text-sm font-medium text-ios-text-secondary uppercase tracking-widest">OCC Pro v7.1 (VSD & Universal Wet Gas)</p>
             </div>
             
             <button id="history-btn" class="absolute right-0 top-2 z-50 p-2.5 rounded-full bg-white/60 hover:bg-white text-gray-600 hover:text-teal-600 shadow-sm transition-all active:scale-90 backdrop-blur-md border border-white/40 cursor-pointer group" title="History">
@@ -45,6 +45,13 @@
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
                                     </div>
                                     <h3 class="text-base font-bold text-gray-900">核心参数</h3>
+                                </div>
+                                <div class="flex items-center">
+                                    <span class="mr-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">VSD Mode</span>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="enable_vsd_m2" class="sr-only peer">
+                                        <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all after:shadow-sm peer-checked:bg-teal-500 transition-colors duration-300 ease-ios"></div>
+                                    </label>
                                 </div>
                             </div>
                             
@@ -93,7 +100,7 @@
 
                                     <div id="rpm-inputs-m2" class="grid grid-cols-2 gap-4">
                                         <div>
-                                            <label class="block text-xs text-gray-500 mb-1 ml-1">转速 (RPM)</label>
+                                            <label class="block text-xs text-gray-500 mb-1 ml-1">运行转速 (RPM)</label>
                                             <input type="number" id="rpm_m2" value="2900" step="any" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium">
                                         </div>
                                         <div>
@@ -101,6 +108,11 @@
                                             <input type="number" id="displacement_m2" value="437.5" step="any" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium">
                                         </div>
                                     </div>
+                                    <div id="vsd-inputs-m2" class="hidden">
+                                        <label class="block text-xs text-teal-600 mb-1 ml-1 font-bold">额定转速 (Rated RPM)</label>
+                                        <input type="number" id="rated_rpm_m2" value="2900" step="any" class="glass-input block w-full rounded-xl py-2 px-3 text-teal-900 font-medium bg-teal-50/50 border-teal-100">
+                                    </div>
+
                                     <div id="vol-inputs-m2" style="display: none;">
                                         <label class="block text-xs text-gray-500 mb-1 ml-1">理论流量 (m³/h)</label>
                                         <input type="number" id="flow_m3h_m2" value="100" step="any" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium">
@@ -115,15 +127,6 @@
                                             <div>
                                                 <p class="font-bold mb-1">💡 智能粘贴 (Smart Paste):</p>
                                                 <p class="opacity-80">直接从 Excel 复制整行系数，选中 <b class="bg-blue-100 px-1 rounded">C0</b> 或 <b class="bg-blue-100 px-1 rounded">D0</b> 输入框，按下 <kbd class="font-mono bg-white border border-blue-200 rounded px-1">Ctrl+V</kbd> 即可自动填充。</p>
-                                            </div>
-                                        </div>
-                                        <div class="border-t border-blue-200/50 pt-2 mt-1">
-                                            <p class="font-mono text-blue-900/70 overflow-x-auto whitespace-nowrap pb-1">
-                                                <span class="font-bold">AHRI 540:</span> X = C₀ + C₁S + C₂D + C₃S² ... + C₉D³
-                                            </p>
-                                            <div class="flex gap-3 text-blue-600/60 font-mono mt-0.5">
-                                                <span>S = T_evap (°C)</span>
-                                                <span>D = T_cond (°C)</span>
                                             </div>
                                         </div>
                                     </div>
@@ -169,6 +172,28 @@
                                             <input type="text" value="0" name="poly_power" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-indigo-100 focus:ring-2 focus:ring-indigo-500 placeholder-indigo-200 font-mono transition-all" placeholder="D7">
                                             <input type="text" value="0" name="poly_power" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-indigo-100 focus:ring-2 focus:ring-indigo-500 placeholder-indigo-200 font-mono transition-all" placeholder="D8">
                                             <input type="text" value="0" name="poly_power" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-indigo-100 focus:ring-2 focus:ring-indigo-500 placeholder-indigo-200 font-mono transition-all" placeholder="D9">
+                                        </div>
+                                    </div>
+
+                                    <div id="poly-correction-panel" class="hidden bg-yellow-50/50 p-4 rounded-2xl border border-yellow-100 transition-all hover:shadow-sm group focus-within:ring-2 focus-within:ring-yellow-100">
+                                        <div class="flex justify-between items-center mb-2">
+                                            <div class="flex items-center gap-2">
+                                                <div class="w-1.5 h-4 bg-yellow-400 rounded-full"></div>
+                                                <label class="text-xs font-bold text-yellow-700">变频修正系数 (Correction)</label>
+                                            </div>
+                                            <span class="text-[9px] font-mono text-yellow-500">C10-C19</span>
+                                        </div>
+                                        <div class="grid grid-cols-5 gap-2">
+                                            <input type="text" value="0" name="poly_corr" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-yellow-100 focus:ring-2 focus:ring-yellow-500 transition-all" placeholder="C10">
+                                            <input type="text" value="0" name="poly_corr" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-yellow-100 focus:ring-2 focus:ring-yellow-500 transition-all" placeholder="C11">
+                                            <input type="text" value="0" name="poly_corr" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-yellow-100 focus:ring-2 focus:ring-yellow-500 transition-all" placeholder="C12">
+                                            <input type="text" value="0" name="poly_corr" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-yellow-100 focus:ring-2 focus:ring-yellow-500 transition-all" placeholder="C13">
+                                            <input type="text" value="0" name="poly_corr" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-yellow-100 focus:ring-2 focus:ring-yellow-500 transition-all" placeholder="C14">
+                                            <input type="text" value="0" name="poly_corr" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-yellow-100 focus:ring-2 focus:ring-yellow-500 transition-all" placeholder="C15">
+                                            <input type="text" value="0" name="poly_corr" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-yellow-100 focus:ring-2 focus:ring-yellow-500 transition-all" placeholder="C16">
+                                            <input type="text" value="0" name="poly_corr" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-yellow-100 focus:ring-2 focus:ring-yellow-500 transition-all" placeholder="C17">
+                                            <input type="text" value="0" name="poly_corr" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-yellow-100 focus:ring-2 focus:ring-yellow-500 transition-all" placeholder="C18">
+                                            <input type="text" value="0" name="poly_corr" class="poly-coeff-input w-full text-center text-xs py-2 rounded-lg border-0 bg-white ring-1 ring-yellow-100 focus:ring-2 focus:ring-yellow-500 transition-all" placeholder="C19">
                                         </div>
                                     </div>
 
@@ -404,12 +429,22 @@
                 <div class="lg:col-span-7 space-y-6">
                     <form id="calc-form-mode-3" class="space-y-6">
                         <div class="glass-panel rounded-3xl p-6">
-                            <div class="flex items-center space-x-3 mb-5">
-                                <div class="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600 shadow-sm">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                            <div class="flex items-center justify-between mb-5">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600 shadow-sm">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                                    </div>
+                                    <h3 class="text-base font-bold text-gray-900">气体与流量</h3>
                                 </div>
-                                <h3 class="text-base font-bold text-gray-900">气体与流量</h3>
+                                <div class="flex items-center">
+                                    <span class="mr-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">VSD Mode</span>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="enable_vsd_m3" class="sr-only peer">
+                                        <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all after:shadow-sm peer-checked:bg-indigo-500 transition-colors duration-300 ease-ios"></div>
+                                    </label>
+                                </div>
                             </div>
+
                             <div class="space-y-5">
                                 <div>
                                     <div class="relative">
@@ -417,8 +452,30 @@
                                             <option value="Air" selected>Air (空气)</option><option value="Nitrogen">Nitrogen</option><option value="Helium">Helium</option><option value="Neon">Neon</option><option value="Argon">Argon</option><option value="Water">Water (Steam)</option><option value="R744">CO2</option><option value="Hydrogen">Hydrogen</option><option value="Oxygen">Oxygen</option><option value="Methane">Methane</option>
                                         </select>
                                     </div>
-                                    <div id="fluid-info-m3" class="mt-2 text-[10px] text-gray-400 font-mono px-2 truncate">--- 加载中 ---</div>
+                                    
+                                    <div class="flex flex-col gap-2 mt-3 px-1">
+                                        <div id="fluid-info-m3" class="text-[10px] text-gray-400 font-mono truncate">--- 加载中 ---</div>
+                                        <div class="bg-blue-50/50 rounded-xl p-2 border border-blue-100 flex items-center gap-2">
+                                            <div class="flex-shrink-0 flex items-center gap-1">
+                                                <svg class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+                                                <span class="text-[10px] font-bold text-blue-700 uppercase">Moisture</span>
+                                            </div>
+                                            <input type="number" id="moisture_val_m3" value="50" step="any" class="glass-input flex-1 min-w-0 rounded-lg py-1 px-2 text-xs font-bold text-blue-900 bg-white border-blue-200 text-right" placeholder="0">
+                                            <div class="relative w-24 flex-shrink-0">
+                                                <select id="moisture_type_m3" class="w-full appearance-none bg-blue-100 border-0 rounded-lg py-1 pl-2 pr-6 text-[10px] font-bold text-blue-800 focus:ring-0 cursor-pointer">
+                                                    <option value="rh" selected>RH %</option>
+                                                    <option value="pdp">PDP °C</option>
+                                                    <option value="ppmw">PPMw</option>
+                                                    <option value="ppmv">PPMv</option>
+                                                </select>
+                                                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1.5 text-blue-600">
+                                                    <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
+
                                 <div class="bg-gray-100/80 p-1 rounded-xl flex shadow-inner-ios">
                                     <label class="flex-1 cursor-pointer">
                                         <input type="radio" name="flow_mode_m3" value="rpm" class="peer sr-only" checked>
@@ -429,9 +486,10 @@
                                         <div class="py-2 text-xs font-semibold text-gray-500 text-center rounded-[8px] transition-all peer-checked:bg-white peer-checked:text-gray-900 peer-checked:shadow-sm">流量模式</div>
                                     </label>
                                 </div>
+
                                 <div id="rpm-inputs-m3" class="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label class="block text-xs text-gray-500 mb-1 ml-1">转速 (RPM)</label>
+                                        <label class="block text-xs text-gray-500 mb-1 ml-1">运行转速 (RPM)</label>
                                         <input type="number" id="rpm_m3" value="2900" step="any" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium bg-gray-50/50" required>
                                     </div>
                                     <div>
@@ -439,6 +497,12 @@
                                         <input type="number" id="displacement_m3" value="437.5" step="any" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium bg-gray-50/50" required>
                                     </div>
                                 </div>
+                                
+                                <div id="vsd-inputs-m3" class="hidden">
+                                    <label class="block text-xs text-indigo-600 mb-1 ml-1 font-bold">额定转速 (Rated RPM)</label>
+                                    <input type="number" id="rated_rpm_m3" value="2900" step="any" class="glass-input block w-full rounded-xl py-2 px-3 text-indigo-900 font-medium bg-indigo-50/50 border-indigo-100">
+                                </div>
+
                                 <div id="vol-inputs-m3" style="display: none;">
                                     <label class="block text-xs text-gray-500 mb-1 ml-1">理论流量 (m³/h)</label>
                                     <input type="number" id="flow_m3h_m3" value="100" step="any" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium bg-gray-50/50">
@@ -553,6 +617,10 @@
                                         <label class="block text-xs text-gray-500 mb-1 ml-1">冷却器压降 (bar)</label>
                                         <input type="number" id="press_drop_aftercooler_m3" value="0.2" step="any" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium">
                                     </div>
+                                </div>
+                                <div class="pt-2 border-t border-dashed border-gray-200 flex justify-between items-center">
+                                    <span class="text-xs text-blue-500 font-medium">冷凝析水量 (Est.)</span>
+                                    <span class="text-sm font-bold font-mono text-blue-700" id="condensate_rate_m3">-- kg/h</span>
                                 </div>
                             </div>
                             <div id="ac-placeholder-m3" class="text-xs text-gray-400 italic py-1 text-center">Aftercooler Off</div>
