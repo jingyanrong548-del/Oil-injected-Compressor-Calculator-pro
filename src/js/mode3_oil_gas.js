@@ -1,6 +1,6 @@
 // =====================================================================
-// mode3_oil_gas.js: 模式二 (气体压缩) - v3.7 History Enabled
-// 职责: 计算核心 -> 渲染可视化 -> 自动保存历史记录
+// mode3_oil_gas.js: 模式二 (气体压缩) - v6.1 Fixed
+// 职责: 气体压缩核心计算 + 后冷却器选型 + 严格单位审计
 // =====================================================================
 
 import { updateFluidInfo } from './coolprop_loader.js';
@@ -13,7 +13,7 @@ import {
     createStateTable 
 } from './components.js';
 import { drawPHDiagram } from './charts.js';
-import { HistoryDB, SessionState } from './storage.js'; // [New] 引入存储模块
+import { HistoryDB, SessionState } from './storage.js';
 
 let CP_INSTANCE = null;
 let lastCalculationData = null; 
@@ -21,12 +21,18 @@ let lastCalculationData = null;
 // UI References
 let calcButtonM3, calcFormM3, printButtonM3, fluidSelectM3, fluidInfoDivM3;
 let resultsDesktopM3, resultsMobileM3, summaryMobileM3;
-let allInputsM3, tempDischargeActualM3;
+let tempDischargeActualM3;
 let autoEffCheckboxM3, pressInM3, pressOutM3, etaVM3, etaIsoM3;
+// Aftercooler Inputs
+let acCheckbox, acTempTargetInput, acDropInput;
 
 // Button States
 const BTN_TEXT_CALCULATE = "Calculate Gas Compression";
 const BTN_TEXT_RECALCULATE = "Recalculate (Input Changed)";
+
+// ---------------------------------------------------------------------
+// Helper Functions
+// ---------------------------------------------------------------------
 
 function setButtonStale3() {
     if (calcButtonM3 && calcButtonM3.innerText !== BTN_TEXT_RECALCULATE) {
@@ -46,13 +52,11 @@ function setButtonFresh3() {
     }
 }
 
-// 辅助函数：双向渲染 HTML
 function renderToAllViews(htmlContent) {
     if(resultsDesktopM3) resultsDesktopM3.innerHTML = htmlContent;
     if(resultsMobileM3) resultsMobileM3.innerHTML = htmlContent;
 }
 
-// 辅助函数：更新移动端摘要
 function updateMobileSummary(powerValue, effLabel, effValue) {
     if (!summaryMobileM3) return;
     summaryMobileM3.innerHTML = `
@@ -77,12 +81,15 @@ function updateAndDisplayEfficienciesM3() {
         const pressureRatio = Pc_bar / Pe_bar;
         const efficiencies = calculateEmpiricalEfficiencies(pressureRatio);
         
-        etaVM3.value = efficiencies.eta_v;
-        const effType = document.querySelector('input[name="eff_type_m3"]:checked').value;
-        if (effType === 'isothermal') {
-            etaIsoM3.value = efficiencies.eta_iso;
-        } else {
-            etaIsoM3.value = efficiencies.eta_s;
+        if (etaVM3) etaVM3.value = efficiencies.eta_v;
+        
+        const effTypeRadio = document.querySelector('input[name="eff_type_m3"]:checked');
+        if (effTypeRadio && etaIsoM3) {
+            if (effTypeRadio.value === 'isothermal') {
+                etaIsoM3.value = efficiencies.eta_iso;
+            } else {
+                etaIsoM3.value = efficiencies.eta_s;
+            }
         }
     } catch (e) {
         console.warn("Auto-Eff M3 Error:", e);
@@ -90,10 +97,9 @@ function updateAndDisplayEfficienciesM3() {
 }
 
 // =====================================================================
-// Core Calculation Logic
+// Core Calculation Logic (v6.0)
 // =====================================================================
 function calculateMode3() {
-    // 1. Loading State
     renderToAllViews('<div class="flex justify-center p-10"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>');
     
     ['chart-desktop-m3', 'chart-mobile-m3'].forEach(id => {
@@ -116,42 +122,40 @@ function calculateMode3() {
             const eta_v = parseFloat(etaVM3.value);
             const eta_input = parseFloat(etaIsoM3.value);
 
-            // Validation
             if (isNaN(Pe_bar) || isNaN(Pc_bar) || isNaN(Te_C) || isNaN(T_2a_actual_C) || isNaN(eta_v) || isNaN(eta_input)) 
                 throw new Error("Invalid Input: Please check numeric fields.");
             if (Pc_bar <= Pe_bar) throw new Error("Discharge pressure must be higher than suction pressure.");
-            if (T_2a_actual_C <= Te_C) throw new Error("Discharge temp must be higher than suction temp.");
             
-            // Flow
-            let V_th_m3_s, rpm_display = "-";
+            // Flow Calculation
+            let V_th_m3_s;
             if (flow_mode === 'rpm') {
                 const rpm = parseFloat(document.getElementById('rpm_m3').value);
                 const disp = parseFloat(document.getElementById('displacement_m3').value);
                 V_th_m3_s = rpm * (disp / 1e6) / 60.0;
-                rpm_display = `${rpm} RPM`;
             } else {
                 const flow_m3h = parseFloat(document.getElementById('flow_m3h_m3').value);
                 V_th_m3_s = flow_m3h / 3600.0;
             }
 
+            // --- Physics Calculation ---
             const Pe_Pa = Pe_bar * 1e5;
             const Pc_Pa = Pc_bar * 1e5;
             const T_1_K = Te_C + 273.15;
 
-            // State Points
             const h_1 = CP_INSTANCE.PropsSI('H', 'T', T_1_K, 'P', Pe_Pa, fluid);
             const s_1 = CP_INSTANCE.PropsSI('S', 'T', T_1_K, 'P', Pe_Pa, fluid);
             const rho_1 = CP_INSTANCE.PropsSI('D', 'T', T_1_K, 'P', Pe_Pa, fluid);
+            
             const V_act_m3_s = V_th_m3_s * eta_v;
             const m_dot_act = V_act_m3_s * rho_1;
 
             // Ideal Work
             const R_gas = CP_INSTANCE.PropsSI('GAS_CONSTANT', '', 0, '', 0, fluid) / CP_INSTANCE.PropsSI('MOLAR_MASS', '', 0, '', 0, fluid);
             const W_iso_W = m_dot_act * R_gas * T_1_K * Math.log(Pc_Pa / Pe_Pa);
+            
             const h_2s = CP_INSTANCE.PropsSI('H', 'P', Pc_Pa, 'S', s_1, fluid);
             const Ws_W = m_dot_act * (h_2s - h_1);
             
-            // Power & Efficiency Back-calc
             let W_shaft_W, eta_iso_shaft, eta_s_shaft;
             let input_shaft_efficiency = eta_input;
             if (eff_mode === 'input') input_shaft_efficiency = eta_input / motor_eff;
@@ -168,26 +172,63 @@ function calculateMode3() {
             
             const W_input_W = W_shaft_W / motor_eff;
 
-            // Heat Balance
             const T_2a_act_K = T_2a_actual_C + 273.15;
             const h_2a_act = CP_INSTANCE.PropsSI('H', 'T', T_2a_act_K, 'P', Pc_Pa, fluid);
+            
             const Q_gas_heat_W = m_dot_act * (h_2a_act - h_1);
             const Q_oil_W = W_shaft_W - Q_gas_heat_W;
 
-            if (Q_oil_W < 0) throw new Error(`Negative Oil Load (${(Q_oil_W/1000).toFixed(2)} kW). Check efficiency or temps.`);
+            if (Q_oil_W < 0) throw new Error(`Negative Oil Load (${(Q_oil_W/1000).toFixed(2)} kW).`);
 
-            // --- Visualization ---
-            const p1 = [h_1 / 1000, Pe_bar];
-            const p2 = [h_2a_act / 1000, Pc_bar];
-            
-            // Helper for labelled points
-            const point = (name, h, p_bar, pos) => ({ name, value: [h, p_bar], label: { position: pos, show: true } });
-            
-            const mainPoints = [
-                point('1', h_1/1000, Pe_bar, 'bottom'),
-                point('2', h_2a_act/1000, Pc_bar, 'top')
+            // --- Aftercooler Calculation ---
+            const isAcEnabled = acCheckbox ? acCheckbox.checked : false;
+            let Q_ac_W = 0;
+            let h_3 = h_2a_act;
+            let P_3_Pa = Pc_Pa;
+            let ac_html = '';
+
+            // Chart Points (Unit: kJ, bar)
+            const point = (name, h_j, p_bar, pos) => ({ name, value: [h_j/1000, p_bar], label: { position: pos, show: true } });
+            let mainPoints = [
+                point('1', h_1, Pe_bar, 'bottom'),
+                point('2', h_2a_act, Pc_bar, 'top')
             ];
 
+            // State Table Data
+            let statePoints = [
+                { name: '1', desc: 'Inlet', temp: Te_C.toFixed(1), press: Pe_bar.toFixed(2), enth: (h_1/1000).toFixed(1), flow: m_dot_act.toFixed(4) },
+                { name: '2', desc: 'Discharge', temp: T_2a_actual_C.toFixed(1), press: Pc_bar.toFixed(2), enth: (h_2a_act/1000).toFixed(1), flow: m_dot_act.toFixed(4) }
+            ];
+
+            if (isAcEnabled) {
+                const T_ac_target_C = parseFloat(acTempTargetInput.value);
+                const P_drop_bar = parseFloat(acDropInput.value);
+                
+                if (isNaN(T_ac_target_C) || isNaN(P_drop_bar)) throw new Error("Invalid Aftercooler Inputs.");
+                
+                const T_3_K = T_ac_target_C + 273.15;
+                P_3_Pa = (Pc_bar - P_drop_bar) * 1e5;
+                h_3 = CP_INSTANCE.PropsSI('H', 'T', T_3_K, 'P', P_3_Pa, fluid);
+                Q_ac_W = m_dot_act * (h_2a_act - h_3);
+
+                statePoints.push({
+                    name: '3', desc: 'AC Out',
+                    temp: T_ac_target_C.toFixed(1),
+                    press: (P_3_Pa/1e5).toFixed(2),
+                    enth: (h_3/1000).toFixed(1),
+                    flow: m_dot_act.toFixed(4)
+                });
+                mainPoints.push(point('3', h_3, P_3_Pa/1e5, 'left'));
+
+                ac_html = `
+                    ${createSectionHeader('Post-Treatment (Aftercooler)', '❄️')}
+                    ${createDetailRow('Heat Load', `${(Q_ac_W/1000).toFixed(2)} kW`)}
+                    ${createDetailRow('Outlet Temp', `${T_ac_target_C.toFixed(1)} °C`)}
+                    ${createDetailRow('Delivery Press', `${(P_3_Pa/1e5).toFixed(2)} bar`)}
+                `;
+            }
+
+            // --- Visualization ---
             ['chart-desktop-m3', 'chart-mobile-m3'].forEach(id => {
                 drawPHDiagram(id, {
                     title: `Compression Process (${fluid})`,
@@ -198,23 +239,6 @@ function calculateMode3() {
             });
 
             // --- Render Dashboard ---
-            const statePoints = [
-                { 
-                    name: '1', desc: 'Inlet', 
-                    temp: Te_C.toFixed(1), 
-                    press: Pe_bar.toFixed(2), 
-                    enth: (h_1/1000).toFixed(1),
-                    flow: m_dot_act.toFixed(4)
-                },
-                { 
-                    name: '2', desc: 'Discharge', 
-                    temp: T_2a_actual_C.toFixed(1), 
-                    press: Pc_bar.toFixed(2), 
-                    enth: (h_2a_act/1000).toFixed(1),
-                    flow: m_dot_act.toFixed(4)
-                }
-            ];
-
             const html = `
                 <div class="grid grid-cols-2 gap-4 mb-6">
                     ${createKpiCard('轴功率 (Shaft)', (W_shaft_W/1000).toFixed(2), 'kW', `In: ${(W_input_W/1000).toFixed(2)}`, 'blue')}
@@ -231,6 +255,8 @@ function calculateMode3() {
                     ${createDetailRow('理论等温功', `${(W_iso_W/1000).toFixed(2)} kW`)}
                     ${createDetailRow('气体温升吸热', `${(Q_gas_heat_W/1000).toFixed(2)} kW`)}
 
+                    ${ac_html}
+
                     ${createSectionHeader('State Points Detail', '📊')}
                     ${createStateTable(statePoints)}
                 </div>
@@ -240,33 +266,15 @@ function calculateMode3() {
 
             const mainEffLabel = efficiency_type === 'isothermal' ? 'Iso-Eff' : 'Isen-Eff';
             const mainEffValue = efficiency_type === 'isothermal' ? eta_iso_shaft.toFixed(3) : eta_s_shaft.toFixed(3);
-            
-            updateMobileSummary(
-                `${(W_shaft_W/1000).toFixed(1)} kW`, 
-                mainEffLabel, 
-                mainEffValue
-            );
+            updateMobileSummary(`${(W_shaft_W/1000).toFixed(1)} kW`, mainEffLabel, mainEffValue);
 
             setButtonFresh3();
-            if(printButtonM3) {
-                printButtonM3.disabled = false;
-                printButtonM3.classList.remove('opacity-50', 'cursor-not-allowed');
-            }
+            if(printButtonM3) printButtonM3.disabled = false;
 
-            lastCalculationData = {
-                fluid, Pe_bar, Pc_bar, m_dot: m_dot_act, 
-                W_shaft_W, W_input_W, Q_gas_heat_W, Q_oil_W,
-                eta_iso_shaft, eta_s_shaft, statePoints
-            };
-
-            // --- [New] Auto Save History ---
+            lastCalculationData = { fluid, statePoints, W_shaft_W, eta_iso_shaft, eta_s_shaft, Q_oil_W, Q_ac_W };
+            
             const inputState = SessionState.collectInputs('calc-form-mode-3');
-            const historyTitle = `${fluid} • ${(W_shaft_W/1000).toFixed(1)} kW`;
-            const historySummary = {
-                'Power': `${(W_shaft_W/1000).toFixed(2)} kW`,
-                'Eff': `${mainEffLabel}: ${mainEffValue}`
-            };
-            HistoryDB.add('M3', historyTitle, inputState, historySummary);
+            HistoryDB.add('M3', `${fluid} • ${(W_shaft_W/1000).toFixed(1)} kW`, inputState, { 'Power': `${(W_shaft_W/1000).toFixed(2)} kW` });
 
         } catch (error) {
             renderToAllViews(createErrorCard(error.message));
@@ -276,33 +284,13 @@ function calculateMode3() {
     }, 50);
 }
 
-// Print Handler
 function printReportMode3() {
     if (!lastCalculationData) return;
     const d = lastCalculationData;
-    const container = document.getElementById('print-container');
-    const table = container.querySelector('.print-table');
-    const resultDiv = container.querySelector('.print-results');
-
-    table.innerHTML = '';
-    const rows = [
-        ['Mode', 'Gas Compression'],
-        ['Fluid', d.fluid],
-        ['Pin / Pout', `${d.Pe_bar.toFixed(2)} / ${d.Pc_bar.toFixed(2)} bar`],
-        ['Mass Flow', `${d.m_dot.toFixed(4)} kg/s`],
-        ['Shaft Power', `${(d.W_shaft_W/1000).toFixed(3)} kW`],
-        ['Iso Eff', d.eta_iso_shaft.toFixed(3)],
-        ['Isen Eff', d.eta_s_shaft.toFixed(3)]
-    ];
-    rows.forEach(r => table.innerHTML += `<tr class="border-b"><th class="py-2 text-left">${r[0]}</th><td class="py-2 font-mono">${r[1]}</td></tr>`);
-
+    const resultDiv = document.querySelector('.print-results');
     let tableText = "\n\nState Points:\n--------------------\nPoint\tT(C)\tP(bar)\th(kJ)\tm(kg/s)\n";
-    d.statePoints.forEach(p => { 
-        tableText += `${p.name}\t${p.temp}\t${p.press}\t${p.enth}\t${p.flow}\n`; 
-    });
-
-    resultDiv.innerText = `Heat Balance Report:\nOil Load: ${(d.Q_oil_W/1000).toFixed(3)} kW\nGas Heat Gain: ${(d.Q_gas_heat_W/1000).toFixed(3)} kW` + tableText;
-
+    d.statePoints.forEach(p => { tableText += `${p.name}\t${p.temp}\t${p.press}\t${p.enth}\t${p.flow}\n`; });
+    resultDiv.innerText = `Gas Compression Report:\nOil Load: ${(d.Q_oil_W/1000).toFixed(3)} kW` + tableText;
     window.print();
 }
 
@@ -328,6 +316,11 @@ export function initMode3(CP) {
     etaVM3 = document.getElementById('eta_v_m3');
     etaIsoM3 = document.getElementById('eta_iso_m3');
     
+    // [New] AC References (Matched with index.html v6.1)
+    acCheckbox = document.getElementById('enable_aftercooler_m3');
+    acTempTargetInput = document.getElementById('temp_aftercooler_target_m3');
+    acDropInput = document.getElementById('press_drop_aftercooler_m3');
+
     if (calcFormM3) {
         calcFormM3.addEventListener('submit', (e) => { e.preventDefault(); calculateMode3(); });
         
@@ -343,11 +336,22 @@ export function initMode3(CP) {
             if(input) input.addEventListener('change', updateAndDisplayEfficienciesM3);
         });
         
+        // AC Toggle Logic
+        if (acCheckbox) {
+            acCheckbox.addEventListener('change', () => {
+                const settings = document.getElementById('ac-settings-m3');
+                const placeholder = document.getElementById('ac-placeholder-m3');
+                if (settings) settings.classList.toggle('hidden', !acCheckbox.checked);
+                if (placeholder) placeholder.classList.toggle('hidden', acCheckbox.checked);
+                setButtonStale3();
+            });
+        }
+        
         document.querySelectorAll('input[name="eff_type_m3"]').forEach(r => {
             r.addEventListener('change', updateAndDisplayEfficienciesM3);
         });
         
         if (printButtonM3) printButtonM3.addEventListener('click', printReportMode3);
     }
-    console.log("Mode 3 (History Enabled) initialized.");
+    console.log("Mode 3 (Clean JS) initialized.");
 }

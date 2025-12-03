@@ -1,6 +1,6 @@
 // =====================================================================
-// mode2_oil_refrig.js: 模式一 (制冷热泵) - v5.1 Reverse Calculation
-// 职责: 实现“双核计算策略”，并支持从拟合结果反推物理效率
+// mode2_oil_refrig.js: 模式一 (制冷热泵) - v6.0 Unit Audit
+// 职责: 实现“双核计算策略”，并经过严格的单位审计 (SI -> Engineering)
 // =====================================================================
 
 import { updateFluidInfo } from './coolprop_loader.js';
@@ -9,6 +9,7 @@ import {
     createKpiCard, 
     createDetailRow, 
     createSectionHeader, 
+    createEcoBadge, 
     createErrorCard,
     createStateTable,
     createEcoImpactGrid
@@ -26,7 +27,7 @@ let calcButtonM2, calcFormM2, printButtonM2, fluidSelectM2, fluidInfoDivM2;
 let resultsDesktopM2, resultsMobileM2, summaryMobileM2;
 let autoEffCheckboxM2, tempEvapM2, tempCondM2, etaVM2, etaSM2;
 let ecoCheckbox, ecoSatTempInput, ecoSuperheatInput, ecoDtInput, tempDischargeActualM2;
-// [New] Reference Inputs for Reverse Calc
+// Reference Inputs for Reverse Calc
 let polyRefRpmInput, polyRefDispInput;
 
 // Button States
@@ -76,7 +77,7 @@ function updateMobileSummary(kpi1Label, kpi1Value, kpi2Label, kpi2Value) {
 
 function updateAndDisplayEfficienciesM2() {
     if (!CP_INSTANCE || !autoEffCheckboxM2 || !autoEffCheckboxM2.checked) return;
-    // 仅在几何模式下自动更新效率输入框，拟合模式下效率是输出结果
+    // 仅在几何模式下自动更新效率输入框
     if (AppState.currentMode !== AppState.MODES.GEOMETRY) return; 
 
     try {
@@ -85,6 +86,7 @@ function updateAndDisplayEfficienciesM2() {
         const Tc_C = parseFloat(tempCondM2.value);
         if (isNaN(Te_C) || isNaN(Tc_C) || Tc_C <= Te_C) return;
         
+        // [Unit Audit] CoolProp Inputs: T in K, Q in 0/1
         const Pe_Pa = CP_INSTANCE.PropsSI('P', 'T', Te_C + 273.15, 'Q', 1, fluid);
         const Pc_Pa = CP_INSTANCE.PropsSI('P', 'T', Tc_C + 273.15, 'Q', 1, fluid);
         
@@ -114,7 +116,7 @@ function calculateMode2() {
     
     setTimeout(() => {
         try {
-            // --- Common Input Reading (Both Modes) ---
+            // --- Common Input Reading ---
             const fluid = fluidSelectM2.value;
             const Te_C = parseFloat(document.getElementById('temp_evap_m2').value);
             const Tc_C = parseFloat(document.getElementById('temp_cond_m2').value);
@@ -123,17 +125,19 @@ function calculateMode2() {
             const T_2a_est_C = parseFloat(tempDischargeActualM2.value);
             const motor_eff = parseFloat(document.getElementById('motor_eff_m2').value);
             
-            // Basic Validation
+            // Validation
             if (isNaN(Te_C) || isNaN(Tc_C) || T_2a_est_C <= Tc_C) 
                 throw new Error("Invalid Temp Inputs (Discharge > Cond > Evap).");
 
-            // Common Physics (CoolProp)
+            // --- Common Physics (CoolProp SI Units) ---
             const T_evap_K = Te_C + 273.15;
             const T_cond_K = Tc_C + 273.15;
+            // [Unit Audit] P: Pa
             const Pe_Pa = CP_INSTANCE.PropsSI('P', 'T', T_evap_K, 'Q', 1, fluid);
             const Pc_Pa = CP_INSTANCE.PropsSI('P', 'T', T_cond_K, 'Q', 1, fluid);
 
             const T_1_K = T_evap_K + superheat_K;
+            // [Unit Audit] h: J/kg, s: J/kg/K, rho: kg/m3
             const h_1 = CP_INSTANCE.PropsSI('H', 'T', T_1_K, 'P', Pe_Pa, fluid);
             const s_1 = CP_INSTANCE.PropsSI('S', 'T', T_1_K, 'P', Pe_Pa, fluid);
             const rho_1 = CP_INSTANCE.PropsSI('D', 'T', T_1_K, 'P', Pe_Pa, fluid);
@@ -141,11 +145,10 @@ function calculateMode2() {
             const T_3_K = T_cond_K - subcooling_K;
             const h_3 = CP_INSTANCE.PropsSI('H', 'T', T_3_K, 'P', Pc_Pa, fluid); 
 
-            // --- Strategy Variables Initialization ---
+            // --- Strategy Variables ---
             let m_dot_suc = 0; // kg/s
-            let W_shaft_W = 0; // Watt (Compressor Shaft Power)
+            let W_shaft_W = 0; // Watt
             
-            // Display variables
             let eta_v_display = null; 
             let eta_s_display = null;
             let efficiency_info_text = ""; 
@@ -165,6 +168,7 @@ function calculateMode2() {
                 if (flow_mode === 'rpm') {
                     const rpm = parseFloat(document.getElementById('rpm_m2').value);
                     const disp = parseFloat(document.getElementById('displacement_m2').value);
+                    // [Unit Audit] disp: cm3 -> m3 (1e-6)
                     V_th_m3_s = rpm * (disp / 1e6) / 60.0;
                 } else {
                     const flow_m3h = parseFloat(document.getElementById('flow_m3h_m2').value);
@@ -174,8 +178,20 @@ function calculateMode2() {
                 m_dot_suc = V_act_m3_s * rho_1;
                 
                 eta_v_display = eta_v_input;
-                eta_s_display = eta_s_input; // Will be used to calc W_shaft later
+                eta_s_display = eta_s_input; 
                 efficiency_info_text = "Standard Geometry";
+
+                // Ideal Work
+                const h_2s = CP_INSTANCE.PropsSI('H', 'P', Pc_Pa, 'S', s_1, fluid);
+                const W_ideal = m_dot_suc * (h_2s - h_1);
+
+                if (eff_mode === 'shaft') {
+                    W_shaft_W = W_ideal / eta_s_input;
+                } else {
+                    const W_in = W_ideal / eta_s_input;
+                    W_shaft_W = W_in * motor_eff;
+                }
+
             } 
             // =========================================================
             // STRATEGY B: Polynomial Model (Reverse)
@@ -183,14 +199,13 @@ function calculateMode2() {
             else {
                 console.log("[Poly] Calculating using Polynomials...");
                 
-                // 1. Collect Coefficients
                 const cInputs = Array.from(document.querySelectorAll('input[name="poly_flow"]')).map(i => i.value);
                 const dInputs = Array.from(document.querySelectorAll('input[name="poly_power"]')).map(i => i.value);
                 
                 AppState.updateCoeffs('massFlow', cInputs);
                 AppState.updateCoeffs('power', dInputs);
 
-                // 2. Execute Math Engine
+                // [Unit Audit] AHRI typically expects degrees, returns kg/s and kW based on our input assumption
                 const m_poly = calculatePoly10(AppState.polynomial.massFlowCoeffs, Te_C, Tc_C);
                 const P_poly = calculatePoly10(AppState.polynomial.powerCoeffs, Te_C, Tc_C);
 
@@ -201,18 +216,16 @@ function calculateMode2() {
                 m_dot_suc = m_poly; // kg/s
                 W_shaft_W = P_poly * 1000; // kW -> W
                 
-                // 3. Reverse Calculation (反向推导)
+                // Reverse Calculation
                 const refRpm = parseFloat(polyRefRpmInput.value);
                 const refDisp = parseFloat(polyRefDispInput.value);
 
                 if (!isNaN(refRpm) && !isNaN(refDisp) && refRpm > 0 && refDisp > 0) {
-                    // Ref V_th (m3/s)
                     const V_th_ref = refRpm * (refDisp / 1e6) / 60.0;
-                    // Reverse Volumetric Eff: eta_v = m_act / (rho_suc * V_th)
                     eta_v_display = m_dot_suc / (rho_1 * V_th_ref);
                     efficiency_info_text = "Poly-Fit (Rev-Calc)";
                 } else {
-                    eta_v_display = null; // No ref geometry provided
+                    eta_v_display = null;
                     efficiency_info_text = "Poly-Fit";
                 }
             }
@@ -220,7 +233,6 @@ function calculateMode2() {
             // =========================================================
             // ECO Calculation (Shared Logic)
             // =========================================================
-            // Note: Now we have m_dot_suc regardless of strategy.
             
             const isEcoEnabled = ecoCheckbox.checked;
             const ecoType = document.querySelector('input[name="eco_type_m2"]:checked').value; 
@@ -235,11 +247,11 @@ function calculateMode2() {
             
             h_5 = h_3; h_4 = h_3; 
             
+            // Chart Point Helpers: ensure [h/1000, p/1e5] for kJ and bar
             let mainPoints = [], ecoLiquidPoints = [], ecoVaporPoints = [];  
-            const point = (name, h, p_pa, pos='top') => ({ name, value: [h/1000, p_pa/1e5], label: { position: pos, show: true } });
-            const rawP = (h, p_pa) => [h/1000, p_pa/1e5];
+            const point = (name, h_j, p_pa, pos='top') => ({ name, value: [h_j/1000, p_pa/1e5], label: { position: pos, show: true } });
+            const rawP = (h_j, p_pa) => [h_j/1000, p_pa/1e5];
 
-            // ECO Calculation Block
             if (isEcoEnabled) {
                 if (ecoPressMode === 'auto') {
                     P_eco_Pa = Math.sqrt(Pe_Pa * Pc_Pa);
@@ -273,7 +285,6 @@ function calculateMode2() {
                     ecoLiquidPoints = [rawP(h_3, Pc_Pa), pt7, pt5, pt4]; 
                     ecoVaporPoints = [rawP(h_7, P_eco_Pa), pt6];
                 } else {
-                    // Subcooler
                     const T_inj_K = T_eco_sat_K + eco_superheat_K;
                     h_6 = CP_INSTANCE.PropsSI('H', 'T', T_inj_K, 'P', P_eco_Pa, fluid); 
                     const T_5_K = T_eco_sat_K + eco_dt_K; 
@@ -305,7 +316,7 @@ function calculateMode2() {
             // Work & Efficiency Reconciliation
             // =========================================================
             
-            // 1. Calculate Ideal Work (Isentropic)
+            // 1. Calculate Ideal Work (Isentropic) - in Watts
             let W_ideal_W = 0;
             if (!isEcoEnabled) {
                 const h_2s = CP_INSTANCE.PropsSI('H', 'P', Pc_Pa, 'S', s_1, fluid);
@@ -333,8 +344,6 @@ function calculateMode2() {
             } else {
                 // Reverse: Known W_shaft -> Calc eta_s
                 // Note: W_shaft_W is already set from polynomial calculation above
-                // We assume Poly Power output is Shaft Power (or Input Power based on convention, but typically Shaft for compressors)
-                // Let's assume Shaft Power for now.
                 if (W_shaft_W > 0) {
                     eta_s_display = W_ideal_W / W_shaft_W;
                 }
@@ -387,13 +396,13 @@ function calculateMode2() {
 
             ['chart-desktop-m2', 'chart-mobile-m2'].forEach(id => {
                 drawPHDiagram(id, {
-                    title: `P-h Diagram (${fluid})`,
+                    title: `P-h Diagram (${fluid}) [${AppState.currentMode}]`,
                     mainPoints, ecoLiquidPoints, ecoVaporPoints,
                     xLabel: 'Enthalpy (kJ/kg)', yLabel: 'Pressure (bar)'
                 });
             });
 
-            // Table
+            // Table [Unit Audit: h/1000]
             let T_7_disp = '-', T_5_disp = '-';
             if (isEcoEnabled) {
                 T_7_disp = (T_eco_sat_K - 273.15).toFixed(1);
@@ -419,7 +428,7 @@ function calculateMode2() {
             statePoints.sort((a, b) => parseInt(a.name) - parseInt(b.name));
 
             // Render HTML
-            // Note: For eta_v and eta_s, if we are in Polynomial mode, we display the reverse-calculated values.
+            // [Unit Audit] Ensure W -> kW
             const displayEtaV = eta_v_display !== null ? eta_v_display.toFixed(3) : "---";
             const displayEtaS = eta_s_display !== null ? eta_s_display.toFixed(3) : "---";
 
@@ -433,13 +442,21 @@ function calculateMode2() {
                     ${createDetailRow('Input Power', `${(W_input_W/1000).toFixed(2)} kW`, true)}
                     ${createDetailRow('Shaft Power', `${(W_shaft_W/1000).toFixed(2)} kW`)}
                     ${createDetailRow('Oil Load', `${(Q_oil_W/1000).toFixed(2)} kW`)}
-                    
-                    <div class="my-2 border-t border-dashed border-gray-300/50"></div>
-                    
                     ${createDetailRow('Calc Logic', efficiency_info_text)}
                     ${createDetailRow('Volumetric Eff (η_v)', displayEtaV, AppState.currentMode === 'polynomial')}
                     ${createDetailRow('Isentropic Eff (η_s)', displayEtaS, AppState.currentMode === 'polynomial')}
                     
+                    ${isEcoEnabled ? `
+                        ${createSectionHeader('Economizer Benefit', '⚡')}
+                        ${createDetailRow('P_eco', `${(P_eco_Pa/1e5).toFixed(2)} bar`)}
+                        ${createEcoImpactGrid({
+                            Qc: { val: (Q_evap_W/1000).toFixed(2), diff: 0 }, 
+                            Qh: { val: (Q_heating_total_W/1000).toFixed(2), diff: 0 },
+                            COPc: { val: COP_R.toFixed(2), diff: 0 },
+                            COPh: { val: COP_H.toFixed(2), diff: 0 }
+                        })}
+                    ` : ''}
+
                     ${createSectionHeader('7-Point Analysis (Flow)', '📊')}
                     ${createStateTable(statePoints)}
                 </div>
@@ -453,7 +470,7 @@ function calculateMode2() {
             lastCalculationData = { fluid, statePoints, COP_R, COP_H, Q_evap_W, Q_cond_W, Q_oil_W };
             
             const inputState = SessionState.collectInputs('calc-form-mode-2');
-            const historyTitle = `${fluid} • ${(Q_evap_W/1000).toFixed(1)} kW`;
+            const historyTitle = `${fluid} • ${(Q_evap_W/1000).toFixed(1)} kW [${AppState.currentMode === 'polynomial' ? 'Poly' : 'Geo'}]`;
             const historySummary = { 'COP': COP_R.toFixed(2), 'Power': `${(W_input_W/1000).toFixed(1)} kW` };
             HistoryDB.add('M2', historyTitle, inputState, historySummary);
 
@@ -487,14 +504,12 @@ export function initMode2(CP) {
     ecoSuperheatInput = document.getElementById('eco_superheat_m2');
     ecoDtInput = document.getElementById('eco_dt_m2'); 
     
-    // [New]
     polyRefRpmInput = document.getElementById('poly_ref_rpm');
     polyRefDispInput = document.getElementById('poly_ref_disp');
 
     if (calcFormM2) {
         calcFormM2.addEventListener('submit', (e) => { e.preventDefault(); calculateMode2(); });
         
-        // Listen to all inputs for stale state
         calcFormM2.querySelectorAll('input, select').forEach(input => {
             input.addEventListener('input', setButtonStale2);
             input.addEventListener('change', setButtonStale2);
@@ -502,14 +517,13 @@ export function initMode2(CP) {
 
         fluidSelectM2.addEventListener('change', () => updateFluidInfo(fluidSelectM2, fluidInfoDivM2, CP_INSTANCE));
         
-        // Only trigger efficiency updates in geometry mode
         [tempEvapM2, tempCondM2, autoEffCheckboxM2].forEach(el => {
             if(el) el.addEventListener('change', updateAndDisplayEfficienciesM2);
         });
 
         if (printButtonM2) printButtonM2.addEventListener('click', printReportMode2);
     }
-    console.log("Mode 2 (Polynomial + Geometry) initialized.");
+    console.log("Mode 2 (Polynomial + Unit Audit) initialized.");
 }
 
 function printReportMode2() {

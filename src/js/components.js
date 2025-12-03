@@ -93,12 +93,12 @@ export function createEcoImpactGrid(data) {
     // 内部辅助：生成带箭头的小标签
     const renderBadge = (diff) => {
         if (Math.abs(diff) < 0.05) return `<span class="text-[9px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded ml-auto border border-gray-200">-</span>`;
-        
+
         const isPos = diff > 0;
         // 绿色(提升) / 红色(下降)
         const bgClass = isPos ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100';
         const arrow = isPos ? '▲' : '▼';
-        
+
         return `<span class="text-[9px] ${bgClass} border px-1.5 py-0.5 rounded ml-auto font-bold tracking-tight shadow-sm">${arrow} ${Math.abs(diff).toFixed(1)}%</span>`;
     };
 
@@ -127,14 +127,14 @@ export function createEcoImpactGrid(data) {
 }
 
 /**
- * 生成状态点数据表格 (5 Columns)
+ * 生成状态点数据表格 (Standard Engineering Units)
  */
 export function createStateTable(points) {
     if (!points || points.length === 0) return '';
 
     const rows = points.map((p, index) => {
         const bgClass = index % 2 === 0 ? 'bg-white/40' : 'bg-transparent';
-        const rowStyle = p.name.includes('ECO') ? 'font-medium text-blue-900' : 'text-gray-600';
+        const rowStyle = p.name.includes('ECO') || p.name.includes('AC') ? 'font-medium text-blue-900' : 'text-gray-600';
 
         return `
         <tr class="${bgClass} text-xs transition-colors hover:bg-white/60">
@@ -156,10 +156,10 @@ export function createStateTable(points) {
             <thead>
                 <tr class="border-b border-gray-200/50 bg-gray-100/40 text-left text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
                     <th class="py-2 pl-3 whitespace-nowrap sticky left-0 z-10 bg-gray-50/80 backdrop-blur-[2px]">Point</th>
-                    <th class="py-2 text-right whitespace-nowrap">T(°C)</th>
-                    <th class="py-2 text-right whitespace-nowrap">P(bar)</th>
-                    <th class="py-2 text-right whitespace-nowrap">h(kJ)</th>
-                    <th class="py-2 pr-3 text-right whitespace-nowrap">m(kg/s)</th>
+                    <th class="py-2 text-right whitespace-nowrap">T [°C]</th>
+                    <th class="py-2 text-right whitespace-nowrap">P [bar]</th>
+                    <th class="py-2 text-right whitespace-nowrap">h [kJ/kg]</th>
+                    <th class="py-2 pr-3 text-right whitespace-nowrap">m [kg/s]</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100/30">
