@@ -1,6 +1,6 @@
 // =====================================================================
-// state.js: 全局应用状态管理 (v7.0 Extended)
-// 职责: 存储计算模式、拟合系数、变频状态及湿气参数
+// state.js: 全局应用状态管理 (v7.2 SLHX Extension)
+// 职责: 存储计算模式、拟合系数、变频状态、湿气参数及回热器设定
 // =====================================================================
 
 export const AppState = {
@@ -13,28 +13,33 @@ export const AppState = {
     // 当前激活的模式 (默认为几何模式)
     currentMode: 'geometry',
 
-    // [New] VSD 变频状态
+    // VSD 变频状态
     vsd: {
         enabled: false,
         ratedRpm: 2900,
         currentRpm: 2900
     },
 
-    // [New] 气体成分状态 (Mode 3)
-    // [Update] 气体成分状态 (Mode 3)
+    // [New v7.2] 回热器 (SLHX) 状态
+    slhx: {
+        enabled: false,
+        effectiveness: 0.5 // ε (0.0 - 1.0)
+    },
+
+    // 气体成分状态 (Mode 3)
     gas: {
         moistureType: 'rh', // 'rh', 'pdp', 'ppmw', 'ppmv'
         moistureValue: 0,   // 数值
         isWet: false        // 计算后标记
     },
 
-    // 拟合模型数据仓 (扩容)
+    // 拟合模型数据仓
     polynomial: {
         // AHRI 540 标准 10 项 (C0-C9)
         massFlowCoeffs: new Array(10).fill(0),
         powerCoeffs: new Array(10).fill(0),
 
-        // [New] 变频修正系数 (C10-C19)
+        // 变频修正系数 (C10-C19)
         // 通常用于：Flow_corr = Flow_base * (C10 + C11*Ratio + ...)
         correctionCoeffs: new Array(10).fill(0),
 
@@ -71,6 +76,18 @@ export const AppState = {
     },
 
     /**
+     * [New v7.2] 更新回热器状态
+     * @param {boolean} enabled 
+     * @param {number} eff - Effectiveness (0-1)
+     */
+    updateSLHX(enabled, eff) {
+        this.slhx.enabled = !!enabled;
+        if (eff !== undefined && eff !== null) {
+            this.slhx.effectiveness = parseFloat(eff);
+        }
+    },
+
+    /**
      * 批量更新系数
      * @param {string} type - 'massFlow' | 'power' | 'correction'
      * @param {Array} values - 系数数组
@@ -82,7 +99,7 @@ export const AppState = {
         if (this.polynomial[key]) {
             // 确保只取前10个数据
             this.polynomial[key] = values.map(v => parseFloat(v) || 0).slice(0, 10);
-            console.log(`[State] Updated ${key}:`, this.polynomial[key]);
+            // console.log(`[State] Updated ${key}:`, this.polynomial[key]);
         }
     }
 };

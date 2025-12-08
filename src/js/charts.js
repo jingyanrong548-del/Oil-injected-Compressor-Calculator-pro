@@ -1,6 +1,6 @@
 // =====================================================================
-// charts.js: 可视化引擎 (v3.4 Label Formatter Fix)
-// 职责: 修复 Label 格式化问题，确保所有点（包括ECO）都只显示数字名称
+// charts.js: 可视化引擎 (v7.2 SLHX Support)
+// 职责: P-h 图绘制，支持 SLHX 拓扑结构 (1->1', 5->5') 及 Label 优化
 // =====================================================================
 
 import * as echarts from 'echarts';
@@ -8,9 +8,9 @@ import * as echarts from 'echarts';
 const chartInstances = {};
 
 const COLORS = {
-    primary: '#14B8A6',   // Teal (主循环)
-    ecoLiquid: '#F97316', // Orange (ECO液路)
-    ecoVapor: '#3B82F6',  // Blue (ECO气路)
+    primary: '#14B8A6',   // Teal (主循环 1-2-3-4)
+    ecoLiquid: '#F97316', // Orange (液路/回热冷却 3-5-5')
+    ecoVapor: '#3B82F6',  // Blue (补气回路)
     grid: '#E5E7EB',
     text: '#6B7280',
     bgTooltip: 'rgba(255, 255, 255, 0.95)'
@@ -48,28 +48,29 @@ export function drawPHDiagram(domId, data) {
     } = data;
 
     // Helper: Extract Y values for scaling
+    // 兼容数组格式 [x, y] 和对象格式 { value: [x, y] }
     const extractY = (arr) => arr.map(p => Array.isArray(p) ? p[1] : p.value[1]).filter(y => y > 0);
     const allY = [...extractY(mainPoints), ...extractY(ecoLiquidPoints), ...extractY(ecoVaporPoints)];
     
+    // [v7.2 Fix] 针对低温工ZX（如 R23）优化 Y 轴下限，防止压缩
     let minY = 1, maxY = 100;
     if (allY.length > 0) {
-        minY = Math.min(...allY) * 0.7;
-        maxY = Math.max(...allY) * 1.3;
+        minY = Math.min(...allY) * 0.6; // 留出更多底部空间给 1 -> 1' 线
+        maxY = Math.max(...allY) * 1.4;
     }
 
-    // [Critical Fix] 定义通用的 Label 样式对象
-    // 确保 formatter 始终显示 param.name (即 "1", "2" 等)，而不是数值
+    // [Critical] Label 样式：确保显示点名称 (1, 1', 2...) 而非坐标值
     const labelStyle = {
-        show: false, // 默认不显示，由数据点单独覆盖开启
+        show: false, // 默认关闭，由数据点具体的 label.show 控制
         formatter: (param) => param.name, 
         color: '#111827',
         fontSize: 11,
         fontWeight: 'bold',
-        fontFamily: 'Inter',
-        backgroundColor: 'rgba(255,255,255,0.8)',
+        fontFamily: 'Inter, sans-serif',
+        backgroundColor: 'rgba(255,255,255,0.85)', // 提高遮盖力，防止 SLHX 线条干扰文字
         borderRadius: 3,
         padding: [2, 4],
-        distance: 6
+        distance: 5
     };
 
     const option = {
@@ -83,22 +84,39 @@ export function drawPHDiagram(domId, data) {
             trigger: 'axis',
             backgroundColor: COLORS.bgTooltip,
             backdropFilter: 'blur(4px)',
+            borderWidth: 0,
+            shadowColor: 'rgba(0, 0, 0, 0.1)',
+            shadowBlur: 10,
             formatter: (params) => {
-                let html = `<div class="font-bold mb-1 border-b pb-1 text-xs">${params[0].axisValueLabel} kJ/kg</div>`;
+                // 优化 Tooltip 显示，过滤掉重复点
+                let html = `<div class="font-bold mb-1 border-b border-gray-100 pb-1 text-xs text-gray-700">${params[0].axisValueLabel} kJ/kg</div>`;
+                const seen = new Set();
+                
                 params.forEach(item => {
                     const val = item.data.value ? item.data.value[1] : item.data[1];
-                    const name = item.name ? `[${item.name}] ` : '';
-                    if (val) {
+                    const name = item.name ? `[${item.name}]` : '';
+                    const key = `${item.seriesName}-${name}`; // 唯一键
+                    
+                    if (val && !seen.has(key)) {
+                        seen.add(key);
+                        // SLHX 特殊标注
+                        const isSlhxPoint = name.includes("'"); 
+                        const style = isSlhxPoint ? 'font-weight:bold; color:#F97316' : 'font-weight:normal';
+                        
                         html += `<div class="flex justify-between gap-3 text-xs mt-1">
-                            <span>${item.marker} ${name}${item.seriesName}</span>
-                            <span class="font-mono font-bold">${val.toFixed(2)} bar</span>
+                            <span>${item.marker} <span style="${style}">${name}</span> ${item.seriesName}</span>
+                            <span class="font-mono font-bold text-gray-800">${val.toFixed(2)} bar</span>
                         </div>`;
                     }
                 });
                 return html;
             }
         },
-        grid: { top: 35, right: 40, bottom: 25, left: 55, show: false },
+        grid: { 
+            top: 35, right: 30, bottom: 25, left: 50, 
+            show: false,
+            containLabel: true // 防止 Label 溢出
+        },
         xAxis: {
             type: 'value',
             name: xLabel,
@@ -128,29 +146,29 @@ export function drawPHDiagram(domId, data) {
                 smooth: 0,
                 symbol: 'circle',
                 symbolSize: 6,
-                // 主循环默认开启 Label
+                // 主循环强制开启 Label (显示 1, 2, 3, 4, 1' 等)
                 label: { ...labelStyle, show: true }, 
                 itemStyle: { color: COLORS.primary },
                 lineStyle: { width: 2.5, color: COLORS.primary },
                 areaStyle: {
                     color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                        { offset: 0, color: 'rgba(20, 184, 166, 0.2)' },
+                        { offset: 0, color: 'rgba(20, 184, 166, 0.15)' },
                         { offset: 1, color: 'rgba(20, 184, 166, 0.0)' }
                     ])
                 },
-                z: 10
+                z: 10 // 确保主循环在最上层
             },
             {
-                name: 'Aux/Liquid',
+                name: 'Liquid/SLHX',
                 type: 'line',
                 data: ecoLiquidPoints,
                 smooth: 0,
                 symbol: 'circle',
                 symbolSize: 4,
+                // 液路虚线
                 lineStyle: { width: 2, type: 'dashed', color: COLORS.ecoLiquid },
                 itemStyle: { color: COLORS.ecoLiquid },
-                // 辅助线默认关闭 Label，但在 modeX.js 中通过数据点属性强制开启时，必须应用正确的 formatter
-                label: labelStyle, 
+                label: labelStyle, // 允许个别点(如5')开启显示
                 z: 5
             },
             {
@@ -162,12 +180,12 @@ export function drawPHDiagram(domId, data) {
                 symbolSize: 5,
                 itemStyle: { color: COLORS.ecoVapor },
                 lineStyle: { width: 2, type: 'dotted', color: COLORS.ecoVapor },
-                // 同上，确保补气点也使用 formatter
                 label: labelStyle,
                 z: 6
             }
         ],
-        animationDuration: 500
+        animationDuration: 400,
+        animationEasing: 'cubicOut'
     };
 
     chart.setOption(option);

@@ -1,6 +1,6 @@
 // =====================================================================
-// components.js: Apple-style UI 组件工厂 (v3.5 ECO Matrix)
-// 职责: 生成标准化 HTML 片段，新增 ECO 效益矩阵组件
+// components.js: Apple-style UI 组件工厂 (v7.4 Generic Impact Grid)
+// 职责: 生成标准化 HTML 片段，支持 ECO 和 SLHX 的通用效益矩阵
 // =====================================================================
 
 /**
@@ -71,27 +71,31 @@ export function createErrorCard(message) {
 }
 
 /**
- * (旧版兼容) 生成简单 ECO 提升率胶囊
- */
-export function createEcoBadge(percentage) {
-    if (percentage <= 0) return '';
-    return `
-    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-800 ml-2">
-        <svg class="mr-1 h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-        </svg>
-        提升 ${percentage.toFixed(1)}%
-    </span>
-    `;
-}
-
-/**
- * [New] 生成 ECO 效益 2x2 矩阵 (4维对比)
+ * [Updated v7.4] 通用效益矩阵 (Impact Grid)
+ * 适用于 ECO (Teal) 和 SLHX (Orange) 的对比分析
  * @param {object} data - { Qc: {val, diff}, Qh: {val, diff}, COPc: {val, diff}, COPh: {val, diff} }
+ * @param {string} theme - 'teal' | 'orange'
  */
-export function createEcoImpactGrid(data) {
+export function createImpactGrid(data, theme = 'teal') {
+    
+    // 主题配置
+    const themes = {
+        teal: {
+            container: 'bg-teal-50/30 border-teal-100/50',
+            label: 'text-teal-600/70',
+            icon: '⚡'
+        },
+        orange: {
+            container: 'bg-orange-50/30 border-orange-100/50',
+            label: 'text-orange-600/70',
+            icon: '🔥'
+        }
+    };
+    const t = themes[theme] || themes.teal;
+
     // 内部辅助：生成带箭头的小标签
     const renderBadge = (diff) => {
+        // 微小差异忽略
         if (Math.abs(diff) < 0.05) return `<span class="text-[9px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded ml-auto border border-gray-200">-</span>`;
 
         const isPos = diff > 0;
@@ -99,17 +103,19 @@ export function createEcoImpactGrid(data) {
         const bgClass = isPos ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100';
         const arrow = isPos ? '▲' : '▼';
 
-        return `<span class="text-[9px] ${bgClass} border px-1.5 py-0.5 rounded ml-auto font-bold tracking-tight shadow-sm">${arrow} ${Math.abs(diff).toFixed(1)}%</span>`;
+        return `<span class="text-[9px] ${bgClass} border px-1.5 py-0.5 rounded ml-auto font-bold tracking-tight shadow-sm min-w-[45px] text-center">${arrow} ${Math.abs(diff).toFixed(1)}%</span>`;
     };
 
     // 内部辅助：生成单个格子
     const renderItem = (label, obj, unit = '') => `
-        <div class="bg-white/40 rounded-xl p-3 border border-white/60 shadow-sm flex flex-col justify-between">
-            <div class="text-[9px] text-gray-400 uppercase font-bold tracking-wider mb-1">${label}</div>
+        <div class="bg-white/60 rounded-xl p-2.5 border border-white/60 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+            <div class="text-[9px] ${t.label} uppercase font-bold tracking-wider mb-1 flex items-center gap-1">
+                ${label}
+            </div>
             <div class="flex items-center justify-between">
                 <div class="flex items-baseline">
                     <span class="text-sm font-bold text-gray-800 font-mono">${obj.val}</span>
-                    <span class="text-[10px] text-gray-500 ml-0.5">${unit}</span>
+                    <span class="text-[9px] text-gray-400 ml-0.5">${unit}</span>
                 </div>
                 ${renderBadge(obj.diff)}
             </div>
@@ -117,7 +123,7 @@ export function createEcoImpactGrid(data) {
     `;
 
     return `
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 mb-2">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 mb-2 animate-fade-in ${t.container} p-2 rounded-2xl border border-dashed">
         ${renderItem('Cooling Cap.', data.Qc, 'kW')}
         ${renderItem('Heating Cap.', data.Qh, 'kW')}
         ${renderItem('Cooling COP', data.COPc)}
@@ -134,7 +140,9 @@ export function createStateTable(points) {
 
     const rows = points.map((p, index) => {
         const bgClass = index % 2 === 0 ? 'bg-white/40' : 'bg-transparent';
-        const rowStyle = p.name.includes('ECO') || p.name.includes('AC') ? 'font-medium text-blue-900' : 'text-gray-600';
+        // Highlight ECO or SLHX points
+        const isSpecial = p.name.includes("'") || ['5','6','7'].includes(p.name);
+        const rowStyle = isSpecial ? 'font-medium text-blue-900' : 'text-gray-600';
 
         return `
         <tr class="${bgClass} text-xs transition-colors hover:bg-white/60">

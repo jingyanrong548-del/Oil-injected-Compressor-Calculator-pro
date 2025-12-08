@@ -1,5 +1,5 @@
 // =====================================================================
-// ui.js: UI 交互逻辑 (v5.2 Streamlined & Smart Paste)
+// ui.js: UI 交互逻辑 (v7.2 SLHX & VSD Support)
 // 职责: 界面事件监听、显隐控制、历史记录管理、智能粘贴、图表自适应
 // =====================================================================
 
@@ -8,7 +8,7 @@ import { resizeAllCharts } from './charts.js';
 import { AppState } from './state.js';
 
 export function initUI() {
-    console.log("🚀 UI Initializing (v5.2 Streamlined)...");
+    console.log("🚀 UI Initializing (v7.2 SLHX)...");
 
     // -----------------------------------------------------------------
     // 1. History Drawer Logic (历史记录侧边栏)
@@ -173,10 +173,18 @@ export function initUI() {
         if (volPanel) volPanel.style.display = v === 'vol' ? 'block' : 'none';
     });
 
+    // ECO Toggle Logic
     const ecoCb = document.getElementById('enable_eco_m2');
     if (ecoCb) ecoCb.addEventListener('change', () => {
         document.getElementById('eco-settings-m2').classList.toggle('hidden', !ecoCb.checked);
         document.getElementById('eco-placeholder-m2').classList.toggle('hidden', ecoCb.checked);
+    });
+
+    // [New v7.2] SLHX Toggle Logic
+    const slhxCb = document.getElementById('enable_slhx_m2');
+    if (slhxCb) slhxCb.addEventListener('change', () => {
+        document.getElementById('slhx-settings-m2').classList.toggle('hidden', !slhxCb.checked);
+        document.getElementById('slhx-placeholder-m2').classList.toggle('hidden', slhxCb.checked);
     });
 
     setupRadioToggle('eco_type_m2', v => {
@@ -240,7 +248,8 @@ export function initUI() {
     }
     setupLock('auto-eff-m2', ['eta_s_m2', 'eta_v_m2']);
     setupLock('auto-eff-m3', ['eta_iso_m3', 'eta_v_m3']);
-    // [New] Mode 3 Smart Moisture Unit Switcher
+    
+    // Mode 3 Smart Moisture Unit Switcher
     const fluidM3 = document.getElementById('fluid_m3');
     const moistTypeM3 = document.getElementById('moisture_type_m3');
     const moistValM3 = document.getElementById('moisture_val_m3');
@@ -248,18 +257,15 @@ export function initUI() {
     if (fluidM3 && moistTypeM3 && moistValM3) {
         fluidM3.addEventListener('change', () => {
             const fluid = fluidM3.value;
-            // 如果是 Air，默认用相对湿度 RH%
             if (fluid === 'Air') {
                 moistTypeM3.value = 'rh';
                 moistValM3.value = '50'; // Default 50% RH
             }
-            // 如果是 Water (Steam)，湿度无意义 (纯物质)
             else if (fluid === 'Water') {
                 moistTypeM3.value = 'rh';
                 moistValM3.value = '0';
                 moistValM3.disabled = true;
             }
-            // 其他工艺气体 (H2, N2, CO2...)，默认用 PPMw (化工常用)
             else {
                 moistTypeM3.value = 'ppmw';
                 moistValM3.value = '100'; // Default 100 PPMw
@@ -269,7 +275,7 @@ export function initUI() {
     }
 
     // -----------------------------------------------------------------
-    // 5. Polynomial Mode Logic (核心：显隐控制与智能粘贴)
+    // 5. Polynomial Mode Logic (显隐控制与智能粘贴)
     // -----------------------------------------------------------------
 
     // 模型切换 Toggle 监听
@@ -277,24 +283,18 @@ export function initUI() {
         const toggles = document.querySelectorAll('input[name="model_select_m2"]');
         const geoPanel = document.getElementById('geometry-input-panel');
         const polyPanel = document.getElementById('polynomial-input-panel');
-        const effPanel = document.getElementById('efficiency-panel-m2'); // [New] 效率卡片
+        const effPanel = document.getElementById('efficiency-panel-m2'); 
 
         const updateDisplay = (mode) => {
             if (mode === AppState.MODES.GEOMETRY) {
-                // 显示几何面板，隐藏拟合面板
                 if (geoPanel) geoPanel.classList.remove('hidden');
                 if (polyPanel) polyPanel.classList.add('hidden');
-                // [New] 几何模式下：显示效率设定
                 if (effPanel) effPanel.classList.remove('hidden');
-
                 AppState.setMode(AppState.MODES.GEOMETRY);
             } else {
-                // 隐藏几何面板，显示拟合面板
                 if (geoPanel) geoPanel.classList.add('hidden');
                 if (polyPanel) polyPanel.classList.remove('hidden');
-                // [New] 拟合模式下：隐藏效率设定 (因为是反推的)
                 if (effPanel) effPanel.classList.add('hidden');
-
                 AppState.setMode(AppState.MODES.POLYNOMIAL);
             }
         };
@@ -305,7 +305,6 @@ export function initUI() {
             });
         });
 
-        // 初始化读取状态
         const checked = document.querySelector('input[name="model_select_m2"]:checked');
         if (checked) updateDisplay(checked.value);
     };
@@ -321,7 +320,6 @@ export function initUI() {
                 const clipboardData = (e.clipboardData || window.clipboardData).getData('text');
                 if (!clipboardData) return;
 
-                // 支持 Tab, 逗号, 空格, 换行分隔
                 const values = clipboardData
                     .split(/[\t,\s\n]+/)
                     .map(v => v.trim())
@@ -329,7 +327,6 @@ export function initUI() {
 
                 if (values.length === 0) return;
 
-                // 确定粘贴目标组 (只填充当前 grid 内的 input)
                 const container = input.closest('.grid');
                 if (!container) return;
 
@@ -350,7 +347,6 @@ export function initUI() {
 
                 console.log(`[Smart Paste] Pasted ${pasteCount} coefficients.`);
 
-                // 视觉反馈
                 input.classList.add('ring-2', 'ring-teal-500');
                 setTimeout(() => input.classList.remove('ring-2', 'ring-teal-500'), 600);
             });
@@ -369,15 +365,14 @@ export function initUI() {
         btn.addEventListener('mouseleave', () => btn.classList.remove('scale-[0.98]'));
     });
 
-    console.log("✅ UI v5.2 Initialized.");
+    console.log("✅ UI v7.2 Initialized.");
 }
-// [New] 导出函数：自动展开移动端结果面板
+
+// 导出函数：自动展开移动端结果面板
 export function openMobileSheet(mode) {
     const sheet = document.getElementById(`mobile-sheet-${mode}`);
     const handle = document.getElementById(`sheet-handle-${mode}`);
     
-    // 检查是否处于收起状态 (包含 translate-y-[...])
-    // 如果是收起的，则模拟点击 Handle 进行展开，这样能复用 setupBottomSheet 里的状态管理和图表 resize 逻辑
     if (sheet && handle && sheet.classList.contains('translate-y-[calc(100%-80px)]')) {
         console.log(`[UI] Auto-expanding mobile sheet for ${mode}`);
         handle.click();

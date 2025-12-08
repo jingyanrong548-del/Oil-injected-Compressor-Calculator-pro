@@ -15,7 +15,7 @@
         <header class="relative mb-8 pt-2 flex items-center justify-center">
             <div class="text-center">
                 <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-2 drop-shadow-sm">Oil-injected Compressor Calculator</h1>
-                <p class="text-xs md:text-sm font-medium text-ios-text-secondary uppercase tracking-widest">OCC Pro v7.1 (VSD & Universal Wet Gas)</p>
+                <p class="text-xs md:text-sm font-medium text-ios-text-secondary uppercase tracking-widest">OCC Pro v7.2 (SLHX & VSD)</p>
             </div>
             
             <button id="history-btn" class="absolute right-0 top-2 z-50 p-2.5 rounded-full bg-white/60 hover:bg-white text-gray-600 hover:text-teal-600 shadow-sm transition-all active:scale-90 backdrop-blur-md border border-white/40 cursor-pointer group" title="History">
@@ -305,6 +305,30 @@
                                 </div>
                             </div>
                             <div id="eco-placeholder-m2" class="text-xs text-gray-400 italic py-1 text-center">ECO Disabled</div>
+                        </div>
+
+                        <div class="glass-panel rounded-3xl p-6 relative overflow-hidden group">
+                            <div class="flex items-center justify-between mb-5 z-10 relative">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600 shadow-sm">
+                                        <span class="font-bold text-xs">SLHX</span>
+                                    </div>
+                                    <h3 class="text-base font-bold text-gray-900">回热器 (SLHX)</h3>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="enable_slhx_m2" class="sr-only peer">
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all after:shadow-sm peer-checked:bg-orange-500 transition-colors duration-300 ease-ios"></div>
+                                </label>
+                            </div>
+
+                            <div id="slhx-settings-m2" class="hidden space-y-5 relative z-10 animate-fade-in">
+                                <div>
+                                    <label class="block text-xs text-gray-500 mb-1 ml-1">回热效率 Effectiveness (ε)</label>
+                                    <input type="number" id="slhx_effectiveness_m2" value="0.5" step="0.01" min="0" max="1" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium">
+                                    <p class="text-[10px] text-gray-400 mt-1 ml-1">Typical: 0.3 - 0.8</p>
+                                </div>
+                            </div>
+                            <div id="slhx-placeholder-m2" class="text-xs text-gray-400 italic py-1 text-center">SLHX Disabled</div>
                         </div>
 
                         <div class="glass-panel rounded-3xl p-6" id="efficiency-panel-m2">
