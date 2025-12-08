@@ -1,6 +1,9 @@
 // =====================================================================
-// mode2_oil_refrig.js: 模式一 (制冷热泵) - v7.4 Benefit Matrix
-// 职责: “双核计算” + VSD + SLHX迭代 + 影子计算(Shadow Calc) + 修复 5' 点
+// mode2_oil_refrig.js: 模式一 (制冷热泵) - v7.4.4 Flash Tank Fix
+// 职责: “双核计算” + VSD + SLHX迭代 + 影子计算
+// 修复: 
+// 1. [v7.4.3] P-h图 Subcooler 2-3 断线修复
+// 2. [v7.4.4] P-h图 Flash Tank 2-3 断线修复 (本次修复)
 // =====================================================================
 
 import { openMobileSheet } from './ui.js';
@@ -12,7 +15,7 @@ import {
     createSectionHeader, 
     createErrorCard,
     createStateTable,
-    createImpactGrid // [Updated] 通用效益矩阵组件
+    createImpactGrid 
 } from './components.js';
 import { drawPHDiagram } from './charts.js';
 import { HistoryDB, SessionState } from './storage.js';
@@ -354,24 +357,39 @@ function calculateMode2() {
             const COP_H = Q_heating_total_W / W_input_W;
 
             // =========================================================
-            // SHADOW CALCULATION (Benefit Analysis)
+            // SHADOW CALCULATION (Benefit Analysis) - v7.4.2
             // =========================================================
             
             // 1. SLHX Benefit (Current vs No-SLHX)
             let slhxHtml = '';
             if (isSlhxEnabled) {
-                // Base: No SLHX (rho_1, h_liq_in)
                 const m_dot_base = m_dot_suc * (rho_1 / rho_suc);
                 const q_cool_base = m_dot_base * (h_1 - h_liq_in);
-                // Assume work scales linearly with mass flow approx (simplified for shadow calc)
-                const w_shaft_base = W_shaft_W * (m_dot_base / m_dot_suc);
-                const w_in_base = w_shaft_base / motor_eff;
-                const q_heat_base = q_cool_base + w_shaft_base; // Approx oil load same ratio? Simplify: Heat = Cool + Work
+                
+                // Recalculate base work with original suction state
+                const s_1 = CP_INSTANCE.PropsSI('S', 'H', h_1, 'P', Pe_Pa, fluid);
+                let w_shaft_base = 0;
+                if (!isEcoEnabled) {
+                    const h_2s_base = CP_INSTANCE.PropsSI('H', 'P', Pc_Pa, 'S', s_1, fluid);
+                    const w_ideal_base = m_dot_base * (h_2s_base - h_1);
+                    w_shaft_base = w_ideal_base / eta_s_display;
+                } else {
+                    const h_mid_1s_base = CP_INSTANCE.PropsSI('H', 'P', P_eco_Pa, 'S', s_1, fluid);
+                    const w_s1_base = m_dot_base * (h_mid_1s_base - h_1);
+                    const m_inj_base = m_dot_inj * (m_dot_base / m_dot_suc);
+                    const m_total_base = m_dot_base + m_inj_base;
+                    const h_mix_s_base = (m_dot_base * h_mid_1s_base + m_inj_base * h_6) / m_total_base;
+                    const s_mix_base = CP_INSTANCE.PropsSI('S', 'H', h_mix_s_base, 'P', P_eco_Pa, fluid);
+                    const h_2s_stage2_base = CP_INSTANCE.PropsSI('H', 'P', Pc_Pa, 'S', s_mix_base, fluid);
+                    const w_s2_base = m_total_base * (h_2s_stage2_base - h_mix_s_base);
+                    w_shaft_base = (w_s1_base + w_s2_base) / eta_s_display;
+                }
 
+                const w_in_base = w_shaft_base / motor_eff;
+                const q_heat_base = q_cool_base + w_shaft_base;
                 const cop_c_base = q_cool_base / w_in_base;
                 const cop_h_base = q_heat_base / w_in_base;
 
-                // Prepare Data for Grid
                 const slhxData = {
                     Qc: { val: (Q_evap_W/1000).toFixed(2), diff: ((Q_evap_W - q_cool_base)/q_cool_base)*100 },
                     Qh: { val: (Q_heating_total_W/1000).toFixed(2), diff: ((Q_heating_total_W - q_heat_base)/q_heat_base)*100 },
@@ -389,25 +407,12 @@ function calculateMode2() {
             // 2. ECO Benefit (Current vs No-ECO)
             let ecoHtml = '';
             if (isEcoEnabled) {
-                // Base: Single Stage (m_dot_suc only, liquid from h_3)
-                // Note: If SLHX is ON, the base comparison for ECO should maintain SLHX logic or disable both?
-                // Standard practice: Compare [With ECO] vs [Without ECO], keeping SLHX constant if possible.
-                // Simplified Shadow: No-ECO baseline (Single stage, Liq from Condenser directly)
-                const q_cool_base_eco = m_dot_suc * (h_suc - h_3); // Using current h_suc (if SLHX on)
-                
-                // Ideal Work Single Stage
-                const h_2s_base = CP_INSTANCE.PropsSI('H', 'P', Pc_Pa, 'S', s_suc, fluid);
-                const W_ideal_base = m_dot_suc * (h_2s_base - h_suc);
-                
-                let W_shaft_base_eco = 0;
-                if (AppState.currentMode === 'geometry') {
-                     W_shaft_base_eco = W_ideal_base / eta_s_display;
-                } else {
-                     W_shaft_base_eco = W_shaft_W; // Placeholder for Poly mode difficult reverse calc
-                }
+                const q_cool_base_eco = m_dot_suc * (h_suc - h_3); 
+                const h_2s_base_eco = CP_INSTANCE.PropsSI('H', 'P', Pc_Pa, 'S', s_suc, fluid);
+                const W_ideal_base_eco = m_dot_suc * (h_2s_base_eco - h_suc);
+                const W_shaft_base_eco = W_ideal_base_eco / eta_s_display;
                 const w_in_base_eco = W_shaft_base_eco / motor_eff;
-                const q_heat_base_eco = q_cool_base_eco + W_shaft_base_eco; // Approx
-
+                const q_heat_base_eco = q_cool_base_eco + W_shaft_base_eco;
                 const cop_c_base_eco = q_cool_base_eco / w_in_base_eco;
                 const cop_h_base_eco = q_heat_base_eco / w_in_base_eco;
 
@@ -427,15 +432,14 @@ function calculateMode2() {
 
             // --- Chart ---
             const point = (name, h_j, p_pa, pos='top') => ({ name, value: [h_j/1000, p_pa/1e5], label: { position: pos, show: true } });
-            const rawP = (h_j, p_pa) => [h_j/1000, p_pa/1e5];
-
+            
             const pt1 = point('1', h_1, Pe_Pa, 'bottom');
             const pt1_p = point("1'", h_suc, Pe_Pa, 'bottom'); 
             const pt2 = point('2', h_2a_final, Pc_Pa, 'top');
             const pt3 = point('3', h_3, Pc_Pa, 'top');
             const pt4 = point('4', h_liq_out, Pe_Pa, 'bottom'); 
             
-            // [Bug Fix v7.2.1] Explicit Logic for Point 5' chart pressure
+            // Explicit Logic for Point 5' chart pressure
             let P_5p_chart = Pc_Pa;
             if (isEcoEnabled && ecoType === 'flash_tank') P_5p_chart = P_eco_Pa;
             
@@ -455,24 +459,48 @@ function calculateMode2() {
                     const pt7 = point('7', h_7, P_eco_Pa, 'right');
                     const pt6 = point('6', h_6, P_eco_Pa, 'left');
                     
-                    mainPoints = [pt1_p, pt2, pt3];
-                    ecoLiquidPoints = [rawP(h_3, Pc_Pa), pt7, pt5];
+                    // Flash Tank High Side: 1'->2->3
+                    // [Bug Fix v7.4.4] Explicitly include pt3 in main points to close 2-3 line
+                    if (isSlhxEnabled) mainPoints = [pt1_p, pt2, pt3];
+                    else mainPoints = [pt1, pt2, pt3];
+
+                    // Liquid Side: 3->7->5->[5']->4
+                    ecoLiquidPoints = [pt3, pt7, pt5];
                     if (isSlhxEnabled) ecoLiquidPoints.push(pt5_p, pt4);
                     else ecoLiquidPoints.push(pt4);
                     
-                    mainPoints = [pt4, pt1, isSlhxEnabled?pt1_p:pt1, pt2];
-                    ecoVaporPoints = [rawP(h_7, P_eco_Pa), pt6];
+                    // Low Side Closing: 4 -> 1 ...
+                    // Since ECharts series are separate, we can't draw a single continuous line for everything easily.
+                    // We typically draw the High Pressure and Low Pressure parts in 'Main Cycle'.
+                    // To make it look continuous: 4 -> 1 -> 1' -> 2 -> 3
+                    // But for Flash Tank, the mass flow splits.
+                    // Visual fix: Draw the "Compressor Path" + "Condenser Path" + "Evap Path" in one go?
+                    // No, Flash Tank structure is physically split.
+                    // Best visual: 
+                    // Main: 4 -> 1 -> 1' -> 2 -> 3  (This traces the "outer" boundary)
+                    // Then Liquid/Injection lines fill the middle.
+                    
+                    // [Fix] Re-defining mainPoints to be the full outer loop for visual continuity
+                    mainPoints = [pt4, pt1, isSlhxEnabled?pt1_p:pt1, pt2, pt3];
+
+                    ecoVaporPoints = [pt7, pt6]; 
                 } else {
                     const pt7 = point('7', h_7, P_eco_Pa, 'right');
                     const pt6 = point('6', h_6, P_eco_Pa, 'left');
                     
+                    // Subcooler Liquid: 3->5->[5']->4
                     ecoLiquidPoints = [pt3, pt5];
                     if (isSlhxEnabled) ecoLiquidPoints.push(pt5_p, pt4);
                     else ecoLiquidPoints.push(pt4);
+                    
                     mainPoints = [pt4, pt1];
                     if (isSlhxEnabled) mainPoints.push(pt1_p);
-                    mainPoints.push(pt2);
-                    ecoVaporPoints = [rawP(h_3, Pc_Pa), pt7, pt6];
+                    // [Fix] Add pt3 to close condensation line 2->3
+                    mainPoints.push(pt2, pt3);
+                    
+                    // Injection Line: 3->7->6
+                    const pt3_clone = point('', h_3, Pc_Pa);
+                    ecoVaporPoints = [pt3_clone, pt7, pt6];
                 }
             }
 
@@ -497,9 +525,21 @@ function calculateMode2() {
             );
             
             if (isEcoEnabled) {
-                statePoints.push(
-                    { name: '5', desc: 'ECO Liq', temp: (CP_INSTANCE.PropsSI('T','P',ecoType=='flash_tank'?P_eco_Pa:Pc_Pa,'H',h_5,fluid)-273.15).toFixed(1), press: ((ecoType=='flash_tank'?P_eco_Pa:Pc_Pa)/1e5).toFixed(2), enth: (h_5/1000).toFixed(1), flow: m_p5.toFixed(3) }
-                );
+                // [Bug Fix 2]: Add Point 6 and 7 for ECO modes
+                if (ecoType === 'flash_tank') {
+                    statePoints.push(
+                        { name: '7', desc: 'Flash In (Valve)', temp: (CP_INSTANCE.PropsSI('T','P',P_eco_Pa,'Q',0,fluid)-273.15).toFixed(1), press: (P_eco_Pa/1e5).toFixed(2), enth: (h_7/1000).toFixed(1), flow: m_p7.toFixed(3) },
+                        { name: '6', desc: 'Injection Gas', temp: (CP_INSTANCE.PropsSI('T','P',P_eco_Pa,'Q',1,fluid)-273.15).toFixed(1), press: (P_eco_Pa/1e5).toFixed(2), enth: (h_6/1000).toFixed(1), flow: m_p6.toFixed(3) },
+                        { name: '5', desc: 'ECO Liq Out', temp: (CP_INSTANCE.PropsSI('T','P',P_eco_Pa,'Q',0,fluid)-273.15).toFixed(1), press: (P_eco_Pa/1e5).toFixed(2), enth: (h_5/1000).toFixed(1), flow: m_p5.toFixed(3) }
+                    );
+                } else {
+                    // Subcooler
+                    statePoints.push(
+                        { name: '7', desc: 'Inj Valve Out', temp: (CP_INSTANCE.PropsSI('T','P',P_eco_Pa,'Q',0,fluid)-273.15).toFixed(1), press: (P_eco_Pa/1e5).toFixed(2), enth: (h_7/1000).toFixed(1), flow: m_p7.toFixed(3) },
+                        { name: '6', desc: 'Injection Gas', temp: (CP_INSTANCE.PropsSI('T','P',P_eco_Pa,'H',h_6,fluid)-273.15).toFixed(1), press: (P_eco_Pa/1e5).toFixed(2), enth: (h_6/1000).toFixed(1), flow: m_p6.toFixed(3) },
+                        { name: '5', desc: 'Subcooler Out', temp: (CP_INSTANCE.PropsSI('T','P',Pc_Pa,'H',h_5,fluid)-273.15).toFixed(1), press: (Pc_Pa/1e5).toFixed(2), enth: (h_5/1000).toFixed(1), flow: m_p5.toFixed(3) }
+                    );
+                }
             }
             
             if (isSlhxEnabled) {
@@ -619,7 +659,7 @@ export function initMode2(CP) {
                 const isVSD = vsdCheckboxM2.checked;
                 const vsdInputs = document.getElementById('vsd-inputs-m2');
                 if (vsdInputs) vsdInputs.classList.toggle('hidden', !isVSD);
-                if (polyCorrectionPanel && AppState.currentMode === AppState.MODES.POLYNOMIAL) {
+                if (polyCorrectionPanel && AppState.currentMode === AppState.MODES.POLYNIAL) {
                     polyCorrectionPanel.classList.toggle('hidden', !isVSD);
                 }
                 setButtonStale2();
@@ -636,7 +676,7 @@ export function initMode2(CP) {
 
         if (printButtonM2) printButtonM2.addEventListener('click', printReportMode2);
     }
-    console.log("Mode 2 (v7.4 Benefit Matrix) initialized.");
+    console.log("Mode 2 (v7.4.4 Fix) initialized.");
 }
 
 function printReportMode2() {
