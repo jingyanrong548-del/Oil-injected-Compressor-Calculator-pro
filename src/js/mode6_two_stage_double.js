@@ -42,7 +42,7 @@ let tempDischargeActualHpInput;
 let interPressMode, interSatTempInput;
 
 // ECO 设置 - 中间冷却器
-let ecoCheckbox, ecoType, ecoSuperheatInput, ecoDtInput;
+let ecoCheckbox, ecoType, ecoSuperheatInput, ecoSuperheatInputSubcooler, ecoDtInput;
 // ECO 设置 - 低压级
 let ecoCheckboxLp, ecoTypeLp, ecoSuperheatInputLp, ecoDtInputLp;
 // ECO 设置 - 高压级
@@ -109,8 +109,7 @@ function computeLowPressureStage({
     isEcoEnabled = false,
     ecoType = null,
     ecoSuperheat_K = 5,
-    ecoDt_K = 5,
-    h3_lp = null // 低压级冷凝器出口焓值（用于ECO）
+    ecoDt_K = 5
 }) {
     const T_evap_K = Te_C + 273.15;
     const Pe_Pa = CP_INSTANCE.PropsSI('P', 'T', T_evap_K, 'Q', 1, fluid);
@@ -127,34 +126,49 @@ function computeLowPressureStage({
     let m_dot_total = m_dot_suc;
     let m_dot_inj = 0;
     let h_5_lp = null, h_6_lp = null, h_7_lp = null;
-    let P_eco_lp_Pa = P_intermediate_Pa;
 
-    // ECO计算（低压级）- 注意：低压级ECO在蒸发压力到中间压力之间
-    if (isEcoEnabled && h3_lp !== null) {
-        // 低压级ECO的压力应该是中间压力
-        const T_eco_sat_K = CP_INSTANCE.PropsSI('T', 'P', P_intermediate_Pa, 'Q', 0, fluid);
+    // ECO计算（低压级）- 在中间压力与蒸发压力之间工作
+    // 参考mode2的逻辑，但压力范围是P_intermediate到Pe
+    if (isEcoEnabled) {
+        // 计算中间压力下的液体状态（ECO入口）
+        const T_intermediate_sat_K = CP_INSTANCE.PropsSI('T', 'P', P_intermediate_Pa, 'Q', 0, fluid);
+        const h_intermediate_liq = CP_INSTANCE.PropsSI('H', 'T', T_intermediate_sat_K, 'Q', 0, fluid);
+        
+        // 计算蒸发压力下的饱和状态
+        const T_evap_sat_K = CP_INSTANCE.PropsSI('T', 'P', Pe_Pa, 'Q', 0, fluid);
         
         if (ecoType === 'flash_tank') {
-            // 闪蒸罐模式
-            const h_eco_liq = CP_INSTANCE.PropsSI('H', 'T', T_eco_sat_K, 'Q', 0, fluid);
-            const h_eco_vap = CP_INSTANCE.PropsSI('H', 'T', T_eco_sat_K, 'Q', 1, fluid);
-            h_7_lp = h3_lp; // 从冷凝器出口等焓节流到中间压力
-            h_6_lp = h_eco_vap;
-            h_5_lp = h_eco_liq;
-            const x_flash = (h_7_lp - h_5_lp) / (h_6_lp - h_5_lp);
+            // 闪蒸罐模式：从中间压力下的液体等焓节流到蒸发压力
+            h_7_lp = h_intermediate_liq; // 从中间压力下的液体等焓节流到蒸发压力
+            const h_evap_liq = CP_INSTANCE.PropsSI('H', 'T', T_evap_sat_K, 'Q', 0, fluid);
+            const h_evap_vap = CP_INSTANCE.PropsSI('H', 'T', T_evap_sat_K, 'Q', 1, fluid);
+            h_5_lp = h_evap_liq; // 蒸发压力下的饱和液体
+            h_6_lp = h_evap_vap; // 蒸发压力下的饱和蒸汽（用于补气）
+            
+            // 但补气应该在中间压力下，所以需要计算中间压力下的补气状态
+            // 从蒸发压力下的饱和蒸汽等压加热到中间压力下的过热状态
+            const T_inj_K = T_intermediate_sat_K + ecoSuperheat_K;
+            h_6_lp = CP_INSTANCE.PropsSI('H', 'T', T_inj_K, 'P', P_intermediate_Pa, fluid);
+            
+            const x_flash = (h_7_lp - h_5_lp) / (h_evap_vap - h_5_lp);
             if (x_flash > 0 && x_flash < 1) {
                 m_dot_inj = m_dot_suc * (x_flash / (1 - x_flash));
                 m_dot_total = m_dot_suc + m_dot_inj;
             }
         } else {
-            // 过冷器模式 - 低压级ECO在中间压力下
-            h_7_lp = h3_lp; // 从点3等焓节流到中间压力
-            const T_inj_K = T_eco_sat_K + ecoSuperheat_K;
+            // 过冷器模式：从中间压力下的液体等焓节流到蒸发压力
+            h_7_lp = h_intermediate_liq; // 从中间压力下的液体等焓节流到蒸发压力
+            
+            // 点5：蒸发压力下的过冷液体
+            const T_5_K = T_evap_sat_K - ecoDt_K; // 过冷度
+            h_5_lp = CP_INSTANCE.PropsSI('H', 'T', T_5_K, 'P', Pe_Pa, fluid);
+            
+            // 点6：中间压力下的过热蒸汽（用于补气）
+            const T_inj_K = T_intermediate_sat_K + ecoSuperheat_K;
             h_6_lp = CP_INSTANCE.PropsSI('H', 'T', T_inj_K, 'P', P_intermediate_Pa, fluid);
-            const T_5_K = T_eco_sat_K + ecoDt_K;
-            // 低压级ECO的过冷器在中间压力下
-            h_5_lp = CP_INSTANCE.PropsSI('H', 'T', T_5_K, 'P', P_intermediate_Pa, fluid);
-            const h_diff_main = h3_lp - h_5_lp;
+            
+            // 能量平衡：主路放热 = 补气路吸热
+            const h_diff_main = h_intermediate_liq - h_5_lp;
             const h_diff_inj = h_6_lp - h_7_lp;
             if (h_diff_main > 0 && h_diff_inj > 0) {
                 m_dot_inj = (m_dot_suc * h_diff_main) / h_diff_inj;
@@ -163,22 +177,25 @@ function computeLowPressureStage({
         }
     }
 
-    // 第一级压缩到中间压力
+    // 第一级压缩到中间压力（等熵压缩）
     const h_mid_1s = CP_INSTANCE.PropsSI('H', 'P', P_intermediate_Pa, 'S', s1, fluid);
-    let W_s1 = m_dot_suc * (h_mid_1s - h1);
+    const W_s1_ideal = m_dot_suc * (h_mid_1s - h1);
     
-    // 如果有ECO补气，需要计算混合后的压缩
+    // 如果有ECO补气，补气混合发生在压缩过程中
+    // 补气混合后，混合状态就是排气状态（在中间压力下）
     let h_mix_lp = h_mid_1s;
     if (isEcoEnabled && m_dot_inj > 0 && h_6_lp !== null) {
+        // 补气混合：在中间压力下，主路工质与补气工质混合
+        // 混合后的焓值就是排气焓值（在中间压力下）
         h_mix_lp = (m_dot_suc * h_mid_1s + m_dot_inj * h_6_lp) / m_dot_total;
-        const s_mix = CP_INSTANCE.PropsSI('S', 'H', h_mix_lp, 'P', P_intermediate_Pa, fluid);
-        const h_mid_2s = CP_INSTANCE.PropsSI('H', 'P', P_intermediate_Pa, 'S', s_mix, fluid);
-        W_s1 = m_dot_suc * (h_mid_1s - h1) + m_dot_total * (h_mid_2s - h_mix_lp);
     }
     
-    const W_shaft = W_s1 / eta_s;
+    // 压缩功：只有第一级压缩，补气不增加压缩功，只是改变了混合状态
+    // 参考mode5的实现，补气混合发生在压缩过程中，但压缩功只计算到中间压力
+    const W_shaft = W_s1_ideal / eta_s;
 
     // 排气温度计算
+    // 排气状态：补气混合后的状态（在中间压力下），考虑实际压缩效率
     let T_2a_C = 0;
     let h_2a = 0;
     if (T_2a_est_C !== null && !isNaN(T_2a_est_C)) {
@@ -186,8 +203,11 @@ function computeLowPressureStage({
         h_2a = CP_INSTANCE.PropsSI('H', 'T', T_2a_est_K, 'P', P_intermediate_Pa, fluid);
         T_2a_C = T_2a_est_C;
     } else {
-        // 使用等熵压缩后的焓值估算
-        h_2a = (isEcoEnabled && m_dot_total > m_dot_suc) ? h_mix_lp + (W_shaft / m_dot_total) : h1 + (W_shaft / m_dot_suc);
+        // 实际排气焓值：从入口状态加上实际压缩功（考虑补气后的总流量）
+        // 能量平衡：W_shaft = m_dot_total * (h_2a - h_inlet_effective)
+        // h_inlet_effective是考虑补气的有效入口焓值
+        const h_inlet_effective = (m_dot_suc * h1 + (isEcoEnabled && m_dot_inj > 0 ? m_dot_inj * h_6_lp : 0)) / m_dot_total;
+        h_2a = h_inlet_effective + W_shaft / m_dot_total;
         const T_2a_K = CP_INSTANCE.PropsSI('T', 'P', P_intermediate_Pa, 'H', h_2a, fluid);
         T_2a_C = T_2a_K - 273.15;
     }
@@ -230,7 +250,7 @@ function computeHighPressureStage({
     eta_v,
     eta_s,
     m_dot_lp, // 来自低压级的流量
-    h_mix, // 混合后的焓值
+    h_mix, // 混合后的焓值（高压级压缩起点，不包含高压级ECO补气）
     m_dot_total = null, // ECO启用时的总流量
     isEcoEnabled = false,
     ecoType = null,
@@ -238,40 +258,70 @@ function computeHighPressureStage({
     h5 = null, // ECO出口焓值
     h6 = null, // 补气焓值
     h7 = null, // ECO入口焓值
+    m_dot_inj = 0, // 补气流量（高压级ECO）
     T_2a_est_C = null
 }) {
     const T_cond_K = Tc_C + 273.15;
     const Pc_Pa = CP_INSTANCE.PropsSI('P', 'T', T_cond_K, 'Q', 1, fluid);
 
     // 点 1：高压级入口（中间压力下的状态）
-    // 假设从中间压力下的饱和状态开始（简化处理）
-    const T_intermediate_sat_K = CP_INSTANCE.PropsSI('T', 'P', P_intermediate_Pa, 'Q', 0, fluid);
-    const T1_K = T_intermediate_sat_K + superheat_K;
-    const h1 = CP_INSTANCE.PropsSI('H', 'T', T1_K, 'P', P_intermediate_Pa, fluid);
-    const s1 = CP_INSTANCE.PropsSI('S', 'T', T1_K, 'P', P_intermediate_Pa, fluid);
-    const rho1 = CP_INSTANCE.PropsSI('D', 'T', T1_K, 'P', P_intermediate_Pa, fluid);
+    // 应该使用低压级混合后的状态（h_mix），而不是重新计算
+    // 从h_mix计算对应的温度和熵
+    let h1, T1_K, s1, rho1;
+    if (h_mix !== null && h_mix !== undefined) {
+        // 使用传入的混合焓值
+        h1 = h_mix;
+        T1_K = CP_INSTANCE.PropsSI('T', 'H', h1, 'P', P_intermediate_Pa, fluid);
+        s1 = CP_INSTANCE.PropsSI('S', 'H', h1, 'P', P_intermediate_Pa, fluid);
+        rho1 = CP_INSTANCE.PropsSI('D', 'H', h1, 'P', P_intermediate_Pa, fluid);
+    } else {
+        // 如果没有传入h_mix，使用默认计算（向后兼容）
+        const T_intermediate_sat_K = CP_INSTANCE.PropsSI('T', 'P', P_intermediate_Pa, 'Q', 0, fluid);
+        T1_K = T_intermediate_sat_K + superheat_K;
+        h1 = CP_INSTANCE.PropsSI('H', 'T', T1_K, 'P', P_intermediate_Pa, fluid);
+        s1 = CP_INSTANCE.PropsSI('S', 'T', T1_K, 'P', P_intermediate_Pa, fluid);
+        rho1 = CP_INSTANCE.PropsSI('D', 'T', T1_K, 'P', P_intermediate_Pa, fluid);
+    }
 
     // 质量流量（高压级可能不同于低压级）
     const V_th_m3_s = flow_m3h / 3600.0;
     const m_dot_hp = V_th_m3_s * eta_v * rho1;
 
     // 混合过程
+    // 高压级压缩应该从混合点（h_mix）开始
+    // h1已经基于h_mix计算（如果h_mix可用），所以h1就是混合后的状态
+    
+    // 确定压缩起点：必须使用h_mix（混合点），这是高压级压缩的起点
+    // 如果h_mix不可用，使用h1（h1已经基于h_mix计算）
+    const h_compression_start = (h_mix !== null && h_mix !== undefined) ? h_mix : h1;
+    
+    // 如果有高压级ECO补气，补气应该发生在压缩过程中（类似于低压级）
+    // 参考低压级的实现：先压缩到中间状态，然后补气混合，再继续压缩
     let m_dot_total_final, h_mix_final;
+    
     if (isEcoEnabled && m_dot_total !== null) {
-        // ECO启用：使用ECO计算的总流量和混合焓值
+        // ECO启用：使用ECO计算的总流量
         m_dot_total_final = m_dot_total;
-        h_mix_final = h_mix;
-    } else if (Math.abs(m_dot_hp - m_dot_lp) < 0.001) {
-        // 流量相同，直接使用混合焓值
-        m_dot_total_final = m_dot_hp;
-        h_mix_final = h_mix;
     } else {
-        // 流量不同，需要重新计算混合（简化：假设补气）
+        // 没有ECO，使用高压级流量
         m_dot_total_final = m_dot_hp;
-        h_mix_final = h1; // 简化：使用高压级入口状态
+    }
+    
+    // 处理高压级ECO补气（在压缩过程中）
+    if (isEcoEnabled && m_dot_inj > 0 && h6 !== null && h6 > 0) {
+        // 高压级ECO补气发生在压缩过程中
+        // 基准流量：补气前的流量（总流量减去补气流量）
+        const m_dot_base = m_dot_total_final - m_dot_inj;
+        // 补气混合：从压缩起点（h_compression_start）与补气（h6）混合
+        // 混合后的状态就是压缩的起点
+        h_mix_final = (m_dot_base * h_compression_start + m_dot_inj * h6) / m_dot_total_final;
+    } else {
+        // 没有高压级ECO补气，直接使用混合点
+        h_mix_final = h_compression_start;
     }
 
     // 第二级压缩到排气压力
+    // 压缩从混合点（h_mix_final）开始
     const s_mix = CP_INSTANCE.PropsSI('S', 'H', h_mix_final, 'P', P_intermediate_Pa, fluid);
     const h_2s_stage2 = CP_INSTANCE.PropsSI('H', 'P', Pc_Pa, 'S', s_mix, fluid);
     const W_s2 = m_dot_total_final * (h_2s_stage2 - h_mix_final);
@@ -410,7 +460,10 @@ function calculateMode6() {
             // ECO参数 - 中间冷却器
             const isEcoEnabled = ecoCheckbox && ecoCheckbox.checked;
             const ecoTypeValue = isEcoEnabled ? (document.querySelector('input[name="eco_type_m6"]:checked')?.value || 'flash_tank') : null;
-            const ecoSuperheatValue = ecoSuperheatInput ? parseFloat(ecoSuperheatInput.value) : 5;
+            // 根据ECO类型选择过热度输入框
+            const ecoSuperheatValue = ecoTypeValue === 'subcooler' 
+                ? (ecoSuperheatInputSubcooler ? parseFloat(ecoSuperheatInputSubcooler.value) : 5)
+                : (ecoSuperheatInput ? parseFloat(ecoSuperheatInput.value) : 5);
             const ecoDtValue = ecoDtInput ? parseFloat(ecoDtInput.value) : 5.0;
             
             // ECO参数 - 低压级
@@ -468,7 +521,7 @@ function calculateMode6() {
                 throw new Error(`无效的中间压力：P_intermediate (${(P_intermediate_Pa/1e5).toFixed(2)} bar) 必须在 P_s 和 P_d 之间`);
             }
 
-            // 先计算冷凝器出口状态（用于ECO计算）
+            // 先计算冷凝器出口状态（用于高压级ECO计算）
             const T3_K = T_cond_K - scHp_K;
             const h3 = CP_INSTANCE.PropsSI('H', 'T', T3_K, 'P', Pc_Pa, fluid);
 
@@ -485,27 +538,73 @@ function calculateMode6() {
                 isEcoEnabled: isEcoEnabledLp,
                 ecoType: ecoTypeLpValue,
                 ecoSuperheat_K: ecoSuperheatLpValue,
-                ecoDt_K: ecoDtLpValue,
-                h3_lp: isEcoEnabledLp ? h3 : null
+                ecoDt_K: ecoDtLpValue
             });
 
             // 计算混合状态（用于高压级）
+            // 这是高压级压缩的起点（混合点），不包含高压级ECO补气
             let h_mix, h_mid_1s;
             if (isEcoEnabledLp && lpStage.m_dot_inj > 0) {
                 // 低压级有ECO补气
                 h_mid_1s = lpStage.h_mid;
-                h_mix = lpStage.h_mix;
+                h_mix = lpStage.h_mix; // 低压级混合后的状态
             } else {
                 // 无ECO，直接使用低压级排气状态
                 h_mid_1s = lpStage.h_mid;
-                h_mix = lpStage.h2a;
+                h_mix = lpStage.h2a; // 低压级排气状态
+            }
+            
+            // 保存初始混合点（不包含高压级ECO补气），用于高压级压缩起点
+            const h_mix_initial = h_mix;
+
+            // 中间冷却器ECO计算（如果启用）
+            let h_5_inter = h3, h_6_inter = 0, h_7_inter = h3;
+            let m_dot_inj_inter = 0, m_dot_total_inter = lpStage.m_dot;
+            
+            if (isEcoEnabled) {
+                if (ecoTypeValue === 'flash_tank') {
+                    const h_eco_liq = CP_INSTANCE.PropsSI('H', 'T', T_intermediate_sat_K, 'Q', 0, fluid);
+                    const h_eco_vap = CP_INSTANCE.PropsSI('H', 'T', T_intermediate_sat_K, 'Q', 1, fluid);
+                    h_7_inter = h3;
+                    h_6_inter = h_eco_vap;
+                    h_5_inter = h_eco_liq;
+                    const x_flash = (h_7_inter - h_5_inter) / (h_6_inter - h_5_inter);
+                    if (x_flash > 0 && x_flash < 1) {
+                        m_dot_inj_inter = lpStage.m_dot * (x_flash / (1 - x_flash));
+                        m_dot_total_inter = lpStage.m_dot + m_dot_inj_inter;
+                    }
+                } else {
+                    // Subcooler
+                    h_7_inter = h3;
+                    const T_inj_K = T_intermediate_sat_K + ecoSuperheatValue;
+                    h_6_inter = CP_INSTANCE.PropsSI('H', 'T', T_inj_K, 'P', P_intermediate_Pa, fluid);
+                    const T_5_K = T_intermediate_sat_K + ecoDtValue;
+                    h_5_inter = CP_INSTANCE.PropsSI('H', 'T', T_5_K, 'P', Pc_Pa, fluid);
+                    const h_diff_main = h3 - h_5_inter;
+                    const h_diff_inj = h_6_inter - h_7_inter;
+                    if (h_diff_main > 0 && h_diff_inj > 0) {
+                        m_dot_inj_inter = (lpStage.m_dot * h_diff_main) / h_diff_inj;
+                        m_dot_total_inter = lpStage.m_dot + m_dot_inj_inter;
+                    }
+                }
+                
+                // 更新混合状态（中间冷却器补气）
+                if (m_dot_inj_inter > 0) {
+                    h_mix = (lpStage.m_dot * h_mix + m_dot_inj_inter * h_6_inter) / m_dot_total_inter;
+                }
             }
 
             // 高压级ECO计算（如果启用）
             let h_5_hp = h3, h_6_hp = 0, h_7_hp = h3;
-            let m_dot_inj_hp = 0, m_dot_total_hp = lpStage.m_dot;
+            let m_dot_inj_hp = 0;
+            // 如果中间冷却器ECO已启用，使用中间冷却器的总流量；否则使用低压级流量
+            let m_dot_total_hp = (isEcoEnabled && m_dot_inj_inter > 0) ? m_dot_total_inter : lpStage.m_dot;
             
+            // 允许高压级ECO独立工作，即使中间冷却器ECO已启用
             if (isEcoEnabledHp) {
+                // 确定用于计算的基准流量
+                const base_flow = (isEcoEnabled && m_dot_inj_inter > 0) ? m_dot_total_inter : lpStage.m_dot;
+                
                 if (ecoTypeHpValue === 'flash_tank') {
                     const h_eco_liq = CP_INSTANCE.PropsSI('H', 'T', T_intermediate_sat_K, 'Q', 0, fluid);
                     const h_eco_vap = CP_INSTANCE.PropsSI('H', 'T', T_intermediate_sat_K, 'Q', 1, fluid);
@@ -513,8 +612,10 @@ function calculateMode6() {
                     h_6_hp = h_eco_vap;
                     h_5_hp = h_eco_liq;
                     const x_flash = (h_7_hp - h_5_hp) / (h_6_hp - h_5_hp);
-                    m_dot_inj_hp = lpStage.m_dot * (x_flash / (1 - x_flash));
-                    m_dot_total_hp = lpStage.m_dot + m_dot_inj_hp;
+                    if (x_flash > 0 && x_flash < 1) {
+                        m_dot_inj_hp = base_flow * (x_flash / (1 - x_flash));
+                        m_dot_total_hp = base_flow + m_dot_inj_hp;
+                    }
                 } else {
                     // Subcooler
                     h_7_hp = h3;
@@ -525,18 +626,21 @@ function calculateMode6() {
                     const h_diff_main = h3 - h_5_hp;
                     const h_diff_inj = h_6_hp - h_7_hp;
                     if (h_diff_main > 0 && h_diff_inj > 0) {
-                        m_dot_inj_hp = (lpStage.m_dot * h_diff_main) / h_diff_inj;
-                        m_dot_total_hp = lpStage.m_dot + m_dot_inj_hp;
+                        m_dot_inj_hp = (base_flow * h_diff_main) / h_diff_inj;
+                        m_dot_total_hp = base_flow + m_dot_inj_hp;
                     }
                 }
                 
-                // 更新混合状态（高压级补气）
-                if (m_dot_inj_hp > 0) {
-                    h_mix = (lpStage.m_dot * h_mix + m_dot_inj_hp * h_6_hp) / m_dot_total_hp;
-                }
+                // 注意：高压级ECO补气应该在压缩过程中处理，而不是在这里
+                // 这里只计算补气参数，补气混合将在computeHighPressureStage内部处理
             }
 
             // 计算高压级
+            // 确定最终的总流量：优先使用中间冷却器ECO的总流量，否则使用高压级ECO的总流量
+            const m_dot_total_final = (isEcoEnabled && m_dot_inj_inter > 0) ? m_dot_total_inter : m_dot_total_hp;
+            
+            // 高压级压缩应该从混合点（h_mix_initial）开始
+            // 如果有高压级ECO补气，补气将在压缩过程中处理
             const hpStage = computeHighPressureStage({
                 fluid,
                 P_intermediate_Pa,
@@ -548,14 +652,15 @@ function calculateMode6() {
                 eta_v: eta_v_hp,
                 eta_s: eta_s_hp,
                 m_dot_lp: lpStage.m_dot,
-                h_mix: h_mix,
-                m_dot_total: m_dot_total_hp,
-                isEcoEnabled: isEcoEnabledHp,
-                ecoType: ecoTypeHpValue,
+                h_mix: h_mix_initial, // 使用初始混合点（不包含高压级ECO补气）
+                m_dot_total: m_dot_total_final,
+                isEcoEnabled: isEcoEnabledHp || (isEcoEnabled && m_dot_inj_inter > 0),
+                ecoType: isEcoEnabledHp ? ecoTypeHpValue : (isEcoEnabled ? ecoTypeValue : null),
                 h3: h3,
-                h5: h_5_hp,
-                h6: h_6_hp,
-                h7: h_7_hp,
+                h5: (isEcoEnabled && m_dot_inj_inter > 0) ? h_5_inter : (isEcoEnabledHp ? h_5_hp : null),
+                h6: (isEcoEnabled && m_dot_inj_inter > 0) ? h_6_inter : (isEcoEnabledHp ? h_6_hp : null),
+                h7: (isEcoEnabled && m_dot_inj_inter > 0) ? h_7_inter : (isEcoEnabledHp ? h_7_hp : null),
+                m_dot_inj: isEcoEnabledHp ? m_dot_inj_hp : ((isEcoEnabled && m_dot_inj_inter > 0) ? m_dot_inj_inter : 0),
                 T_2a_est_C: T_2a_est_Hp_C
             });
 
@@ -642,6 +747,72 @@ function calculateMode6() {
                 enth: (hpStage.h4 / 1000).toFixed(1),
                 flow: lpStage.m_dot.toFixed(4)
             });
+
+            // ECO相关状态点 - 中间冷却器ECO
+            if (hasEcoInter) {
+                const m_p5_inter = lpStage.m_dot; // 主路流量
+                const m_p6_inter = m_dot_inj_inter; // 补气流量
+                const m_p7_inter = m_dot_inj_inter; // 补气流量
+                
+                if (ecoTypeValue === 'flash_tank') {
+                    const T_7_inter_K = CP_INSTANCE.PropsSI('T', 'P', P_intermediate_Pa, 'Q', 0, fluid);
+                    const T_6_inter_K = CP_INSTANCE.PropsSI('T', 'P', P_intermediate_Pa, 'Q', 1, fluid);
+                    const T_5_inter_K = CP_INSTANCE.PropsSI('T', 'P', P_intermediate_Pa, 'Q', 0, fluid);
+                    statePoints.push({
+                        name: '7-Inter',
+                        desc: 'Flash In (Inter)',
+                        temp: (T_7_inter_K - 273.15).toFixed(1),
+                        press: (P_intermediate_Pa / 1e5).toFixed(2),
+                        enth: (h_7_inter / 1000).toFixed(1),
+                        flow: m_p7_inter.toFixed(4)
+                    });
+                    statePoints.push({
+                        name: '6-Inter',
+                        desc: 'Injection Gas (Inter)',
+                        temp: (T_6_inter_K - 273.15).toFixed(1),
+                        press: (P_intermediate_Pa / 1e5).toFixed(2),
+                        enth: (h_6_inter / 1000).toFixed(1),
+                        flow: m_p6_inter.toFixed(4)
+                    });
+                    statePoints.push({
+                        name: '5-Inter',
+                        desc: 'ECO Liq Out (Inter)',
+                        temp: (T_5_inter_K - 273.15).toFixed(1),
+                        press: (P_intermediate_Pa / 1e5).toFixed(2),
+                        enth: (h_5_inter / 1000).toFixed(1),
+                        flow: m_p5_inter.toFixed(4)
+                    });
+                } else {
+                    // Subcooler模式
+                    const T_5_inter_K = CP_INSTANCE.PropsSI('T', 'P', Pc_Pa, 'H', h_5_inter, fluid);
+                    const T_7_inter_K = CP_INSTANCE.PropsSI('T', 'P', P_intermediate_Pa, 'H', h_7_inter, fluid);
+                    const T_6_inter_K = CP_INSTANCE.PropsSI('T', 'P', P_intermediate_Pa, 'H', h_6_inter, fluid);
+                    statePoints.push({
+                        name: '5-Inter',
+                        desc: 'Subcooler Out (Inter)',
+                        temp: (T_5_inter_K - 273.15).toFixed(1),
+                        press: (Pc_Pa / 1e5).toFixed(2),
+                        enth: (h_5_inter / 1000).toFixed(1),
+                        flow: m_p5_inter.toFixed(4)
+                    });
+                    statePoints.push({
+                        name: '7-Inter',
+                        desc: 'Inj Valve Out (Inter)',
+                        temp: (T_7_inter_K - 273.15).toFixed(1),
+                        press: (P_intermediate_Pa / 1e5).toFixed(2),
+                        enth: (h_7_inter / 1000).toFixed(1),
+                        flow: m_p7_inter.toFixed(4)
+                    });
+                    statePoints.push({
+                        name: '6-Inter',
+                        desc: 'Injection Gas (Inter)',
+                        temp: (T_6_inter_K - 273.15).toFixed(1),
+                        press: (P_intermediate_Pa / 1e5).toFixed(2),
+                        enth: (h_6_inter / 1000).toFixed(1),
+                        flow: m_p6_inter.toFixed(4)
+                    });
+                }
+            }
 
             // ECO相关状态点 - 高压级ECO
             if (hasEcoHp) {
@@ -810,13 +981,23 @@ function calculateMode6() {
                 
                 // 低压级ECO点
                 if (hasEcoLp) {
+                    // 计算中间压力下的液体焓值（ECO入口）
+                    const T_intermediate_sat_K_lp = CP_INSTANCE.PropsSI('T', 'P', P_intermediate_Pa, 'Q', 0, fluid);
+                    const h_intermediate_liq_lp = CP_INSTANCE.PropsSI('H', 'T', T_intermediate_sat_K_lp, 'Q', 0, fluid);
+                    
+                    // 点6：中间压力下的过热蒸汽（补气）
                     pt6_lp = point('6-LP', lpStage.h6, P_intermediate_Pa, 'left');
+                    
                     if (ecoTypeLpValue === 'flash_tank') {
-                        pt7_lp = point('7-LP', lpStage.h7, P_intermediate_Pa, 'right');
-                        pt5_lp = point('5-LP', lpStage.h5, P_intermediate_Pa, 'top');
+                        // 闪蒸罐模式：点7从中间压力下的液体等焓节流到蒸发压力
+                        pt7_lp = point('7-LP', lpStage.h7, Pe_Pa, 'right');
+                        // 点5：蒸发压力下的饱和液体
+                        pt5_lp = point('5-LP', lpStage.h5, Pe_Pa, 'top');
                     } else {
-                        pt7_lp = point('7-LP', lpStage.h7, P_intermediate_Pa, 'bottom');
-                        pt5_lp = point('5-LP', lpStage.h5, P_intermediate_Pa, 'top');
+                        // 过冷器模式：点7从中间压力下的液体等焓节流到蒸发压力
+                        pt7_lp = point('7-LP', lpStage.h7, Pe_Pa, 'bottom');
+                        // 点5：蒸发压力下的过冷液体
+                        pt5_lp = point('5-LP', lpStage.h5, Pe_Pa, 'top');
                     }
                 }
                 
@@ -887,13 +1068,24 @@ function calculateMode6() {
                 
                 // 低压级ECO路径（如果有）
                 if (hasEcoLp) {
-                    // 低压级ECO在蒸发压力到中间压力之间
+                    // 计算中间压力下的液体点（ECO入口）
+                    const T_intermediate_sat_K_lp = CP_INSTANCE.PropsSI('T', 'P', P_intermediate_Pa, 'Q', 0, fluid);
+                    const h_intermediate_liq_lp = CP_INSTANCE.PropsSI('H', 'T', T_intermediate_sat_K_lp, 'Q', 0, fluid);
+                    const pt_intermediate_liq = point('', h_intermediate_liq_lp, P_intermediate_Pa);
+                    
                     if (ecoTypeLpValue === 'flash_tank') {
-                        ecoLiquidPoints.push(pt_lp1, pt7_lp, pt5_lp);
+                        // 闪蒸罐模式：从中间压力下的液体 -> 等焓节流到蒸发压力 -> 闪蒸 -> 点4
+                        // 液路：中间压力液体 -> 7（节流到蒸发压力）-> 5（闪蒸罐底部）-> 4
+                        ecoLiquidPoints.push(pt_intermediate_liq, pt7_lp, pt5_lp, pt4);
+                        // 补气路：7 -> 6（从蒸发压力下的闪蒸蒸汽加热到中间压力下的过热蒸汽）
                         ecoVaporPoints.push(pt7_lp, pt6_lp);
                     } else {
-                        ecoLiquidPoints.push(pt_lp1, pt5_lp);
-                        ecoVaporPoints.push(pt_lp1, pt7_lp, pt6_lp);
+                        // 过冷器模式：从中间压力下的液体 -> 等焓节流到蒸发压力 -> 过冷器 -> 点4
+                        // 液路：中间压力液体 -> 7（节流到蒸发压力）-> 5（过冷器出口）-> 4
+                        ecoLiquidPoints.push(pt_intermediate_liq, pt7_lp, pt5_lp, pt4);
+                        // 补气路：中间压力液体 -> 7（等焓节流到蒸发压力）-> 6（加热到中间压力下的过热蒸汽）
+                        const pt_intermediate_liq_clone = point('', h_intermediate_liq_lp, P_intermediate_Pa);
+                        ecoVaporPoints.push(pt_intermediate_liq_clone, pt7_lp, pt6_lp);
                     }
                 }
                 
@@ -955,6 +1147,7 @@ function calculateMode6() {
                     </div>
                     <div class="bg-white/60 p-4 rounded-2xl border border-white/50">
                         ${createSectionHeader('High Pressure Stage', '🔥')}
+                        ${createDetailRow('油冷负荷', (hpStage.Q_oil_W / 1000).toFixed(2), 'kW')}
                         ${createDetailRow('Q_cond', `${(hpStage.Q_cond_W / 1000).toFixed(2)} kW`)}
                         ${createDetailRow('W_shaft_HP', `${(hpStage.W_shaft_W / 1000).toFixed(2)} kW`)}
                         ${createDetailRow('m_dot_HP', `${hpStage.m_dot.toFixed(4)} kg/s`)}
@@ -1276,6 +1469,7 @@ export function initMode6(CP) {
     // ECO设置 - 中间冷却器
     ecoCheckbox = document.getElementById('enable_eco_m6');
     ecoSuperheatInput = document.getElementById('eco_superheat_m6');
+    ecoSuperheatInputSubcooler = document.getElementById('eco_superheat_m6_subcooler');
     ecoDtInput = document.getElementById('eco_dt_m6');
     
     // ECO设置 - 低压级

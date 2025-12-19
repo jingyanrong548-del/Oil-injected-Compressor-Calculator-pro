@@ -152,6 +152,29 @@ export const COMPRESSOR_MODELS = {
                 rotor_code: '强化级间压比'
             }
         ]
+    },
+    '雪人股份': {
+        'SRM系列': [
+            { model: 'SRM-12L', displacement: 265 },
+            { model: 'SRM-16S', displacement: 435 },
+            { model: 'SRM-16M', displacement: 544 },
+            { model: 'SRM-16L', displacement: 652 },
+            { model: 'SRM-20S', displacement: 850 },
+            { model: 'SRM-20M', displacement: 1100 },
+            { model: 'SRM-20L', displacement: 1270 },
+            { model: 'SRM-20LL', displacement: 1500 },
+            { model: 'SRM-26S', displacement: 1659 },
+            { model: 'SRM-26M', displacement: 2075 },
+            { model: 'SRM-26L', displacement: 2478 },
+            { model: 'SRM-26LL', displacement: 2940 },
+            { model: 'SRM-34S', displacement: 3360 },
+            { model: 'SRM-34M', displacement: 4280 },
+            { model: 'SRM-34L', displacement: 5084 },
+            { model: 'SRM-34LL', displacement: 6350 },
+            { model: 'SRM-41S', displacement: 6804 },
+            { model: 'SRM-41M', displacement: 8410 },
+            { model: 'SRM-41L', displacement: 10850 }
+        ]
     }
     // 预留扩展：冰轮系列、武冷系列等
     // '冰轮': { ... },
