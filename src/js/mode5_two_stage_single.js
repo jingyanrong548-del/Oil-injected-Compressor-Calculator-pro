@@ -12,11 +12,11 @@ import { openMobileSheet } from './ui.js';
 import { updateFluidInfo } from './coolprop_loader.js';
 import { calculateEmpiricalEfficiencies } from './efficiency_models.js';
 import { 
-    getAllBrands, 
-    getSeriesByBrand, 
+    getFilteredBrands,
+    getFilteredSeriesByBrand,
     getModelsBySeries, 
     getDisplacementByModel,
-    getModelDetail
+    getModelDetail 
 } from './compressor_models.js';
 
 let CP_INSTANCE = null;
@@ -685,7 +685,8 @@ function printReportMode5() {
 // ---------------------------------------------------------------------
 
 function initCompressorModelSelectorsM5() {
-    const brands = getAllBrands().filter(brand => brand !== '冰山'); // 排除冰山系列
+    // Mode 5 (单机双级模式): 只保留前川 LSC、MS、SS 系列，其余品牌全部删除
+    const brands = getFilteredBrands('m5');
     compressorBrand.innerHTML = '<option value="">-- 选择品牌 --</option>';
     brands.forEach(brand => {
         const option = document.createElement('option');
@@ -703,7 +704,7 @@ function initCompressorModelSelectorsM5() {
         modelDisplacementInfo.classList.add('hidden');
 
         if (brand) {
-            const series = getSeriesByBrand(brand);
+            const series = getFilteredSeriesByBrand('m5', brand);
             series.forEach(s => {
                 const option = document.createElement('option');
                 option.value = s;

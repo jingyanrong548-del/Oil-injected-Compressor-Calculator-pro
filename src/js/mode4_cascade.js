@@ -12,8 +12,8 @@ import { openMobileSheet } from './ui.js';
 import { updateFluidInfo } from './coolprop_loader.js';
 import { calculateEmpiricalEfficiencies } from './efficiency_models.js';
 import { 
-    getAllBrands, 
-    getSeriesByBrand, 
+    getFilteredBrands,
+    getFilteredSeriesByBrand,
     getModelsBySeries, 
     getDisplacementByModel 
 } from './compressor_models.js';
@@ -1244,7 +1244,8 @@ function printReportMode4() {
 // ---------------------------------------------------------------------
 
 function initCompressorModelSelectorsM4Lt() {
-    const brands = getAllBrands();
+    // Mode 4 LT (复叠压缩模式): 前川只保留N系列，其余品牌保留全部
+    const brands = getFilteredBrands('m4');
     compressorBrandLt.innerHTML = '<option value="">-- 选择品牌 --</option>';
     brands.forEach(brand => {
         const option = document.createElement('option');
@@ -1262,7 +1263,7 @@ function initCompressorModelSelectorsM4Lt() {
         modelDisplacementInfoLt.classList.add('hidden');
 
         if (brand) {
-            const series = getSeriesByBrand(brand);
+            const series = getFilteredSeriesByBrand('m4', brand);
             series.forEach(s => {
                 const option = document.createElement('option');
                 option.value = s;
@@ -1317,7 +1318,8 @@ function initCompressorModelSelectorsM4Lt() {
 }
 
 function initCompressorModelSelectorsM4Ht() {
-    const brands = getAllBrands();
+    // Mode 4 HT (复叠压缩模式): 前川只保留N系列，其余品牌保留全部
+    const brands = getFilteredBrands('m4');
     compressorBrandHt.innerHTML = '<option value="">-- 选择品牌 --</option>';
     brands.forEach(brand => {
         const option = document.createElement('option');
@@ -1335,7 +1337,7 @@ function initCompressorModelSelectorsM4Ht() {
         modelDisplacementInfoHt.classList.add('hidden');
 
         if (brand) {
-            const series = getSeriesByBrand(brand);
+            const series = getFilteredSeriesByBrand('m4', brand);
             series.forEach(s => {
                 const option = document.createElement('option');
                 option.value = s;

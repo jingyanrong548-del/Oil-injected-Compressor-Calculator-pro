@@ -22,8 +22,8 @@ import { HistoryDB, SessionState } from './storage.js';
 import { AppState } from './state.js'; 
 import { calculatePoly10, calculatePolyVSD } from './logic/polynomial_models.js';
 import { 
-    getAllBrands, 
-    getSeriesByBrand, 
+    getFilteredBrands,
+    getFilteredSeriesByBrand,
     getModelsBySeries, 
     getDisplacementByModel 
 } from './compressor_models.js';
@@ -118,8 +118,8 @@ function updateAndDisplayEfficienciesM2() {
 // ---------------------------------------------------------------------
 
 function initCompressorModelSelectorsM2() {
-    // Populate brand dropdown
-    const brands = getAllBrands();
+    // Populate brand dropdown (Mode 2: 前川只保留N系列，其余品牌保留全部)
+    const brands = getFilteredBrands('m2');
     compressorBrandM2.innerHTML = '<option value="">-- 选择品牌 --</option>';
     brands.forEach(brand => {
         const option = document.createElement('option');
@@ -138,7 +138,7 @@ function initCompressorModelSelectorsM2() {
         modelDisplacementInfoM2.classList.add('hidden');
 
         if (brand) {
-            const series = getSeriesByBrand(brand);
+            const series = getFilteredSeriesByBrand('m2', brand);
             series.forEach(s => {
                 const option = document.createElement('option');
                 option.value = s;

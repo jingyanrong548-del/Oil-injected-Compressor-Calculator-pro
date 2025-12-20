@@ -151,6 +151,25 @@ export const COMPRESSOR_MODELS = {
                 disp_hp: 435,
                 rotor_code: '强化级间压比'
             }
+        ],
+        'N系列': [
+            { model: 'N125S**-L', displacement: 197 },
+            { model: 'N125L**-L', displacement: 295 },
+            { model: 'N160VS*-L', displacement: 415 },
+            { model: 'N160VM*-L', displacement: 519 },
+            { model: 'N160VL*-L', displacement: 622 },
+            { model: 'N200VS*-L', displacement: 810 },
+            { model: 'N200VM*-L', displacement: 1020 },
+            { model: 'N200VL*-L', displacement: 1210 },
+            { model: 'N250VS*-L', displacement: 1580 },
+            { model: 'N250VM*-L', displacement: 1980 },
+            { model: 'N250VL*-L', displacement: 2360 },
+            { model: 'N320VSD-L', displacement: 3170 },
+            { model: 'N320VMD-L', displacement: 3960 },
+            { model: 'N320VLD-L', displacement: 4740 },
+            { model: 'N320LLUD-L', displacement: 5600 },
+            { model: 'N400VSD-L', displacement: 6480 },
+            { model: 'N400VMD-L', displacement: 8140 }
         ]
     },
     '雪人股份': {
@@ -175,10 +194,152 @@ export const COMPRESSOR_MODELS = {
             { model: 'SRM-41M', displacement: 8410 },
             { model: 'SRM-41L', displacement: 10850 }
         ]
+    },
+    '武冷': {
+        'LG系列III': [
+            { model: 'LG12.5III', displacement: 277 },
+            { model: 'LG16IIID', displacement: 436 },
+            { model: 'LG16III', displacement: 574 },
+            { model: 'LG16IIIT', displacement: 640 },
+            { model: 'LG20IIID', displacement: 852 },
+            { model: 'LG20III', displacement: 1120 },
+            { model: 'LG20IIIT', displacement: 1400 },
+            { model: 'LG25IIID', displacement: 1663 },
+            { model: 'LG23.3IIIT', displacement: 1907 },
+            { model: 'LG25III', displacement: 2189 },
+            { model: 'LG25IIIT', displacement: 2831 },
+            { model: 'LG31.5IIID/S351', displacement: 3511.7 },
+            { model: 'LG31.5III/S418', displacement: 4175 },
+            { model: 'LG31.5IIIT/S568', displacement: 5678 },
+            { model: 'S722', displacement: 7222.1 },
+            { model: 'S812', displacement: 8120 },
+            { model: 'S906', displacement: 9058.9 },
+            { model: 'S1080', displacement: 10802 },
+            { model: 'S1200', displacement: 11995 }
+        ]
+    },
+    '烟冷': {
+        'LG系列B': [
+            { model: 'LG12B', displacement: 285 },
+            { model: 'LG16BS', displacement: 385 },
+            { model: 'LG16BM', displacement: 598 },
+            { model: 'LG20BS', displacement: 806 },
+            { model: 'LG20BM', displacement: 1120 },
+            { model: 'LG20BL', displacement: 1486 },
+            { model: 'LG25BS', displacement: 1825 },
+            { model: 'LG25BM', displacement: 2289 },
+            { model: 'LG25BL', displacement: 2840 },
+            { model: 'LG32BS', displacement: 4341 },
+            { model: 'LG32BM', displacement: 5182 },
+            { model: 'LG32BL', displacement: 5890 },
+            { model: 'LG40BS', displacement: 6514 },
+            { model: 'LG40BM', displacement: 7539 },
+            { model: 'LG40BL', displacement: 8960 },
+            { model: 'LG50BS', displacement: 8960 },
+            { model: 'LG50BM', displacement: 10500 },
+            { model: 'LG50BL', displacement: 12000 }
+        ]
+    },
+    '约克': {
+        'RWBII系列': [
+            { model: 'RWB II 60', displacement: 505 },
+            { model: 'RWB II 76', displacement: 636 },
+            { model: 'RWB II 100', displacement: 837 },
+            { model: 'RWB II 134', displacement: 1116 },
+            { model: 'RWB II 177', displacement: 1473 },
+            { model: 'RWB II 222', displacement: 1853 },
+            { model: 'RWB II 270', displacement: 2254 },
+            { model: 'RWB II 316', displacement: 2636 },
+            { model: 'RWB II 399', displacement: 3320 },
+            { model: 'RWB II 480', displacement: 3991 },
+            { model: 'RWB II 496', displacement: 4127 },
+            { model: 'RWB II 676', displacement: 5627 },
+            { model: 'RWB II 856', displacement: 7162 },
+            { model: 'RWB II 1080', displacement: 9036 }
+        ]
+    },
+    '豪顿': {
+        'WRV滑动轴承系列': [
+            { model: 'WRV163/1.45', displacement: 550 },
+            { model: 'WRV163/1.80', displacement: 680 },
+            { model: 'WRV204/1.10', displacement: 815 },
+            { model: 'WRV204/1.45', displacement: 1095 },
+            { model: 'WRV204/1.65', displacement: 1220 },
+            { model: 'WRV204/1.93', displacement: 1340 },
+            { model: 'WRVi255/1.10', displacement: 1590 },
+            { model: 'WRVi255/1.30', displacement: 1755 },
+            { model: 'WRVi255/1.45', displacement: 2150 },
+            { model: 'WRVi255/1.65', displacement: 2395 },
+            { model: 'WRVi255/1.93', displacement: 2630 },
+            { model: 'WRV255/2.20', displacement: 3190 },
+            { model: 'WRVi321/1.32', displacement: 3830 },
+            { model: 'WRVi321/1.65', displacement: 4790 },
+            { model: 'WRVi321/1.93', displacement: 5260 },
+            { model: 'WRV321/2.20', displacement: 6385 },
+            { model: 'WRVi365/165', displacement: 6771 },
+            { model: 'WRVi365/193', displacement: 7920 },
+            { model: 'WRV510/1.32', displacement: 7660 },
+            { model: 'WRV510/1.65', displacement: 9575 },
+            { model: 'WRV510/1.93', displacement: 10510 }
+        ],
+        'XRV滚动轴承系列': [
+            { model: 'XRV127-R1', displacement: 293 },
+            { model: 'XRV127-R3', displacement: 397 },
+            { model: 'XRV127-R4', displacement: 489 },
+            { model: 'XRV127-R5', displacement: 576 },
+            { model: 'XRV163/1.65', displacement: 593 },
+            { model: 'XRV163/1.95', displacement: 710 },
+            { model: 'XRV204/1.10', displacement: 812 },
+            { model: 'XRV204/1.45', displacement: 1070 },
+            { model: 'XRV204/1.65', displacement: 1219 },
+            { model: 'XRV204/1.93', displacement: 1348 }
+        ]
+    },
+    '格拉索': {
+        '标准系列': [
+            { model: 'C(140)', displacement: 231.0 },
+            { model: 'D(140)', displacement: 265.0 },
+            { model: 'E(159)', displacement: 321.0 },
+            { model: 'G(159)', displacement: 372.0 },
+            { model: 'H(177)', displacement: 471.0 },
+            { model: 'L(177)', displacement: 544.0 },
+            { model: 'M(206)', displacement: 690.0 },
+            { model: 'N(206)', displacement: 860.0 },
+            { model: 'P(214)', displacement: 805.0 },
+            { model: 'R(252)', displacement: 1040.0 },
+            { model: 'S(252)', displacement: 1290.0 },
+            { model: 'T(252)', displacement: 1460.0 },
+            { model: 'V(255)', displacement: 1740.0 },
+            { model: 'W(268)', displacement: 1990.0 },
+            { model: 'Y(255)', displacement: 2390.0 },
+            { model: 'Z(296)', displacement: 2748.0 },
+            { model: 'XA(296)', displacement: 3250.0 },
+            { model: 'XB(365)', displacement: 4150.0 },
+            { model: 'XC(365)', displacement: 4900.0 },
+            { model: 'XD(365)', displacement: 5800.0 },
+            { model: 'XE', displacement: 7170.0 },
+            { model: 'XF', displacement: 8560.0 }
+        ]
+    },
+    '神户制钢': {
+        'KS系列': [
+            { model: 'KS8LGB', displacement: 100.6 },
+            { model: 'KS10SGB', displacement: 148.8 },
+            { model: 'KS11SGB', displacement: 216.8 },
+            { model: 'KS12SGB', displacement: 287.6 },
+            { model: 'KS13LGB', displacement: 400.9 },
+            { model: 'KS16SGB', displacement: 587.9 },
+            { model: 'KS16LGB', displacement: 711.2 },
+            { model: 'KS19MNB', displacement: 939.3 },
+            { model: 'KS19LNB', displacement: 1266.5 },
+            { model: 'KS23MNB', displacement: 1770.9 },
+            { model: 'KS23LNB', displacement: 2387.1 },
+            { model: 'KS28MNB', displacement: 2917.0 },
+            { model: 'KS28LNB', displacement: 3931.3 },
+            { model: 'KS32MNB', displacement: 4765.8 },
+            { model: 'KS32LNB', displacement: 5958.6 }
+        ]
     }
-    // 预留扩展：冰轮系列、武冷系列等
-    // '冰轮': { ... },
-    // '武冷': { ... }
 };
 
 /**
@@ -251,5 +412,49 @@ export function findDisplacementByModelString(modelString) {
         }
     }
     return null;
+}
+
+/**
+ * 根据模式获取过滤后的品牌列表
+ * @param {string} mode - 模式标识: 'm2', 'm3', 'm4', 'm5', 'm6'
+ * @returns {string[]} 过滤后的品牌名称数组
+ */
+export function getFilteredBrands(mode) {
+    const allBrands = getAllBrands();
+    
+    if (mode === 'm5') {
+        // Mode 5 (单机双级模式): 只保留前川品牌，其余全部删除
+        return allBrands.filter(brand => brand === '前川(MYCOM)');
+    }
+    
+    // Mode 2, 3, 4, 6: 保留所有品牌
+    return allBrands;
+}
+
+/**
+ * 根据模式和品牌获取过滤后的系列列表
+ * @param {string} mode - 模式标识: 'm2', 'm3', 'm4', 'm5', 'm6'
+ * @param {string} brand - 品牌名称
+ * @returns {string[]} 过滤后的系列名称数组
+ */
+export function getFilteredSeriesByBrand(mode, brand) {
+    const allSeries = getSeriesByBrand(brand);
+    
+    if (brand === '前川(MYCOM)') {
+        if (mode === 'm5') {
+            // Mode 5 (单机双级模式): 前川只保留 LSC、MS、SS 系列
+            return allSeries.filter(series => 
+                series === 'LSC两级系列' || 
+                series === 'MS系列' || 
+                series === 'SS系列'
+            );
+        } else {
+            // Mode 2, 3, 4, 6: 前川只保留 N 系列
+            return allSeries.filter(series => series === 'N系列');
+        }
+    }
+    
+    // 其他品牌: 保留所有系列
+    return allSeries;
 }
 

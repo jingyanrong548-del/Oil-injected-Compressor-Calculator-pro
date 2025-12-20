@@ -17,8 +17,8 @@ import { HistoryDB, SessionState } from './storage.js';
 import { AppState } from './state.js';
 import { openMobileSheet } from './ui.js';
 import { 
-    getAllBrands, 
-    getSeriesByBrand, 
+    getFilteredBrands,
+    getFilteredSeriesByBrand,
     getModelsBySeries, 
     getDisplacementByModel 
 } from './compressor_models.js'; 
@@ -115,8 +115,8 @@ function updateAndDisplayEfficienciesM3() {
 // ---------------------------------------------------------------------
 
 function initCompressorModelSelectorsM3() {
-    // Populate brand dropdown
-    const brands = getAllBrands();
+    // Populate brand dropdown (Mode 3: 前川只保留N系列，其余品牌保留全部)
+    const brands = getFilteredBrands('m3');
     compressorBrandM3.innerHTML = '<option value="">-- 选择品牌 --</option>';
     brands.forEach(brand => {
         const option = document.createElement('option');
@@ -135,7 +135,7 @@ function initCompressorModelSelectorsM3() {
         modelDisplacementInfoM3.classList.add('hidden');
 
         if (brand) {
-            const series = getSeriesByBrand(brand);
+            const series = getFilteredSeriesByBrand('m3', brand);
             series.forEach(s => {
                 const option = document.createElement('option');
                 option.value = s;
