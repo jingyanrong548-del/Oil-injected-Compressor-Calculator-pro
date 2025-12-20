@@ -1153,18 +1153,18 @@ function calculateMode4() {
                         ${createSectionHeader('Low Stage Summary', '❄️')}
                         ${createDetailRow('Refrigerant', fluidLt)}
                         ${createDetailRow('Te / Tc', `${TeLt_C.toFixed(1)} / ${TcLt_C.toFixed(1)} °C`)}
+                        ${createDetailRow('轴功 (LT)', `${(ltStage.W_shaft_W / 1000).toFixed(2)} kW`)}
                         ${createDetailRow('Q_evap', `${(ltStage.Q_evap_W / 1000).toFixed(2)} kW`)}
                         ${createDetailRow('Q_cond (Cascade)', `${(ltStage.Q_cond_W / 1000).toFixed(2)} kW`)}
-                        ${createDetailRow('W_shaft', `${(ltStage.W_shaft_W / 1000).toFixed(2)} kW`)}
                         ${createDetailRow('Q_oil (Oil Cooling)', `${(ltStage.Q_oil_W / 1000).toFixed(2)} kW`)}
                     </div>
                     <div class="bg-white/60 p-4 rounded-2xl border border-white/50">
                         ${createSectionHeader('High Stage Summary', '🔥')}
                         ${createDetailRow('Refrigerant', fluidHt)}
                         ${createDetailRow('Te / Tc', `${T_int_C.toFixed(1)} / ${TcHt_C.toFixed(1)} °C`)}
+                        ${createDetailRow('轴功 (HT)', `${(htStage.W_shaft_W / 1000).toFixed(2)} kW`)}
                         ${createDetailRow('Q_evap (Cascade)', `${(htStage.Q_evap_W / 1000).toFixed(2)} kW`)}
                         ${createDetailRow('Q_cond', `${(htStage.Q_cond_W / 1000).toFixed(2)} kW`)}
-                        ${createDetailRow('W_shaft', `${(htStage.W_shaft_W / 1000).toFixed(2)} kW`)}
                         ${createDetailRow('Q_oil (Oil Cooling)', `${(htStage.Q_oil_W / 1000).toFixed(2)} kW`)}
                     </div>
                 </div>

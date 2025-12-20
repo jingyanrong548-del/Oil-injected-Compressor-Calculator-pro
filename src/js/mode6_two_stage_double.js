@@ -1277,17 +1277,17 @@ function calculateMode6() {
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div class="bg-white/60 p-4 rounded-2xl border border-white/50">
                         ${createSectionHeader('Low Pressure Stage', '❄️')}
-                        ${createDetailRow('油冷负荷', (lpStage.Q_oil_W / 1000).toFixed(2), 'kW')}
+                        ${createDetailRow('轴功 (LP)', `${(lpStage.W_shaft_W / 1000).toFixed(2)} kW`)}
                         ${createDetailRow('Q_evap', `${(Q_evap_W / 1000).toFixed(2)} kW`)}
-                        ${createDetailRow('W_shaft_LP', `${(lpStage.W_shaft_W / 1000).toFixed(2)} kW`)}
+                        ${createDetailRow('油冷负荷', (lpStage.Q_oil_W / 1000).toFixed(2), 'kW')}
                         ${createDetailRow('m_dot_LP', `${lpStage.m_dot.toFixed(4)} kg/s`)}
                         ${createDetailRow('T_discharge_LP', `${lpStage.T2a_C.toFixed(1)} °C`)}
                     </div>
                     <div class="bg-white/60 p-4 rounded-2xl border border-white/50">
                         ${createSectionHeader('High Pressure Stage', '🔥')}
-                        ${createDetailRow('油冷负荷', (hpStage.Q_oil_W / 1000).toFixed(2), 'kW')}
+                        ${createDetailRow('轴功 (HP)', `${(hpStage.W_shaft_W / 1000).toFixed(2)} kW`)}
                         ${createDetailRow('Q_cond', `${(hpStage.Q_cond_W / 1000).toFixed(2)} kW`)}
-                        ${createDetailRow('W_shaft_HP', `${(hpStage.W_shaft_W / 1000).toFixed(2)} kW`)}
+                        ${createDetailRow('油冷负荷', (hpStage.Q_oil_W / 1000).toFixed(2), 'kW')}
                         ${createDetailRow('m_dot_HP', `${hpStage.m_dot.toFixed(4)} kg/s`)}
                         ${createDetailRow('T_discharge_HP', `${hpStage.T2a_C.toFixed(1)} °C`)}
                     </div>

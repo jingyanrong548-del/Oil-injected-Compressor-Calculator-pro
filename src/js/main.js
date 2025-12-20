@@ -25,7 +25,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // 4. 定义需要被更新状态的元素
     const buttons = [
         document.getElementById('calc-button-mode-2'),
-        document.getElementById('calc-button-mode-3')
+        document.getElementById('calc-button-mode-3'),
+        document.getElementById('calc-button-mode-4'),
+        document.getElementById('calc-button-mode-5'),
+        document.getElementById('calc-button-mode-6')
     ];
     
     const fluidInfos = [
@@ -38,8 +41,11 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
 
     const buttonTexts = {
-        'calc-button-mode-2': '计算 (模式一)',
-        'calc-button-mode-3': '计算 (模式二)'
+        'calc-button-mode-2': '计算',
+        'calc-button-mode-3': '计算',
+        'calc-button-mode-4': '计算',
+        'calc-button-mode-5': '计算',
+        'calc-button-mode-6': '计算'
     };
 
     // 5. 然后，开始异步加载 CoolProp 物性库

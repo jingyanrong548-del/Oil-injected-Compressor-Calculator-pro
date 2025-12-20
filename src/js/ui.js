@@ -90,10 +90,10 @@ export function initUI() {
 
     // 子标签（制冷热泵模式下的4个子模式）
     const subTabs = [
-        { btnId: 'sub-tab-btn-m2', contentId: 'sub-tab-content-m2', sheetId: 'mobile-sheet-m2', calcBtnId: 'calc-button-mode-2' },
-        { btnId: 'sub-tab-btn-m4', contentId: 'sub-tab-content-m4', sheetId: 'mobile-sheet-m4', calcBtnId: 'calc-button-mode-4' },
-        { btnId: 'sub-tab-btn-m5', contentId: 'sub-tab-content-m5', sheetId: 'mobile-sheet-m5', calcBtnId: 'calc-button-mode-5' },
-        { btnId: 'sub-tab-btn-m6', contentId: 'sub-tab-content-m6', sheetId: 'mobile-sheet-m6', calcBtnId: 'calc-button-mode-6' }
+        { btnId: 'sub-tab-btn-m2', contentId: 'sub-tab-content-m2', sheetId: 'mobile-sheet-m2', calcBtnId: 'calc-button-mode-2', color: 'teal' },
+        { btnId: 'sub-tab-btn-m4', contentId: 'sub-tab-content-m4', sheetId: 'mobile-sheet-m4', calcBtnId: 'calc-button-mode-4', color: 'sky' },
+        { btnId: 'sub-tab-btn-m5', contentId: 'sub-tab-content-m5', sheetId: 'mobile-sheet-m5', calcBtnId: 'calc-button-mode-5', color: 'purple' },
+        { btnId: 'sub-tab-btn-m6', contentId: 'sub-tab-content-m6', sheetId: 'mobile-sheet-m6', calcBtnId: 'calc-button-mode-6', color: 'indigo' }
     ];
 
     // 模式标识到导航索引的映射
@@ -115,30 +115,48 @@ export function initUI() {
             if (i === mainIdx) {
                 // 选中状态
                 if (btn) {
-                    btn.classList.add('bg-white', 'shadow-md', 'text-gray-900', 'font-bold', 'ring-2', 'ring-blue-500/30');
-                    btn.classList.remove('text-gray-500', 'font-semibold');
+                    if (i === 0) {
+                        // 制冷热泵模式：Teal/青色
+                        btn.classList.remove('bg-white', 'text-gray-600', 'font-semibold');
+                        btn.classList.add('bg-teal-500', 'text-white', 'font-bold', 'shadow-md', 'ring-2', 'ring-teal-400');
+                    } else {
+                        // 气体压缩模式：Orange/橙色
+                        btn.classList.remove('bg-white', 'text-gray-600', 'font-semibold');
+                        btn.classList.add('bg-orange-500', 'text-white', 'font-bold', 'shadow-md', 'ring-2', 'ring-orange-400');
+                    }
                 }
                 if (content) {
+                    // 强制显示：移除hidden类，设置display和opacity
                     content.classList.remove('hidden', 'opacity-0');
                     content.classList.add('opacity-100');
+                    content.style.setProperty('display', 'block', 'important');
+                    content.style.setProperty('visibility', 'visible', 'important');
+                    content.style.setProperty('opacity', '1', 'important');
                 }
                 // 显示/隐藏子导航
                 if (subNav) {
                     subNav.classList.remove('hidden');
+                    subNav.style.setProperty('display', 'block', 'important');
                 }
             } else {
                 // 未选中状态
                 if (btn) {
-                    btn.classList.remove('bg-white', 'shadow-md', 'text-gray-900', 'font-bold', 'ring-2', 'ring-blue-500/30');
-                    btn.classList.add('text-gray-500', 'font-semibold');
+                    // 移除所有颜色类，恢复为白色背景
+                    btn.classList.remove('bg-teal-500', 'bg-orange-500', 'text-white', 'font-bold', 'shadow-md', 'ring-2', 'ring-teal-400', 'ring-orange-400');
+                    btn.classList.add('bg-white', 'text-gray-600', 'font-semibold');
                 }
                 if (content) {
+                    // 强制隐藏：添加hidden类，设置display为none
                     content.classList.add('hidden', 'opacity-0');
                     content.classList.remove('opacity-100');
+                    content.style.setProperty('display', 'none', 'important');
+                    content.style.setProperty('visibility', 'hidden', 'important');
+                    content.style.setProperty('opacity', '0', 'important');
                 }
                 // 隐藏子导航
                 if (subNav) {
                     subNav.classList.add('hidden');
+                    subNav.style.setProperty('display', 'none', 'important');
                 }
             }
         });
@@ -174,50 +192,90 @@ export function initUI() {
             if (i === subIdx) {
                 // 选中状态
                 if (btn) {
-                    btn.classList.add('bg-white', 'shadow-md', 'text-gray-900', 'font-bold', 'ring-2', 'ring-blue-500/30');
-                    btn.classList.remove('text-gray-500', 'font-semibold');
+                    // 移除所有可能的颜色类
+                    btn.classList.remove('bg-white', 'bg-teal-500', 'bg-sky-500', 'bg-purple-500', 'bg-indigo-500', 
+                                       'text-gray-600', 'text-gray-900', 'text-white', 
+                                       'font-semibold', 'ring-2', 'ring-teal-400', 'ring-sky-400', 'ring-purple-400', 'ring-indigo-400', 'ring-blue-500/30');
+                    
+                    // 根据子模式应用对应的颜色
+                    const colorClasses = {
+                        'teal': { bg: 'bg-teal-500', text: 'text-white', ring: 'ring-teal-400' },
+                        'sky': { bg: 'bg-sky-500', text: 'text-white', ring: 'ring-sky-400' },
+                        'purple': { bg: 'bg-purple-500', text: 'text-white', ring: 'ring-purple-400' },
+                        'indigo': { bg: 'bg-indigo-500', text: 'text-white', ring: 'ring-indigo-400' }
+                    };
+                    
+                    const colorClass = colorClasses[t.color] || colorClasses['teal'];
+                    btn.classList.add(colorClass.bg, colorClass.text, 'font-bold', 'shadow-md', 'ring-2', colorClass.ring);
                 } else {
                     console.error(`[UI] Sub-tab button not found: ${t.btnId}`);
                 }
                 
                 if (content) {
-                    // 强制移除所有可能隐藏元素的类
+                    // 第一步：移除所有隐藏相关的类（必须先移除hidden类，因为Tailwind的hidden类使用!important）
                     content.classList.remove('hidden', 'opacity-0');
                     content.classList.add('opacity-100');
                     
-                    // 检查并修复父容器
+                    // 第二步：检查并修复所有父容器（向上遍历整个DOM树）
                     let parent = content.parentElement;
                     while (parent && parent !== document.body) {
                         const parentStyle = getComputedStyle(parent);
                         if (parentStyle.display === 'none' || parent.classList.contains('hidden')) {
                             console.warn(`[UI] Parent element ${parent.id || parent.tagName} is hidden, fixing...`);
-                            parent.classList.remove('hidden');
+                            parent.classList.remove('hidden', 'opacity-0');
+                            parent.classList.add('opacity-100');
                             parent.style.setProperty('display', 'block', 'important');
                             parent.style.setProperty('visibility', 'visible', 'important');
+                            parent.style.setProperty('opacity', '1', 'important');
                         }
                         parent = parent.parentElement;
                     }
                     
-                    // 直接设置样式，使用 !important 确保可见（优先级最高）
+                    // 第三步：强制设置显示样式（使用 !important 覆盖Tailwind的hidden类）
                     content.style.setProperty('display', 'block', 'important');
                     content.style.setProperty('visibility', 'visible', 'important');
                     content.style.setProperty('opacity', '1', 'important');
                     content.style.setProperty('position', 'relative', 'important');
                     
-                    // 再次检查 offsetParent
+                    // 第四步：修复所有直接子元素（确保内容区域也可见）
+                    const directChildren = Array.from(content.children);
+                    directChildren.forEach(child => {
+                        const childStyle = getComputedStyle(child);
+                        if (childStyle.display === 'none' || child.classList.contains('hidden')) {
+                            console.warn(`[UI] Child element ${child.className || child.tagName} is hidden, fixing...`);
+                            child.classList.remove('hidden', 'opacity-0');
+                            child.style.setProperty('display', 'block', 'important');
+                            child.style.setProperty('visibility', 'visible', 'important');
+                            child.style.setProperty('opacity', '1', 'important');
+                        }
+                    });
+                    
+                    // 第五步：延迟检查，确保样式已应用
                     setTimeout(() => {
-                        if (content.offsetParent === null) {
-                            console.error(`[UI] Content ${t.contentId} still has offsetParent null after fix!`);
-                            console.error(`[UI] Computed styles: display=${getComputedStyle(content).display}, visibility=${getComputedStyle(content).visibility}, opacity=${getComputedStyle(content).opacity}`);
-                            // 尝试更激进的方法
+                        const computedStyle = getComputedStyle(content);
+                        if (content.offsetParent === null || computedStyle.display === 'none') {
+                            console.error(`[UI] Content ${t.contentId} still hidden after fix!`);
+                            console.error(`[UI] Computed styles: display=${computedStyle.display}, visibility=${computedStyle.visibility}, opacity=${computedStyle.opacity}`);
+                            // 再次强制设置，包括所有子元素
+                            content.classList.remove('hidden');
                             content.style.setProperty('display', 'block', 'important');
+                            content.style.setProperty('visibility', 'visible', 'important');
+                            content.style.setProperty('opacity', '1', 'important');
                             content.style.setProperty('position', 'static', 'important');
+                            
+                            // 再次修复所有子元素
+                            directChildren.forEach(child => {
+                                child.classList.remove('hidden');
+                                child.style.setProperty('display', 'block', 'important');
+                                child.style.setProperty('visibility', 'visible', 'important');
+                                child.style.setProperty('opacity', '1', 'important');
+                            });
                         } else {
                             console.log(`[UI] Sub-tab content ${t.contentId} is now visible (offsetParent: ${content.offsetParent.tagName})`);
                         }
-                    }, 10);
+                    }, 100);
                     
-                    console.log(`[UI] Sub-tab content ${t.contentId} made visible (display: ${getComputedStyle(content).display}, opacity: ${getComputedStyle(content).opacity})`);
+                    console.log(`[UI] Sub-tab content ${t.contentId} made visible`);
                 } else {
                     console.error(`[UI] Sub-tab content not found: ${t.contentId}`);
                 }
@@ -227,20 +285,35 @@ export function initUI() {
                     sheet.style.display = '';
                 }
             } else {
-                // 未选中状态
+                // 未选中状态 - 强制隐藏所有未选中的子模式
                 if (btn) {
-                    btn.classList.remove('bg-white', 'shadow-md', 'text-gray-900', 'font-bold', 'ring-2', 'ring-blue-500/30');
-                    btn.classList.add('text-gray-500', 'font-semibold');
+                    // 移除所有颜色类，恢复为白色背景
+                    btn.classList.remove('bg-teal-500', 'bg-sky-500', 'bg-purple-500', 'bg-indigo-500',
+                                       'text-white', 'font-bold', 'shadow-md', 'ring-2',
+                                       'ring-teal-400', 'ring-sky-400', 'ring-purple-400', 'ring-indigo-400');
+                    btn.classList.add('bg-white', 'text-gray-600', 'font-semibold');
                 }
                 if (content) {
-                    content.classList.add('hidden', 'opacity-0');
+                    // 第一步：移除所有显示相关的类（特别是opacity-100，因为模式2初始状态没有hidden类）
                     content.classList.remove('opacity-100');
-                    // 确保隐藏
-                    content.style.display = 'none';
+                    // 第二步：添加隐藏相关的类
+                    content.classList.add('hidden', 'opacity-0');
+                    // 第三步：强制设置隐藏样式（使用 !important 确保优先级最高）
+                    content.style.setProperty('display', 'none', 'important');
+                    content.style.setProperty('visibility', 'hidden', 'important');
+                    content.style.setProperty('opacity', '0', 'important');
+                    
+                    // 第四步：隐藏所有直接子元素，防止内容区域仍然可见
+                    const directChildren = Array.from(content.children);
+                    directChildren.forEach(child => {
+                        child.style.setProperty('display', 'none', 'important');
+                        child.style.setProperty('visibility', 'hidden', 'important');
+                        child.style.setProperty('opacity', '0', 'important');
+                    });
                 }
                 if (sheet) {
                     sheet.classList.add('hidden');
-                    sheet.style.display = 'none';
+                    sheet.style.setProperty('display', 'none', 'important');
                 }
             }
         });

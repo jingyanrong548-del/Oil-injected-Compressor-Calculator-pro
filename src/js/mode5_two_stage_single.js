@@ -322,6 +322,8 @@ function computeTwoStageCycle({
         Q_cond_W,
         Q_oil_W,
         W_shaft_W,
+        W_s1,  // 低压级轴功
+        W_s2,  // 高压级轴功
         W_input_W,
         COP_c,
         COP_h,
@@ -608,16 +610,30 @@ function calculateMode5() {
             const html = `
                 <div class="grid grid-cols-2 gap-4 mb-6">
                     ${createKpiCard('制冷量', (result.Q_evap_W / 1000).toFixed(2), 'kW', 'Cooling Capacity', 'blue')}
-                    ${createKpiCard('轴功率', (result.W_shaft_W / 1000).toFixed(2), 'kW', 'Shaft Power', 'orange')}
+                    ${createKpiCard('总轴功率', (result.W_shaft_W / 1000).toFixed(2), 'kW', 'Total Shaft Power', 'orange')}
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div class="bg-white/60 p-4 rounded-2xl border border-white/50">
-                        ${createSectionHeader('Performance', '📈')}
+                        ${createSectionHeader('Low Pressure Stage', '❄️')}
+                        ${createDetailRow('轴功 (LP)', `${(result.W_s1 / 1000).toFixed(2)} kW`)}
                         ${createDetailRow('Q_evap', `${(result.Q_evap_W / 1000).toFixed(2)} kW`)}
-                        ${createDetailRow('Q_cond', `${(result.Q_cond_W / 1000).toFixed(2)} kW`)}
-                        ${createDetailRow('W_shaft', `${(result.W_shaft_W / 1000).toFixed(2)} kW`)}
+                        ${createDetailRow('m_dot_suc', `${result.m_dot.toFixed(4)} kg/s`)}
                         ${createDetailRow('Q_oil', `${(result.Q_oil_W / 1000).toFixed(2)} kW`)}
+                    </div>
+                    <div class="bg-white/60 p-4 rounded-2xl border border-white/50">
+                        ${createSectionHeader('High Pressure Stage', '🔥')}
+                        ${createDetailRow('轴功 (HP)', `${(result.W_s2 / 1000).toFixed(2)} kW`)}
+                        ${createDetailRow('Q_cond', `${(result.Q_cond_W / 1000).toFixed(2)} kW`)}
+                        ${createDetailRow('m_dot_inj', `${result.m_dot_inj.toFixed(4)} kg/s`)}
+                        ${createDetailRow('m_dot_total', `${result.m_dot_total.toFixed(4)} kg/s`)}
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div class="bg-white/60 p-4 rounded-2xl border border-white/50">
+                        ${createSectionHeader('System Performance', '📈')}
+                        ${createDetailRow('总轴功率', `${(result.W_shaft_W / 1000).toFixed(2)} kW`)}
                         ${createDetailRow('COP_c', result.COP_c.toFixed(3), true)}
                         ${createDetailRow('COP_h', result.COP_h.toFixed(3))}
                     </div>
@@ -625,9 +641,6 @@ function calculateMode5() {
                         ${createSectionHeader('Intermediate Pressure', '⚙️')}
                         ${createDetailRow('P_intermediate', `${(result.P_intermediate_Pa / 1e5).toFixed(2)} bar`)}
                         ${createDetailRow('T_intermediate', `${(result.T_intermediate_sat_K - 273.15).toFixed(1)} °C`)}
-                        ${createDetailRow('m_dot_suc', `${result.m_dot.toFixed(4)} kg/s`)}
-                        ${createDetailRow('m_dot_inj', `${result.m_dot_inj.toFixed(4)} kg/s`)}
-                        ${createDetailRow('m_dot_total', `${result.m_dot_total.toFixed(4)} kg/s`)}
                     </div>
                 </div>
 
@@ -785,6 +798,46 @@ function initCompressorModelSelectorsM5() {
 }
 
 // ---------------------------------------------------------------------
+// Intermediate Pressure Update
+// ---------------------------------------------------------------------
+
+function updateIntermediatePressureM5() {
+    if (!CP_INSTANCE || !interSatTempInput) return;
+    
+    try {
+        // 检查中间压力模式是否为自动
+        const interPressModeValue = document.querySelector('input[name="inter_press_mode_m5"]:checked')?.value || 'auto';
+        if (interPressModeValue !== 'auto') return; // 手动模式时不更新
+        
+        const fluid = fluidSelect.value;
+        const Te_C = parseFloat(tempEvapInput.value);
+        const Tc_C = parseFloat(tempCondInput.value);
+        
+        if (isNaN(Te_C) || isNaN(Tc_C) || Tc_C <= Te_C) return;
+        
+        const Pe_Pa = CP_INSTANCE.PropsSI('P', 'T', Te_C + 273.15, 'Q', 1, fluid);
+        const Pc_Pa = CP_INSTANCE.PropsSI('P', 'T', Tc_C + 273.15, 'Q', 1, fluid);
+        
+        if (!Pe_Pa || !Pc_Pa || Pe_Pa <= 0 || Pc_Pa <= 0) return;
+        
+        // 计算中间压力（几何平均法）
+        const P_intermediate_Pa = Math.sqrt(Pe_Pa * Pc_Pa);
+        
+        // 计算中间饱和温度
+        const T_intermediate_sat_K = CP_INSTANCE.PropsSI('T', 'P', P_intermediate_Pa, 'Q', 0, fluid);
+        const T_intermediate_sat_C = T_intermediate_sat_K - 273.15;
+        
+        // 更新中间压力输入框的值（即使输入框是禁用的）
+        if (interSatTempInput) {
+            interSatTempInput.value = T_intermediate_sat_C.toFixed(2);
+        }
+        
+    } catch (error) {
+        console.warn("Update Intermediate Pressure M5 Error (Ignored):", error.message);
+    }
+}
+
+// ---------------------------------------------------------------------
 // Auto Efficiency Calculation
 // ---------------------------------------------------------------------
 
@@ -812,6 +865,9 @@ function updateAndDisplayEfficienciesM5Lp() {
         
         if (etaVLpInput) etaVLpInput.value = efficienciesLp.eta_v;
         if (etaSLpInput) etaSLpInput.value = efficienciesLp.eta_s;
+        
+        // 更新中间压力显示
+        updateIntermediatePressureM5();
         
     } catch (error) {
         console.warn("Auto-Eff M5 LP Error (Ignored):", error.message);
@@ -842,6 +898,9 @@ function updateAndDisplayEfficienciesM5Hp() {
         
         if (etaSHpInput) etaSHpInput.value = efficienciesHp.eta_s;
         
+        // 更新中间压力显示
+        updateIntermediatePressureM5();
+        
     } catch (error) {
         console.warn("Auto-Eff M5 HP Error (Ignored):", error.message);
     }
@@ -850,6 +909,7 @@ function updateAndDisplayEfficienciesM5Hp() {
 export function triggerMode5EfficiencyUpdate() {
     updateAndDisplayEfficienciesM5Lp();
     updateAndDisplayEfficienciesM5Hp();
+    updateIntermediatePressureM5();
 }
 
 export function initMode5(CP) {
@@ -911,6 +971,7 @@ export function initMode5(CP) {
                 updateFluidInfo(fluidSelect, fluidInfoDiv, CP_INSTANCE);
                 updateAndDisplayEfficienciesM5Lp();
                 updateAndDisplayEfficienciesM5Hp();
+                updateIntermediatePressureM5(); // 流体变化时也更新中间压力
             });
         }
 
@@ -920,10 +981,24 @@ export function initMode5(CP) {
                 input.addEventListener('change', () => {
                     updateAndDisplayEfficienciesM5Lp();
                     updateAndDisplayEfficienciesM5Hp();
+                    updateIntermediatePressureM5(); // 更新中间压力
                 });
                 input.addEventListener('input', () => {
                     if (autoEffLpCheckbox && autoEffLpCheckbox.checked) updateAndDisplayEfficienciesM5Lp();
                     if (autoEffHpCheckbox && autoEffHpCheckbox.checked) updateAndDisplayEfficienciesM5Hp();
+                    updateIntermediatePressureM5(); // 温度变化时也更新中间压力
+                });
+            }
+        });
+
+        // 效率输入框监听器（手动设定效率时也更新中间压力）
+        [etaVLpInput, etaSLpInput, etaSHpInput].forEach(input => {
+            if (input) {
+                input.addEventListener('input', () => {
+                    updateIntermediatePressureM5();
+                });
+                input.addEventListener('change', () => {
+                    updateIntermediatePressureM5();
                 });
             }
         });
@@ -933,6 +1008,7 @@ export function initMode5(CP) {
                 if (autoEffLpCheckbox.checked) {
                     updateAndDisplayEfficienciesM5Lp();
                 }
+                updateIntermediatePressureM5(); // 切换自动/手动时也更新中间压力
             });
         }
         
@@ -941,14 +1017,25 @@ export function initMode5(CP) {
                 if (autoEffHpCheckbox.checked) {
                     updateAndDisplayEfficienciesM5Hp();
                 }
+                updateIntermediatePressureM5(); // 切换自动/手动时也更新中间压力
             });
         }
+
+        // 中间压力模式切换监听器
+        const interPressModeRadios = document.querySelectorAll('input[name="inter_press_mode_m5"]');
+        interPressModeRadios.forEach(radio => {
+            if (radio) {
+                radio.addEventListener('change', () => {
+                    updateIntermediatePressureM5(); // 切换模式时更新中间压力
+                });
+            }
+        });
 
         if (printButtonM5) {
             printButtonM5.addEventListener('click', printReportMode5);
         }
         
-        // 初始化时触发一次效率更新
+        // 初始化时触发一次效率更新和中间压力更新
         setTimeout(() => {
             if (autoEffLpCheckbox && autoEffLpCheckbox.checked) {
                 updateAndDisplayEfficienciesM5Lp();
@@ -956,6 +1043,7 @@ export function initMode5(CP) {
             if (autoEffHpCheckbox && autoEffHpCheckbox.checked) {
                 updateAndDisplayEfficienciesM5Hp();
             }
+            updateIntermediatePressureM5(); // 初始化时更新中间压力
         }, 100);
     }
 

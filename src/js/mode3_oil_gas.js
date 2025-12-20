@@ -41,8 +41,8 @@ let compressorBrandM3, compressorSeriesM3, compressorModelM3, modelDisplacementI
 let flowM3hM3;
 
 // Button States
-const BTN_TEXT_CALCULATE = "Calculate Gas Compression";
-const BTN_TEXT_RECALCULATE = "Recalculate (Input Changed)";
+const BTN_TEXT_CALCULATE = "计算";
+const BTN_TEXT_RECALCULATE = "重新计算";
 
 // ---------------------------------------------------------------------
 // Helper Functions
