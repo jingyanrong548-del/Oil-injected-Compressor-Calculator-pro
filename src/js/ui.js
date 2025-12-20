@@ -80,65 +80,238 @@ export function initUI() {
     }
 
     // -----------------------------------------------------------------
-    // 2. Tab & Restore Logic (标签页切换与数据恢复)
+    // 2. Tab & Restore Logic (两级导航：主标签 + 子标签)
     // -----------------------------------------------------------------
-    const tabs = [
-        { btnId: 'tab-btn-m2', contentId: 'tab-content-m2', sheetId: 'mobile-sheet-m2', calcBtnId: 'calc-button-mode-2' },
-        { btnId: 'tab-btn-m3', contentId: 'tab-content-m3', sheetId: 'mobile-sheet-m3', calcBtnId: 'calc-button-mode-3' },
-        { btnId: 'tab-btn-m4', contentId: 'tab-content-m4', sheetId: 'mobile-sheet-m4', calcBtnId: 'calc-button-mode-4' },
-        { btnId: 'tab-btn-m5', contentId: 'tab-content-m5', sheetId: 'mobile-sheet-m5', calcBtnId: 'calc-button-mode-5' },
-        { btnId: 'tab-btn-m6', contentId: 'tab-content-m6', sheetId: 'mobile-sheet-m6', calcBtnId: 'calc-button-mode-6' }
+    // 主标签：气体压缩、制冷热泵
+    const mainTabs = [
+        { btnId: 'tab-btn-refrig', contentId: 'tab-content-refrig', subNavId: 'refrig-sub-nav' },
+        { btnId: 'tab-btn-gas', contentId: 'tab-content-gas', subNavId: null }
     ];
 
-    function switchTab(idx) {
-        tabs.forEach((t, i) => {
+    // 子标签（制冷热泵模式下的4个子模式）
+    const subTabs = [
+        { btnId: 'sub-tab-btn-m2', contentId: 'sub-tab-content-m2', sheetId: 'mobile-sheet-m2', calcBtnId: 'calc-button-mode-2' },
+        { btnId: 'sub-tab-btn-m4', contentId: 'sub-tab-content-m4', sheetId: 'mobile-sheet-m4', calcBtnId: 'calc-button-mode-4' },
+        { btnId: 'sub-tab-btn-m5', contentId: 'sub-tab-content-m5', sheetId: 'mobile-sheet-m5', calcBtnId: 'calc-button-mode-5' },
+        { btnId: 'sub-tab-btn-m6', contentId: 'sub-tab-content-m6', sheetId: 'mobile-sheet-m6', calcBtnId: 'calc-button-mode-6' }
+    ];
+
+    // 模式标识到导航索引的映射
+    const modeToNavMap = {
+        'M2': { mainIdx: 0, subIdx: 0 },  // 制冷热泵 -> 单级
+        'M3': { mainIdx: 1, subIdx: null }, // 气体压缩
+        'M4': { mainIdx: 0, subIdx: 1 },  // 制冷热泵 -> 复叠
+        'M5': { mainIdx: 0, subIdx: 2 },  // 制冷热泵 -> 单机双级
+        'M6': { mainIdx: 0, subIdx: 3 }   // 制冷热泵 -> 双机双级
+    };
+
+    // 主标签切换函数
+    function switchMainTab(mainIdx) {
+        mainTabs.forEach((t, i) => {
+            const btn = document.getElementById(t.btnId);
+            const content = document.getElementById(t.contentId);
+            const subNav = t.subNavId ? document.getElementById(t.subNavId) : null;
+            
+            if (i === mainIdx) {
+                // 选中状态
+                if (btn) {
+                    btn.classList.add('bg-white', 'shadow-md', 'text-gray-900', 'font-bold', 'ring-2', 'ring-blue-500/30');
+                    btn.classList.remove('text-gray-500', 'font-semibold');
+                }
+                if (content) {
+                    content.classList.remove('hidden', 'opacity-0');
+                    content.classList.add('opacity-100');
+                }
+                // 显示/隐藏子导航
+                if (subNav) {
+                    subNav.classList.remove('hidden');
+                }
+            } else {
+                // 未选中状态
+                if (btn) {
+                    btn.classList.remove('bg-white', 'shadow-md', 'text-gray-900', 'font-bold', 'ring-2', 'ring-blue-500/30');
+                    btn.classList.add('text-gray-500', 'font-semibold');
+                }
+                if (content) {
+                    content.classList.add('hidden', 'opacity-0');
+                    content.classList.remove('opacity-100');
+                }
+                // 隐藏子导航
+                if (subNav) {
+                    subNav.classList.add('hidden');
+                }
+            }
+        });
+
+        // 如果切换到制冷热泵模式，默认显示第一个子模式（单级）
+        if (mainIdx === 0) {
+            switchSubTab(0);
+        }
+    }
+
+    // 子标签切换函数
+    function switchSubTab(subIdx) {
+        console.log(`[UI] Switching to sub-tab index: ${subIdx}`);
+        
+        // 确保父容器 tab-content-refrig 是可见的
+        const refrigContainer = document.getElementById('tab-content-refrig');
+        if (refrigContainer) {
+            refrigContainer.classList.remove('hidden', 'opacity-0');
+            refrigContainer.classList.add('opacity-100');
+            // 强制设置样式，使用 !important 确保父容器可见
+            refrigContainer.style.setProperty('display', 'block', 'important');
+            refrigContainer.style.setProperty('visibility', 'visible', 'important');
+            refrigContainer.style.setProperty('opacity', '1', 'important');
+        } else {
+            console.error('[UI] tab-content-refrig container not found!');
+        }
+        
+        subTabs.forEach((t, i) => {
             const btn = document.getElementById(t.btnId);
             const content = document.getElementById(t.contentId);
             const sheet = document.getElementById(t.sheetId);
-            if (i === idx) {
-                // 选中状态：白色背景、深色文字、加粗、更明显的阴影和边框
-                if (btn) { 
-                    btn.classList.add('bg-white', 'shadow-md', 'text-gray-900', 'font-bold', 'ring-2', 'ring-blue-500/30'); 
-                    btn.classList.remove('text-gray-500', 'font-semibold'); 
+            
+            if (i === subIdx) {
+                // 选中状态
+                if (btn) {
+                    btn.classList.add('bg-white', 'shadow-md', 'text-gray-900', 'font-bold', 'ring-2', 'ring-blue-500/30');
+                    btn.classList.remove('text-gray-500', 'font-semibold');
+                } else {
+                    console.error(`[UI] Sub-tab button not found: ${t.btnId}`);
                 }
-                if (content) { content.classList.remove('hidden', 'opacity-0'); content.classList.add('opacity-100'); }
-                if (sheet) sheet.classList.remove('hidden');
+                
+                if (content) {
+                    // 强制移除所有可能隐藏元素的类
+                    content.classList.remove('hidden', 'opacity-0');
+                    content.classList.add('opacity-100');
+                    
+                    // 检查并修复父容器
+                    let parent = content.parentElement;
+                    while (parent && parent !== document.body) {
+                        const parentStyle = getComputedStyle(parent);
+                        if (parentStyle.display === 'none' || parent.classList.contains('hidden')) {
+                            console.warn(`[UI] Parent element ${parent.id || parent.tagName} is hidden, fixing...`);
+                            parent.classList.remove('hidden');
+                            parent.style.setProperty('display', 'block', 'important');
+                            parent.style.setProperty('visibility', 'visible', 'important');
+                        }
+                        parent = parent.parentElement;
+                    }
+                    
+                    // 直接设置样式，使用 !important 确保可见（优先级最高）
+                    content.style.setProperty('display', 'block', 'important');
+                    content.style.setProperty('visibility', 'visible', 'important');
+                    content.style.setProperty('opacity', '1', 'important');
+                    content.style.setProperty('position', 'relative', 'important');
+                    
+                    // 再次检查 offsetParent
+                    setTimeout(() => {
+                        if (content.offsetParent === null) {
+                            console.error(`[UI] Content ${t.contentId} still has offsetParent null after fix!`);
+                            console.error(`[UI] Computed styles: display=${getComputedStyle(content).display}, visibility=${getComputedStyle(content).visibility}, opacity=${getComputedStyle(content).opacity}`);
+                            // 尝试更激进的方法
+                            content.style.setProperty('display', 'block', 'important');
+                            content.style.setProperty('position', 'static', 'important');
+                        } else {
+                            console.log(`[UI] Sub-tab content ${t.contentId} is now visible (offsetParent: ${content.offsetParent.tagName})`);
+                        }
+                    }, 10);
+                    
+                    console.log(`[UI] Sub-tab content ${t.contentId} made visible (display: ${getComputedStyle(content).display}, opacity: ${getComputedStyle(content).opacity})`);
+                } else {
+                    console.error(`[UI] Sub-tab content not found: ${t.contentId}`);
+                }
+                
+                if (sheet) {
+                    sheet.classList.remove('hidden');
+                    sheet.style.display = '';
+                }
             } else {
-                // 未选中状态：透明背景、灰色文字、正常字重
-                if (btn) { 
-                    btn.classList.remove('bg-white', 'shadow-md', 'text-gray-900', 'font-bold', 'ring-2', 'ring-blue-500/30'); 
-                    btn.classList.add('text-gray-500', 'font-semibold'); 
+                // 未选中状态
+                if (btn) {
+                    btn.classList.remove('bg-white', 'shadow-md', 'text-gray-900', 'font-bold', 'ring-2', 'ring-blue-500/30');
+                    btn.classList.add('text-gray-500', 'font-semibold');
                 }
-                if (content) { content.classList.add('hidden', 'opacity-0'); content.classList.remove('opacity-100'); }
-                if (sheet) sheet.classList.add('hidden');
+                if (content) {
+                    content.classList.add('hidden', 'opacity-0');
+                    content.classList.remove('opacity-100');
+                    // 确保隐藏
+                    content.style.display = 'none';
+                }
+                if (sheet) {
+                    sheet.classList.add('hidden');
+                    sheet.style.display = 'none';
+                }
             }
         });
     }
 
-    tabs.forEach((t, i) => {
+    // 主标签事件监听
+    mainTabs.forEach((t, i) => {
         const btn = document.getElementById(t.btnId);
-        if (btn) btn.addEventListener('click', () => switchTab(i));
+        if (btn) btn.addEventListener('click', () => switchMainTab(i));
+    });
+
+    // 子标签事件监听
+    subTabs.forEach((t, i) => {
+        const btn = document.getElementById(t.btnId);
+        if (btn) btn.addEventListener('click', () => switchSubTab(i));
     });
 
     function loadRecord(rec) {
-        const idx = rec.mode === 'M2' ? 0 : rec.mode === 'M3' ? 1 : rec.mode === 'M4' ? 2 : rec.mode === 'M5' ? 3 : 4;
-        switchTab(idx);
+        const navInfo = modeToNavMap[rec.mode];
+        if (!navInfo) {
+            console.warn(`Unknown mode: ${rec.mode}`);
+            return;
+        }
+
+        // 切换到对应的主标签
+        switchMainTab(navInfo.mainIdx);
+
+        // 如果是制冷热泵模式，切换到对应的子标签
+        if (navInfo.subIdx !== null) {
+            setTimeout(() => switchSubTab(navInfo.subIdx), 50);
+        }
+
+        // 恢复输入数据
         const inputs = rec.inputs;
         if (inputs) {
             Object.keys(inputs).forEach(k => {
                 const el = document.getElementById(k);
                 if (el) {
-                    if (el.type === 'checkbox') { el.checked = inputs[k]; el.dispatchEvent(new Event('change')); }
-                    else if (el.type !== 'radio') { el.value = inputs[k]; el.dispatchEvent(new Event('input')); el.dispatchEvent(new Event('change')); }
+                    if (el.type === 'checkbox') {
+                        el.checked = inputs[k];
+                        el.dispatchEvent(new Event('change'));
+                    } else if (el.type !== 'radio') {
+                        el.value = inputs[k];
+                        el.dispatchEvent(new Event('input'));
+                        el.dispatchEvent(new Event('change'));
+                    }
                 } else {
                     const radios = document.querySelectorAll(`input[name="${k}"]`);
-                    radios.forEach(r => { if (r.value === inputs[k]) { r.checked = true; r.dispatchEvent(new Event('change')); } });
+                    radios.forEach(r => {
+                        if (r.value === inputs[k]) {
+                            r.checked = true;
+                            r.dispatchEvent(new Event('change'));
+                        }
+                    });
                 }
             });
+
+            // 触发计算按钮
             setTimeout(() => {
-                const btn = document.getElementById(tabs[idx].calcBtnId);
-                if (btn) btn.click();
-            }, 100);
+                let calcBtnId = null;
+                if (rec.mode === 'M3') {
+                    calcBtnId = 'calc-button-mode-3';
+                } else {
+                    const subTab = subTabs[navInfo.subIdx];
+                    if (subTab) calcBtnId = subTab.calcBtnId;
+                }
+                if (calcBtnId) {
+                    const btn = document.getElementById(calcBtnId);
+                    if (btn) btn.click();
+                }
+            }, 150);
         }
     }
 
@@ -506,6 +679,68 @@ export function initUI() {
         btn.addEventListener('mouseup', () => btn.classList.remove('scale-[0.98]'));
         btn.addEventListener('mouseleave', () => btn.classList.remove('scale-[0.98]'));
     });
+
+    // 初始化默认状态：显示制冷热泵模式的第一个子模式（单级）
+    switchMainTab(0);
+    switchSubTab(0);
+
+    // -----------------------------------------------------------------
+    // 7. 初始化验证：检查所有必要的元素是否存在
+    // -----------------------------------------------------------------
+    console.log("[UI] Validating UI elements...");
+    
+    // 验证主标签
+    let allValid = true;
+    mainTabs.forEach((t, i) => {
+        const btn = document.getElementById(t.btnId);
+        const content = document.getElementById(t.contentId);
+        const subNav = t.subNavId ? document.getElementById(t.subNavId) : null;
+        
+        if (!btn) {
+            console.error(`[UI] Main tab button not found: ${t.btnId}`);
+            allValid = false;
+        }
+        if (!content) {
+            console.error(`[UI] Main tab content not found: ${t.contentId}`);
+            allValid = false;
+        }
+        if (t.subNavId && !subNav) {
+            console.error(`[UI] Sub navigation not found: ${t.subNavId}`);
+            allValid = false;
+        }
+    });
+    
+    // 验证子标签
+    subTabs.forEach((t, i) => {
+        const btn = document.getElementById(t.btnId);
+        const content = document.getElementById(t.contentId);
+        const sheet = document.getElementById(t.sheetId);
+        
+        if (!btn) {
+            console.error(`[UI] Sub-tab button not found: ${t.btnId}`);
+            allValid = false;
+        }
+        if (!content) {
+            console.error(`[UI] Sub-tab content not found: ${t.contentId}`);
+            allValid = false;
+        } else {
+            // 检查内容是否在正确的父容器内
+            const refrigContainer = document.getElementById('tab-content-refrig');
+            if (refrigContainer && !refrigContainer.contains(content)) {
+                console.error(`[UI] Sub-tab content ${t.contentId} is not inside tab-content-refrig!`);
+                allValid = false;
+            }
+        }
+        if (!sheet) {
+            console.warn(`[UI] Mobile sheet not found: ${t.sheetId} (this is optional)`);
+        }
+    });
+    
+    if (allValid) {
+        console.log("[UI] ✅ All UI elements validated successfully");
+    } else {
+        console.error("[UI] ❌ Some UI elements are missing or incorrectly placed!");
+    }
 
     console.log("✅ UI v7.2 Initialized.");
 }
