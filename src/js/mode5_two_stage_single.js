@@ -87,6 +87,259 @@ function updateMobileSummary(kpi1Label, kpi1Value, kpi2Label, kpi2Value) {
 // Core Calculation Logic - Two-Stage Single Compressor
 // ---------------------------------------------------------------------
 
+/**
+ * 基于高低压级理论排量计算最优中间压力
+ * 使用流量平衡方法：通过迭代寻优找到中间压力，使得高压级吸气量与（低压排气+过冷器补气）质量流量平衡
+ * @param {Object} params - 计算参数
+ * @param {string} params.fluid - 工质名称
+ * @param {number} params.Te_C - 蒸发温度 (°C)
+ * @param {number} params.Tc_C - 冷凝温度 (°C)
+ * @param {number} params.superheat_K - 过热度 (K)
+ * @param {number} params.flow_m3h - 低压级理论排量 (m³/h)
+ * @param {number} params.eta_v_lp - 低压级容积效率
+ * @param {number} params.eta_v_hp - 高压级容积效率
+ * @param {number} params.eta_s_lp - 低压级等熵效率
+ * @param {number} params.eta_s_hp - 高压级等熵效率
+ * @param {number} params.vi_ratio - 容积比 (Vi,L / Vi,H)，如果提供则使用
+ * @param {number} params.disp_lp - 低压级排量 (m³/h)，如果提供则使用
+ * @param {number} params.disp_hp - 高压级排量 (m³/h)，如果提供则使用
+ * @param {number} params.subcooling_K - 过冷度 (K)，用于ECO计算
+ * @param {number} params.ecoSuperheat_K - ECO过热度 (K)，用于ECO计算
+ * @param {number} params.ecoDt_K - ECO过冷度/接近度 (K)，用于ECO计算
+ * @returns {number|null} 最优中间压力 (Pa)，如果无法计算则返回 null
+ */
+function calculateOptimalIntermediatePressure({
+    fluid,
+    Te_C,
+    Tc_C,
+    superheat_K,
+    flow_m3h,
+    eta_v_lp,
+    eta_v_hp,
+    eta_s_lp,
+    eta_s_hp,
+    vi_ratio = null,
+    disp_lp = null,
+    disp_hp = null,
+    subcooling_K = 5.0,
+    ecoSuperheat_K = 5.0,
+    ecoDt_K = 5.0
+}) {
+    if (!CP_INSTANCE) return null;
+    
+    try {
+        const T_evap_K = Te_C + 273.15;
+        const T_cond_K = Tc_C + 273.15;
+        const Pe_Pa = CP_INSTANCE.PropsSI('P', 'T', T_evap_K, 'Q', 1, fluid);
+        const Pc_Pa = CP_INSTANCE.PropsSI('P', 'T', T_cond_K, 'Q', 1, fluid);
+        
+        // 获取高压级理论排量
+        let V_th_HP = null;
+        if (disp_hp !== null && disp_hp > 0) {
+            V_th_HP = disp_hp; // 高压级理论排量 (m³/h)
+        } else if (vi_ratio !== null && vi_ratio > 0 && flow_m3h > 0) {
+            // 通过容积比计算高压级排量
+            V_th_HP = flow_m3h / vi_ratio;
+        } else {
+            // 无法获取高压级排量，返回 null（将使用几何平均法）
+            return null;
+        }
+        
+        // =========================================================
+        // 第一阶段：初始化与已知点计算
+        // =========================================================
+        
+        // 状态点 1 (低压吸气)
+        const T1_K = T_evap_K + superheat_K;
+        const h1 = CP_INSTANCE.PropsSI('H', 'T', T1_K, 'P', Pe_Pa, fluid);
+        const s1 = CP_INSTANCE.PropsSI('S', 'T', T1_K, 'P', Pe_Pa, fluid);
+        const rho1 = CP_INSTANCE.PropsSI('D', 'T', T1_K, 'P', Pe_Pa, fluid);
+        
+        // 低压级质量流量
+        const V_th_LP = flow_m3h; // 低压级理论排量 (m³/h)
+        const m_dot_lp = (V_th_LP * eta_v_lp * rho1) / 3600.0; // kg/s
+        
+        // 状态点 5 (冷凝器出口/过冷前)
+        const T5_K = T_cond_K - subcooling_K;
+        const h5 = CP_INSTANCE.PropsSI('H', 'T', T5_K, 'P', Pc_Pa, fluid);
+        
+        // =========================================================
+        // 第二阶段：中间压力 P_mid 的迭代搜索
+        // =========================================================
+        
+        // 初始值：几何平均法
+        let P_intermediate_Pa = Math.sqrt(Pe_Pa * Pc_Pa);
+        const P_min = Pe_Pa * 1.01; // 最小中间压力（略大于蒸发压力）
+        const P_max = Pc_Pa * 0.99; // 最大中间压力（略小于冷凝压力）
+        
+        const maxIter = 100;
+        const tolerance = 0.01; // 1% 容差
+        
+        let last_P = P_intermediate_Pa; // 用于检测振荡
+        
+        for (let iter = 0; iter < maxIter; iter++) {
+            // 计算中间压力下的饱和温度
+            const T_intermediate_sat_K = CP_INSTANCE.PropsSI('T', 'P', P_intermediate_Pa, 'Q', 0, fluid);
+            
+            // =========================================================
+            // 1. 低压级出口 (点 2)
+            // =========================================================
+            // 等熵计算
+            const h2s = CP_INSTANCE.PropsSI('H', 'P', P_intermediate_Pa, 'S', s1, fluid);
+            // 实际焓（考虑等熵效率）
+            const h2 = h1 + (h2s - h1) / eta_s_lp;
+            
+            // =========================================================
+            // 2. 过冷器侧计算
+            // =========================================================
+            // 主路入口：点5 (冷凝器出口，T_cond - DT_sc)
+            // 主路出口 (点 6)：从 h5 冷却至 T_mid_sat + DT_approach（在冷凝压力下）
+            const T6_K = T_intermediate_sat_K + ecoDt_K; // DT_approach 是过冷器接近度
+            const h6 = CP_INSTANCE.PropsSI('H', 'T', T6_K, 'P', Pc_Pa, fluid);
+            
+            // 补气路：从点5等焓节流到中间压力（点7）
+            const h7 = h5; // 等焓节流：h7 = h5（在中间压力下）
+            
+            // 补气路出口 (点 8)：在过冷器中吸热变为过热蒸汽（过热度为 DT_sh_mid，在中间压力下）
+            const T8_K = T_intermediate_sat_K + ecoSuperheat_K;
+            const h8 = CP_INSTANCE.PropsSI('H', 'T', T8_K, 'P', P_intermediate_Pa, fluid);
+            
+            // 能量平衡求补气量 m_dot_inj
+            // 主路放热 = 补气路吸热
+            // m_dot_lp * (h5 - h6) = m_dot_inj * (h8 - h7)
+            const h_diff_main = h5 - h6;
+            const h_diff_inj = h8 - h7;
+            
+            let m_dot_inj = 0;
+            if (h_diff_main > 0 && h_diff_inj > 0) {
+                m_dot_inj = (m_dot_lp * h_diff_main) / h_diff_inj;
+            }
+            
+            // 总质量流量（低压排气 + 补气）
+            const m_dot_total = m_dot_lp + m_dot_inj;
+            
+            // 边界情况检查：确保总质量流量有效
+            if (m_dot_total <= 0 || !isFinite(m_dot_total)) {
+                console.warn("Invalid m_dot_total in intermediate pressure calculation. Using geometric mean.");
+                return Math.sqrt(Pe_Pa * Pc_Pa);
+            }
+            
+            // =========================================================
+            // 3. 高压级吸气 (点 3) - 混合后
+            // =========================================================
+            // 混合焓：低压排气与补气混合
+            // 注意：在单机双级压缩机中，补气混合发生在压缩过程中
+            // 使用实际压缩后的焓值h2进行混合，这样eta_s_lp的变化会直接影响混合状态
+            // h2 = h1 + (h2s - h1) / eta_s_lp，考虑了等熵效率的影响
+            const h_mix = (m_dot_lp * h2 + m_dot_inj * h8) / m_dot_total;
+            const h3 = h_mix;
+            
+            // 计算点 3 的比容和温度
+            let T3_K, rho3;
+            try {
+                T3_K = CP_INSTANCE.PropsSI('T', 'H', h3, 'P', P_intermediate_Pa, fluid);
+                rho3 = CP_INSTANCE.PropsSI('D', 'H', h3, 'P', P_intermediate_Pa, fluid);
+            } catch (e) {
+                console.warn("Error calculating T3 or rho3 in intermediate pressure calculation. Using geometric mean.");
+                return Math.sqrt(Pe_Pa * Pc_Pa);
+            }
+            
+            // 边界情况检查：确保密度有效
+            if (rho3 <= 0 || !isFinite(rho3)) {
+                console.warn("Invalid rho3 in intermediate pressure calculation. Using geometric mean.");
+                return Math.sqrt(Pe_Pa * Pc_Pa);
+            }
+            
+            // =========================================================
+            // 4. 高压级需要的排量
+            // =========================================================
+            // 高压级质量流量 = 总质量流量
+            // m_dot_total = (V_th_HP * eta_v_hp * rho3) / 3600.0
+            // 因此：V_th_HP_required = (m_dot_total * 3600.0) / (eta_v_hp * rho3)
+            const V_th_HP_required = (m_dot_total * 3600.0) / (eta_v_hp * rho3);
+            
+            // =========================================================
+            // 5. 收敛判别
+            // =========================================================
+            // 比较 V_th_HP_required 与输入的 V_th_HP
+            const flow_error = (V_th_HP_required - V_th_HP) / V_th_HP;
+            
+            if (Math.abs(flow_error) < tolerance) {
+                // 收敛：高压级需要的排量与给定排量匹配
+                break;
+            }
+            
+            // 调整中间压力
+            // 如果 V_th_HP_required > V_th_HP，说明高压级排量不足，需要提高中间压力（增加密度rho3）
+            // 如果 V_th_HP_required < V_th_HP，说明高压级排量过大，需要降低中间压力（减少密度rho3）
+            
+            // 使用更稳定的调整策略
+            // 修正：当 flow_error > 0 时，需要增加压力，所以 adjustment_factor 应该 > 1
+            // 使用对数空间调整，更稳定
+            let adjustment_factor;
+            const abs_error = Math.abs(flow_error);
+            
+            if (abs_error > 0.1) {
+                // 误差较大时，使用较大的调整步长（但限制最大变化）
+                // 使用符号函数确保方向正确
+                const sign = flow_error > 0 ? 1 : -1;
+                adjustment_factor = 1.0 + sign * Math.min(abs_error * 0.2, 0.3); // 最大30%变化
+            } else if (abs_error > 0.05) {
+                // 中等误差
+                const sign = flow_error > 0 ? 1 : -1;
+                adjustment_factor = 1.0 + sign * abs_error * 0.15;
+            } else {
+                // 误差较小时，使用较小的调整步长
+                const sign = flow_error > 0 ? 1 : -1;
+                adjustment_factor = 1.0 + sign * abs_error * 0.1;
+            }
+            
+            let P_new = P_intermediate_Pa * adjustment_factor;
+            
+            // 限制在合理范围内
+            P_new = Math.max(P_min, Math.min(P_max, P_new));
+            
+            // 检查是否收敛（压力变化很小）
+            const pressure_change = Math.abs(P_new - P_intermediate_Pa) / P_intermediate_Pa;
+            if (pressure_change < 1e-6) {
+                break;
+            }
+            
+            // 防止振荡：如果压力变化方向与上次相反，减小步长
+            if (iter > 0) {
+                const last_change = P_intermediate_Pa - last_P;
+                const current_change = P_new - P_intermediate_Pa;
+                if (last_change * current_change < 0 && Math.abs(last_change) > 1e3) {
+                    // 方向相反且变化较大，减小步长
+                    P_new = P_intermediate_Pa + (P_new - P_intermediate_Pa) * 0.5;
+                    P_new = Math.max(P_min, Math.min(P_max, P_new));
+                }
+            }
+            
+            last_P = P_intermediate_Pa;
+            P_intermediate_Pa = P_new;
+        }
+        
+        // 验证结果：只检查是否在基本范围内
+        if (P_intermediate_Pa <= Pe_Pa || P_intermediate_Pa >= Pc_Pa) {
+            // 结果不合理，返回几何平均法结果
+            const P_intermediate_bar = P_intermediate_Pa / 1e5;
+            const Pe_bar = Pe_Pa / 1e5;
+            const Pc_bar = Pc_Pa / 1e5;
+            console.warn(`Intermediate pressure out of range: ${P_intermediate_bar.toFixed(2)} bar (Pe=${Pe_bar.toFixed(2)}, Pc=${Pc_bar.toFixed(2)}). Using geometric mean.`);
+            return Math.sqrt(Pe_Pa * Pc_Pa);
+        }
+        
+        // 放宽验证：只检查是否在Pe和Pc之间，移除过于严格的倍数限制
+        // 中间压力只要在合理范围内即可接受
+        return P_intermediate_Pa;
+        
+    } catch (error) {
+        console.warn("Calculate Optimal Intermediate Pressure Error:", error.message);
+        return null; // 出错时返回 null，将使用几何平均法
+    }
+}
+
 // 双级循环计算（复用 Mode 4 的 ECO 逻辑，但强制启用 ECO）
 function computeTwoStageCycle({
     fluid,
@@ -101,6 +354,10 @@ function computeTwoStageCycle({
     // 中间压力参数（双级压缩必需）
     interPressMode = 'auto', // 'auto' | 'manual'
     interSatTemp_C = null,
+    // 压缩机参数（用于优化中间压力计算）
+    vi_ratio = null,      // 容积比 (Vi,L / Vi,H)
+    disp_lp = null,       // 低压级排量 (m³/h)
+    disp_hp = null,       // 高压级排量 (m³/h)
     // ECO参数（双级压缩仅保留过冷器 Subcooler 模式）
     ecoSuperheat_K = 5,
     ecoDt_K = 5.0,
@@ -131,9 +388,37 @@ function computeTwoStageCycle({
     // =========================================================
     let P_intermediate_Pa, T_intermediate_sat_K;
     if (interPressMode === 'auto') {
-        // 自动模式：几何平均法
-        P_intermediate_Pa = Math.sqrt(Pe_Pa * Pc_Pa);
-        T_intermediate_sat_K = CP_INSTANCE.PropsSI('T', 'P', P_intermediate_Pa, 'Q', 0, fluid);
+        // 自动模式：优先使用基于容积比和效率的优化算法
+        // 高压级容积效率：单机双级压缩机通常两级容积效率相近，使用低压级值
+        const eta_v_hp = eta_v_lp; // 简化假设
+        
+        const optimalPressure = calculateOptimalIntermediatePressure({
+            fluid,
+            Te_C,
+            Tc_C,
+            superheat_K,
+            subcooling_K,
+            flow_m3h,
+            eta_v_lp,
+            eta_v_hp,
+            eta_s_lp,
+            eta_s_hp,
+            vi_ratio,
+            disp_lp,
+            disp_hp,
+            ecoSuperheat_K,
+            ecoDt_K
+        });
+        
+        if (optimalPressure !== null && optimalPressure > Pe_Pa && optimalPressure < Pc_Pa) {
+            // 使用优化算法结果
+            P_intermediate_Pa = optimalPressure;
+            T_intermediate_sat_K = CP_INSTANCE.PropsSI('T', 'P', P_intermediate_Pa, 'Q', 0, fluid);
+        } else {
+            // 回退到几何平均法
+            P_intermediate_Pa = Math.sqrt(Pe_Pa * Pc_Pa);
+            T_intermediate_sat_K = CP_INSTANCE.PropsSI('T', 'P', P_intermediate_Pa, 'Q', 0, fluid);
+        }
     } else {
         // 手动模式：用户指定中间饱和温度
         T_intermediate_sat_K = interSatTemp_C + 273.15;
@@ -186,10 +471,14 @@ function computeTwoStageCycle({
     h_7 = h3; // 从冷凝器出口节流到中间压力（等焓）
 
     // 过冷器模式
-    const T_inj_K = T_intermediate_sat_K + ecoSuperheat_K;
-    h_6 = CP_INSTANCE.PropsSI('H', 'T', T_inj_K, 'P', P_intermediate_Pa, fluid);
-    const T_5_K = T_intermediate_sat_K + ecoDt_K;
+    // 主路：从h3（冷凝器出口，T_cond - DT_sc）冷却至T_mid_sat + DT_approach
+    const T_5_K = T_intermediate_sat_K + ecoDt_K; // 主路出口温度（在冷凝压力下）
     h_5 = CP_INSTANCE.PropsSI('H', 'T', T_5_K, 'P', Pc_Pa, fluid);
+    
+    // 补气路：从h3等焓节流到中间压力，然后在过冷器中吸热变为过热蒸汽
+    h_7 = h3; // 等焓节流到中间压力
+    const T_inj_K = T_intermediate_sat_K + ecoSuperheat_K; // 补气过热温度
+    h_6 = CP_INSTANCE.PropsSI('H', 'T', T_inj_K, 'P', P_intermediate_Pa, fluid);
     h_liq_in = h_5;
     const h_diff_main = h3 - h_5;
     const h_diff_inj = h_6 - h_7;
@@ -246,26 +535,44 @@ function computeTwoStageCycle({
     const W_shaft_W = W_s1 + W_s2;  // 总轴功 = LP功 + HP功
     const W_input_W = W_shaft_W;
 
-    // 实际第二级排气焓值（未油冷前），用于 P-h 图与状态点 2（使用高压级等熵效率）
-    const h2_real = h_mix + (h_2s_stage2 - h_mix) / eta_s_hp;
-    const T2_real_K = CP_INSTANCE.PropsSI('T', 'P', Pc_Pa, 'H', h2_real, fluid);
-    const T2_real_C = T2_real_K - 273.15;
-
     // 系统入口总焓
     const h_system_in = m_dot_suc * h_suc + m_dot_inj * h_6;
     
-    // 油冷负荷计算
+    // =========================================================
+    // 第 2 点计算：实际第二级排气点（未油冷前）
+    // =========================================================
+    // 如果用户输入了排气温度，使用该温度计算第 2 点的焓值
+    // 否则使用基于等熵效率计算的值
+    let h2_real, T2_real_C;
+    if (T_2a_est_C !== null && !isNaN(T_2a_est_C)) {
+        // 使用输入的排气温度计算第 2 点的焓值（实际排气点）
+        const T2_est_K = T_2a_est_C + 273.15;
+        h2_real = CP_INSTANCE.PropsSI('H', 'T', T2_est_K, 'P', Pc_Pa, fluid);
+        T2_real_C = T_2a_est_C;
+    } else {
+        // 使用基于等熵效率计算的实际排气焓值
+        h2_real = h_mix + (h_2s_stage2 - h_mix) / eta_s_hp;
+        const T2_real_K = CP_INSTANCE.PropsSI('T', 'P', Pc_Pa, 'H', h2_real, fluid);
+        T2_real_C = T2_real_K - 273.15;
+    }
+    
+    // =========================================================
+    // 油冷负荷计算（第 2a 点：油冷后的排气点）
+    // =========================================================
     let Q_oil_W = 0;
     let T_2a_final_C = 0;
     let h_2a_final = 0;
     
     if (T_2a_est_C !== null && !isNaN(T_2a_est_C)) {
+        // 如果输入了排气温度，第 2a 点使用该温度
+        // 油冷负荷 = 系统输入功 - (第 2a 点焓值 - 系统入口焓值)
         const T_2a_est_K = T_2a_est_C + 273.15;
         const h_2a_target = CP_INSTANCE.PropsSI('H', 'T', T_2a_est_K, 'P', Pc_Pa, fluid);
         const energy_out_gas = m_dot_total * h_2a_target;
         Q_oil_W = W_shaft_W - (energy_out_gas - h_system_in);
         T_2a_final_C = T_2a_est_C;
         if (Q_oil_W < 0) {
+            // 如果计算出的油冷负荷为负，说明输入温度不合理，使用能量平衡计算
             Q_oil_W = 0;
             const h_2a_real = (h_system_in + W_shaft_W) / m_dot_total;
             const T_2a_real_K = CP_INSTANCE.PropsSI('T', 'P', Pc_Pa, 'H', h_2a_real, fluid);
@@ -275,10 +582,9 @@ function computeTwoStageCycle({
             h_2a_final = (h_system_in + W_shaft_W - Q_oil_W) / m_dot_total;
         }
     } else {
-        const h_2a_target = h_system_in + (W_shaft_W / m_dot_total);
-        h_2a_final = h_2a_target;
-        const T2a_K = CP_INSTANCE.PropsSI('T', 'P', Pc_Pa, 'H', h_2a_final, fluid);
-        T_2a_final_C = T2a_K - 273.15;
+        // 如果未输入排气温度，第 2a 点等于第 2 点（无油冷）
+        h_2a_final = h2_real;
+        T_2a_final_C = T2_real_C;
     }
 
     // 蒸发制冷量 & 冷凝放热
@@ -398,6 +704,28 @@ function calculateMode5() {
                 throw new Error('手动模式下必须指定中间饱和温度。');
             }
 
+            // 获取压缩机参数（用于优化中间压力计算）
+            let vi_ratio = null, disp_lp = null, disp_hp = null;
+            if (compressorBrand && compressorSeries && compressorModel) {
+                const brand = compressorBrand.value;
+                const series = compressorSeries.value;
+                const model = compressorModel.value;
+                if (brand && series && model) {
+                    const detail = getModelDetail(brand, series, model);
+                    if (detail) {
+                        if (typeof detail.vi_ratio === 'number') {
+                            vi_ratio = detail.vi_ratio;
+                        }
+                        if (typeof detail.disp_lp === 'number') {
+                            disp_lp = detail.disp_lp;
+                        }
+                        if (typeof detail.disp_hp === 'number') {
+                            disp_hp = detail.disp_hp;
+                        }
+                    }
+                }
+            }
+
             // 执行计算
             const result = computeTwoStageCycle({
                 fluid,
@@ -411,6 +739,9 @@ function calculateMode5() {
                 eta_s_hp,
                 interPressMode: interPressModeValue,
                 interSatTemp_C: interSatTempValue,
+                vi_ratio,
+                disp_lp,
+                disp_hp,
                 ecoSuperheat_K: ecoSuperheatValue,
                 ecoDt_K: ecoDtValue,
                 isSlhxEnabled,
@@ -788,6 +1119,9 @@ function initCompressorModelSelectorsM5() {
                     flowInput.value = baseDisp.toFixed(2);
                     setButtonStale5();
                 }
+                
+                // 选择压缩机型号后，自动更新中间压力（如果模式为自动）
+                updateIntermediatePressureM5();
             } else {
                 modelDisplacementInfo.classList.add('hidden');
             }
@@ -812,16 +1146,85 @@ function updateIntermediatePressureM5() {
         const fluid = fluidSelect.value;
         const Te_C = parseFloat(tempEvapInput.value);
         const Tc_C = parseFloat(tempCondInput.value);
+        const superheat_K = parseFloat(superheatInput.value);
+        const subcooling_K = parseFloat(subcoolInput.value);
+        const flow_m3h = parseFloat(flowInput.value);
+        const eta_v_lp = parseFloat(etaVLpInput.value);
+        const eta_s_lp = parseFloat(etaSLpInput.value);
+        const eta_s_hp = parseFloat(etaSHpInput.value);
+        
+        // ECO参数（用于估算补气流量）
+        const ecoSuperheat_K = ecoSuperheatInput ? parseFloat(ecoSuperheatInput.value) : 5.0;
+        const ecoDt_K = ecoDtInput ? parseFloat(ecoDtInput.value) : 5.0;
         
         if (isNaN(Te_C) || isNaN(Tc_C) || Tc_C <= Te_C) return;
+        if (isNaN(superheat_K) || isNaN(subcooling_K) || isNaN(flow_m3h)) return;
+        
+        // 效率参数验证：如果为空或无效，使用默认值或返回
+        if (isNaN(eta_v_lp) || eta_v_lp <= 0 || eta_v_lp > 1) return;
+        if (isNaN(eta_s_lp) || eta_s_lp <= 0 || eta_s_lp > 1) return;
+        if (isNaN(eta_s_hp) || eta_s_hp <= 0 || eta_s_hp > 1) return;
+        
+        // 高压级容积效率：如果没有单独输入，假设与低压级相同
+        // 注意：单机双级压缩机通常两级容积效率相近
+        const eta_v_hp = eta_v_lp; // 简化假设，实际可能需要单独输入
         
         const Pe_Pa = CP_INSTANCE.PropsSI('P', 'T', Te_C + 273.15, 'Q', 1, fluid);
         const Pc_Pa = CP_INSTANCE.PropsSI('P', 'T', Tc_C + 273.15, 'Q', 1, fluid);
         
         if (!Pe_Pa || !Pc_Pa || Pe_Pa <= 0 || Pc_Pa <= 0) return;
         
-        // 计算中间压力（几何平均法）
-        const P_intermediate_Pa = Math.sqrt(Pe_Pa * Pc_Pa);
+        // 获取压缩机参数（用于优化中间压力计算）
+        let vi_ratio = null, disp_lp = null, disp_hp = null;
+        if (compressorBrand && compressorSeries && compressorModel) {
+            const brand = compressorBrand.value;
+            const series = compressorSeries.value;
+            const model = compressorModel.value;
+            if (brand && series && model) {
+                const detail = getModelDetail(brand, series, model);
+                if (detail) {
+                    if (typeof detail.vi_ratio === 'number') {
+                        vi_ratio = detail.vi_ratio;
+                    }
+                    if (typeof detail.disp_lp === 'number') {
+                        disp_lp = detail.disp_lp;
+                    }
+                    if (typeof detail.disp_hp === 'number') {
+                        disp_hp = detail.disp_hp;
+                    }
+                }
+            }
+        }
+        
+        // 优先使用基于容积比和效率的优化算法
+        let P_intermediate_Pa = null;
+        if (vi_ratio !== null || (disp_lp !== null && disp_hp !== null)) {
+            // 确保所有效率参数都有效
+            if (eta_v_lp > 0 && eta_v_hp > 0 && eta_s_lp > 0 && eta_s_hp > 0) {
+                P_intermediate_Pa = calculateOptimalIntermediatePressure({
+                    fluid,
+                    Te_C,
+                    Tc_C,
+                    superheat_K,
+                    subcooling_K,
+                    flow_m3h,
+                    eta_v_lp,
+                    eta_v_hp,
+                    eta_s_lp,
+                    eta_s_hp,
+                    vi_ratio,
+                    disp_lp,
+                    disp_hp,
+                    ecoSuperheat_K,
+                    ecoDt_K
+                });
+            }
+        }
+        
+        // 如果优化算法失败，回退到几何平均法
+        if (P_intermediate_Pa === null || P_intermediate_Pa <= Pe_Pa || P_intermediate_Pa >= Pc_Pa) {
+            P_intermediate_Pa = Math.sqrt(Pe_Pa * Pc_Pa);
+        }
         
         // 计算中间饱和温度
         const T_intermediate_sat_K = CP_INSTANCE.PropsSI('T', 'P', P_intermediate_Pa, 'Q', 0, fluid);
@@ -830,6 +1233,8 @@ function updateIntermediatePressureM5() {
         // 更新中间压力输入框的值（即使输入框是禁用的）
         if (interSatTempInput) {
             interSatTempInput.value = T_intermediate_sat_C.toFixed(2);
+            // 触发input事件，确保UI更新
+            interSatTempInput.dispatchEvent(new Event('input', { bubbles: true }));
         }
         
     } catch (error) {
@@ -994,10 +1399,22 @@ export function initMode5(CP) {
         // 效率输入框监听器（手动设定效率时也更新中间压力）
         [etaVLpInput, etaSLpInput, etaSHpInput].forEach(input => {
             if (input) {
-                input.addEventListener('input', () => {
+                // 使用防抖，避免频繁更新，但确保最终会更新
+                let updateTimeout = null;
+                const scheduleUpdate = () => {
+                    if (updateTimeout) clearTimeout(updateTimeout);
+                    updateTimeout = setTimeout(() => {
+                        updateIntermediatePressureM5();
+                    }, 150); // 150ms 防抖
+                };
+                
+                input.addEventListener('input', scheduleUpdate);
+                input.addEventListener('change', () => {
+                    if (updateTimeout) clearTimeout(updateTimeout);
                     updateIntermediatePressureM5();
                 });
-                input.addEventListener('change', () => {
+                input.addEventListener('blur', () => {
+                    if (updateTimeout) clearTimeout(updateTimeout);
                     updateIntermediatePressureM5();
                 });
             }
