@@ -35,6 +35,7 @@ let compressorBrand, compressorSeries, compressorModel, modelDisplacementInfo, m
 let ecoCheckbox, ecoType, ecoPressMode, ecoSatTempInput, ecoSuperheatInput, ecoDtInput;
 let slhxCheckbox, slhxEff;
 let tempDischargeActualInput;
+let tempDischargeMidInput;  // 低压级设定排气温度输入
 
 // 中间压力设置
 let interPressMode, interSatTempInput;
@@ -365,7 +366,8 @@ function computeTwoStageCycle({
     isSlhxEnabled = false,
     slhxEff = 0.5,
     // 排气温度参数
-    T_2a_est_C = null
+    T_2a_est_C = null,
+    T_mid_est_C = null  // 低压级设定排气温度
 }) {
     const T_evap_K = Te_C + 273.15;
     const T_cond_K = Tc_C + 273.15;
@@ -523,8 +525,54 @@ function computeTwoStageCycle({
     const W_s1_ideal = m_dot_suc * (h_mid_1s - h_suc);
     const W_s1 = W_s1_ideal / eta_s_lp;  // 低压级实际功
 
-    // 补气混合
-    const h_mix = (m_dot_suc * h_mid_1s + m_dot_inj * h_6) / m_dot_total;
+    // =========================================================
+    // 低压级排气点（mid点）计算：考虑油冷
+    // =========================================================
+    // 计算实际压缩后的焓值（考虑等熵效率）
+    const h_mid_actual = h_suc + (h_mid_1s - h_suc) / eta_s_lp;
+    const T_mid_actual_K = CP_INSTANCE.PropsSI('T', 'P', P_intermediate_Pa, 'H', h_mid_actual, fluid);
+    const T_mid_actual_C = T_mid_actual_K - 273.15;
+
+    // 低压级油冷负荷计算
+    let Q_oil_lp_W = 0;
+    let T_mid_final_C = 0;
+    let h_mid_final = 0;
+
+    if (T_mid_est_C !== null && !isNaN(T_mid_est_C)) {
+        // 如果输入了设定排气温度
+        if (T_mid_actual_C < T_mid_est_C) {
+            // 实际排温低于设定排温，使用实际排温
+            h_mid_final = h_mid_actual;
+            T_mid_final_C = T_mid_actual_C;
+            Q_oil_lp_W = 0;  // 无需油冷
+        } else {
+            // 实际排温大于等于设定排温，使用设定排温，多余热量由油冷冷却
+            const T_mid_est_K = T_mid_est_C + 273.15;
+            const h_mid_target = CP_INSTANCE.PropsSI('H', 'T', T_mid_est_K, 'P', P_intermediate_Pa, fluid);
+            
+            // 油冷负荷 = 实际压缩功 - (目标焓值 - 吸气焓值)
+            const energy_out_gas = m_dot_suc * h_mid_target;
+            Q_oil_lp_W = W_s1 - (energy_out_gas - m_dot_suc * h_suc);
+            
+            if (Q_oil_lp_W < 0) {
+                // 如果计算出的油冷负荷为负，说明输入温度不合理，使用实际值
+                Q_oil_lp_W = 0;
+                h_mid_final = h_mid_actual;
+                T_mid_final_C = T_mid_actual_C;
+            } else {
+                h_mid_final = h_mid_target;
+                T_mid_final_C = T_mid_est_C;
+            }
+        }
+    } else {
+        // 如果未输入设定排气温度，使用实际压缩值（无油冷）
+        h_mid_final = h_mid_actual;
+        T_mid_final_C = T_mid_actual_C;
+        Q_oil_lp_W = 0;
+    }
+
+    // 补气混合（使用油冷后的mid点焓值）
+    const h_mix = (m_dot_suc * h_mid_final + m_dot_inj * h_6) / m_dot_total;
     const s_mix = CP_INSTANCE.PropsSI('S', 'H', h_mix, 'P', P_intermediate_Pa, fluid);
 
     // 第二级压缩：P_intermediate → P_d（使用高压级等熵效率）
@@ -539,13 +587,16 @@ function computeTwoStageCycle({
     const h_system_in = m_dot_suc * h_suc + m_dot_inj * h_6;
     
     // =========================================================
-    // 第 2 点计算：实际第二级排气点（未油冷前）
+    // 第 2 点计算：实际第二级排气点（未油冷前，计算中间状态）
     // =========================================================
-    // 如果用户输入了排气温度，使用该温度计算第 2 点的焓值
+    // 点2是计算中间状态，用于计算油冷负荷
+    // 如果用户输入了设定排气温度，需要先计算点2的焓值（用于计算油冷负荷）
     // 否则使用基于等熵效率计算的值
     let h2_real, T2_real_C;
     if (T_2a_est_C !== null && !isNaN(T_2a_est_C)) {
-        // 使用输入的排气温度计算第 2 点的焓值（实际排气点）
+        // 如果设定了排气温度，需要反推点2的状态来计算油冷负荷
+        // 先假设点2等于点2a（无油冷情况），然后通过能量平衡计算实际点2
+        // 简化处理：使用设定温度作为点2的参考，实际计算中会通过油冷调整
         const T2_est_K = T_2a_est_C + 273.15;
         h2_real = CP_INSTANCE.PropsSI('H', 'T', T2_est_K, 'P', Pc_Pa, fluid);
         T2_real_C = T_2a_est_C;
@@ -557,14 +608,16 @@ function computeTwoStageCycle({
     }
     
     // =========================================================
-    // 油冷负荷计算（第 2a 点：油冷后的排气点）
+    // 第 2a 点计算：油冷后的排气点（设计目标）
     // =========================================================
+    // 点2a是设计目标，如果设定了排气温度，点2a使用该设定值
+    // 油冷负荷根据点2和点2a的差值计算
     let Q_oil_W = 0;
     let T_2a_final_C = 0;
     let h_2a_final = 0;
     
     if (T_2a_est_C !== null && !isNaN(T_2a_est_C)) {
-        // 如果输入了排气温度，第 2a 点使用该温度
+        // 如果设定了排气温度，第 2a 点使用该设定温度（设计目标）
         // 油冷负荷 = 系统输入功 - (第 2a 点焓值 - 系统入口焓值)
         const T_2a_est_K = T_2a_est_C + 273.15;
         const h_2a_target = CP_INSTANCE.PropsSI('H', 'T', T_2a_est_K, 'P', Pc_Pa, fluid);
@@ -572,7 +625,7 @@ function computeTwoStageCycle({
         Q_oil_W = W_shaft_W - (energy_out_gas - h_system_in);
         T_2a_final_C = T_2a_est_C;
         if (Q_oil_W < 0) {
-            // 如果计算出的油冷负荷为负，说明输入温度不合理，使用能量平衡计算
+            // 如果计算出的油冷负荷为负，说明设定温度不合理，使用能量平衡计算
             Q_oil_W = 0;
             const h_2a_real = (h_system_in + W_shaft_W) / m_dot_total;
             const T_2a_real_K = CP_INSTANCE.PropsSI('T', 'P', Pc_Pa, 'H', h_2a_real, fluid);
@@ -582,7 +635,7 @@ function computeTwoStageCycle({
             h_2a_final = (h_system_in + W_shaft_W - Q_oil_W) / m_dot_total;
         }
     } else {
-        // 如果未输入排气温度，第 2a 点等于第 2 点（无油冷）
+        // 如果未设定排气温度，第 2a 点等于第 2 点（无油冷）
         h_2a_final = h2_real;
         T_2a_final_C = T2_real_C;
     }
@@ -593,6 +646,62 @@ function computeTwoStageCycle({
 
     const COP_c = Q_evap_W / W_input_W;
     const COP_h = Q_cond_W / W_input_W;
+
+    // =========================================================
+    // 总油冷负荷计算
+    // =========================================================
+    const Q_oil_total_W = Q_oil_lp_W + Q_oil_W;
+
+    // =========================================================
+    // 过冷器选型参数计算
+    // =========================================================
+    // 热侧（主路）：点3（入口）→ 点5（出口）
+    const T_3_C = T3_K - 273.15;
+    // 重新计算点5的温度（因为T_5_K在循环内部定义）
+    const T_5_K_recalc = T_intermediate_sat_K + ecoDt_K;
+    const T_5_C = T_5_K_recalc - 273.15;
+    const Q_subcooler_hot_W = m_dot_suc * (h3 - h_5);
+    
+    // 冷侧（补气路）：点7（入口）→ 点6（出口）
+    const T_7_K = CP_INSTANCE.PropsSI('T', 'H', h_7, 'P', P_intermediate_Pa, fluid);
+    const T_7_C = T_7_K - 273.15;
+    // 重新计算点6的温度（因为T_inj_K在循环内部定义）
+    const T_inj_K_recalc = T_intermediate_sat_K + ecoSuperheat_K;
+    const T_6_C = T_inj_K_recalc - 273.15;
+    const Q_subcooler_cold_W = m_dot_inj * (h_6 - h_7);
+    
+    const subcooler_selection = {
+        hot_side: {
+            inlet: {
+                T_C: T_3_C,
+                P_bar: Pc_Pa / 1e5,
+                h_kJ: h3 / 1000,
+                m_dot: m_dot_suc
+            },
+            outlet: {
+                T_C: T_5_C,
+                P_bar: Pc_Pa / 1e5,
+                h_kJ: h_5 / 1000,
+                m_dot: m_dot_suc
+            },
+            Q_kW: Q_subcooler_hot_W / 1000
+        },
+        cold_side: {
+            inlet: {
+                T_C: T_7_C,
+                P_bar: P_intermediate_Pa / 1e5,
+                h_kJ: h_7 / 1000,
+                m_dot: m_dot_inj
+            },
+            outlet: {
+                T_C: T_6_C,
+                P_bar: P_intermediate_Pa / 1e5,
+                h_kJ: h_6 / 1000,
+                m_dot: m_dot_inj
+            },
+            Q_kW: Q_subcooler_cold_W / 1000
+        }
+    };
 
     // 节流
     const h4 = h_liq_out;
@@ -616,17 +725,23 @@ function computeTwoStageCycle({
         h5: h_5,
         h6: h_6,
         h7: h_7,
-        h_mid: h_mid_1s,
+        h_mid: h_mid_final,  // 使用油冷后的值
+        h_mid_actual: h_mid_actual,  // 实际压缩值（油冷前）
         h_mix: h_mix,
         h_2s_stage2: h_2s_stage2,
         T1_K,
+        T_mid_C: T_mid_final_C,  // mid点最终温度
+        T_mid_actual_C: T_mid_actual_C,  // mid点实际温度（油冷前）
         T2_C: T2_real_C,
         T2a_C: T_2a_final_C,
         T3_K,
         T4_C,
         Q_evap_W,
         Q_cond_W,
-        Q_oil_W,
+        Q_oil_W,  // 高压级油冷负荷
+        Q_oil_lp_W,  // 低压级油冷负荷
+        Q_oil_total_W,  // 总油冷负荷
+        subcooler_selection,  // 过冷器选型参数
         W_shaft_W,
         W_s1,  // 低压级轴功
         W_s2,  // 高压级轴功
@@ -685,6 +800,7 @@ function calculateMode5() {
 
             // 排气温度
             const T_2a_est_C = tempDischargeActualInput ? parseFloat(tempDischargeActualInput.value) : null;
+            const T_mid_est_C = tempDischargeMidInput ? (tempDischargeMidInput.value === '' ? null : parseFloat(tempDischargeMidInput.value)) : null;  // 低压级设定排气温度
 
             // 验证输入
             if (isNaN(Te_C) || isNaN(Tc_C) || isNaN(sh_K) || isNaN(sc_K) || 
@@ -746,7 +862,8 @@ function calculateMode5() {
                 ecoDt_K: ecoDtValue,
                 isSlhxEnabled,
                 slhxEff: slhxEffValue,
-                T_2a_est_C
+                T_2a_est_C,
+                T_mid_est_C
             });
 
             // 构造状态点表
@@ -779,10 +896,10 @@ function calculateMode5() {
 
             statePoints.push({
                 name: 'mid',
-                desc: 'Stage1 Out (Pre-Inj)',
-                temp: (CP_INSTANCE.PropsSI('T', 'P', result.P_intermediate_Pa, 'H', result.h_mid, fluid) - 273.15).toFixed(1),
+                desc: 'Stage1 Out (After Oil Cooler)',
+                temp: result.T_mid_C.toFixed(1),  // 使用最终温度
                 press: (result.P_intermediate_Pa / 1e5).toFixed(2),
-                enth: (result.h_mid / 1000).toFixed(1),
+                enth: (result.h_mid / 1000).toFixed(1),  // 使用最终焓值
                 flow: result.m_dot.toFixed(4)
             });
 
@@ -795,20 +912,20 @@ function calculateMode5() {
                 flow: result.m_dot_total.toFixed(4)
             });
 
-            // 2: 压缩机实际排气（未油冷前）
+            // 2: 压缩机实际排气（未油冷前，计算中间状态）
             statePoints.push({
                 name: '2',
-                desc: 'Discharge (Before Oil Cooler)',
+                desc: 'Discharge (Before Oil Cooler, Calc)',
                 temp: result.T2_C.toFixed(1),
                 press: (result.Pc_Pa / 1e5).toFixed(2),
                 enth: (result.h2 / 1000).toFixed(1),
                 flow: result.m_dot_total.toFixed(4)
             });
 
-            // 2a: 油冷后排气
+            // 2a: 油冷后排气（设计目标）
             statePoints.push({
                 name: '2a',
-                desc: 'After Oil Cooler',
+                desc: 'After Oil Cooler (Design Target)',
                 temp: result.T2a_C.toFixed(1),
                 press: (result.Pc_Pa / 1e5).toFixed(2),
                 enth: (result.h2a / 1000).toFixed(1),
@@ -922,9 +1039,9 @@ function calculateMode5() {
                 ecoLiquidPoints = [pt3, pt5_subcooler, pt4];
             }
 
-            // 补气路：3 -> 7 -> 6
+            // 补气路：3 -> 7 -> 6 -> mix（连接到混合点，因为mid点和点6混合后形成mix点）
             const pt3_clone = point('', result.h3, result.Pc_Pa);
-            ecoVaporPoints = [pt3_clone, pt7, pt6];
+            ecoVaporPoints = [pt3_clone, pt7, pt6, pt_mix];
 
             ['chart-desktop-m5', 'chart-mobile-m5'].forEach(id => {
                 drawPHDiagram(id, {
@@ -950,7 +1067,8 @@ function calculateMode5() {
                         ${createDetailRow('轴功 (LP)', `${(result.W_s1 / 1000).toFixed(2)} kW`)}
                         ${createDetailRow('Q_evap', `${(result.Q_evap_W / 1000).toFixed(2)} kW`)}
                         ${createDetailRow('m_dot_suc', `${result.m_dot.toFixed(4)} kg/s`)}
-                        ${createDetailRow('Q_oil', `${(result.Q_oil_W / 1000).toFixed(2)} kW`)}
+                        ${createDetailRow('Q_oil (LP)', `${(result.Q_oil_lp_W / 1000).toFixed(2)} kW`)}
+                        ${createDetailRow('T_mid', `${result.T_mid_C.toFixed(1)} °C`)}
                     </div>
                     <div class="bg-white/60 p-4 rounded-2xl border border-white/50">
                         ${createSectionHeader('High Pressure Stage', '🔥')}
@@ -958,6 +1076,7 @@ function calculateMode5() {
                         ${createDetailRow('Q_cond', `${(result.Q_cond_W / 1000).toFixed(2)} kW`)}
                         ${createDetailRow('m_dot_inj', `${result.m_dot_inj.toFixed(4)} kg/s`)}
                         ${createDetailRow('m_dot_total', `${result.m_dot_total.toFixed(4)} kg/s`)}
+                        ${createDetailRow('Q_oil (HP)', `${(result.Q_oil_W / 1000).toFixed(2)} kW`)}
                     </div>
                 </div>
 
@@ -967,6 +1086,7 @@ function calculateMode5() {
                         ${createDetailRow('总轴功率', `${(result.W_shaft_W / 1000).toFixed(2)} kW`)}
                         ${createDetailRow('COP_c', result.COP_c.toFixed(3), true)}
                         ${createDetailRow('COP_h', result.COP_h.toFixed(3))}
+                        ${createDetailRow('总油冷负荷', `${(result.Q_oil_total_W / 1000).toFixed(2)} kW`)}
                     </div>
                     <div class="bg-white/60 p-4 rounded-2xl border border-white/50">
                         ${createSectionHeader('Intermediate Pressure', '⚙️')}
@@ -974,6 +1094,58 @@ function calculateMode5() {
                         ${createDetailRow('T_intermediate', `${(result.T_intermediate_sat_K - 273.15).toFixed(1)} °C`)}
                     </div>
                 </div>
+
+                ${result.subcooler_selection ? `
+                <div class="bg-white/60 p-4 rounded-2xl border border-white/50 mb-4">
+                    ${createSectionHeader('Subcooler Selection Parameters', '🔧')}
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        <div>
+                            <h5 class="text-xs font-bold text-gray-600 mb-2">热侧（主路）</h5>
+                            <div class="space-y-1 text-xs">
+                                <div class="bg-gray-50/50 p-2 rounded">
+                                    <div class="font-semibold text-gray-700 mb-1">入口（点3）</div>
+                                    <div class="text-gray-600">温度: ${result.subcooler_selection.hot_side.inlet.T_C.toFixed(1)} °C</div>
+                                    <div class="text-gray-600">压力: ${result.subcooler_selection.hot_side.inlet.P_bar.toFixed(2)} bar</div>
+                                    <div class="text-gray-600">焓值: ${result.subcooler_selection.hot_side.inlet.h_kJ.toFixed(1)} kJ/kg</div>
+                                    <div class="text-gray-600">流量: ${result.subcooler_selection.hot_side.inlet.m_dot.toFixed(4)} kg/s</div>
+                                </div>
+                                <div class="bg-gray-50/50 p-2 rounded">
+                                    <div class="font-semibold text-gray-700 mb-1">出口（点5）</div>
+                                    <div class="text-gray-600">温度: ${result.subcooler_selection.hot_side.outlet.T_C.toFixed(1)} °C</div>
+                                    <div class="text-gray-600">压力: ${result.subcooler_selection.hot_side.outlet.P_bar.toFixed(2)} bar</div>
+                                    <div class="text-gray-600">焓值: ${result.subcooler_selection.hot_side.outlet.h_kJ.toFixed(1)} kJ/kg</div>
+                                    <div class="text-gray-600">流量: ${result.subcooler_selection.hot_side.outlet.m_dot.toFixed(4)} kg/s</div>
+                                </div>
+                                <div class="bg-blue-50/50 p-2 rounded mt-2">
+                                    <div class="font-semibold text-blue-700">换热量: ${result.subcooler_selection.hot_side.Q_kW.toFixed(2)} kW</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <h5 class="text-xs font-bold text-gray-600 mb-2">冷侧（补气路）</h5>
+                            <div class="space-y-1 text-xs">
+                                <div class="bg-gray-50/50 p-2 rounded">
+                                    <div class="font-semibold text-gray-700 mb-1">入口（点7）</div>
+                                    <div class="text-gray-600">温度: ${result.subcooler_selection.cold_side.inlet.T_C.toFixed(1)} °C</div>
+                                    <div class="text-gray-600">压力: ${result.subcooler_selection.cold_side.inlet.P_bar.toFixed(2)} bar</div>
+                                    <div class="text-gray-600">焓值: ${result.subcooler_selection.cold_side.inlet.h_kJ.toFixed(1)} kJ/kg</div>
+                                    <div class="text-gray-600">流量: ${result.subcooler_selection.cold_side.inlet.m_dot.toFixed(4)} kg/s</div>
+                                </div>
+                                <div class="bg-gray-50/50 p-2 rounded">
+                                    <div class="font-semibold text-gray-700 mb-1">出口（点6）</div>
+                                    <div class="text-gray-600">温度: ${result.subcooler_selection.cold_side.outlet.T_C.toFixed(1)} °C</div>
+                                    <div class="text-gray-600">压力: ${result.subcooler_selection.cold_side.outlet.P_bar.toFixed(2)} bar</div>
+                                    <div class="text-gray-600">焓值: ${result.subcooler_selection.cold_side.outlet.h_kJ.toFixed(1)} kJ/kg</div>
+                                    <div class="text-gray-600">流量: ${result.subcooler_selection.cold_side.outlet.m_dot.toFixed(4)} kg/s</div>
+                                </div>
+                                <div class="bg-blue-50/50 p-2 rounded mt-2">
+                                    <div class="font-semibold text-blue-700">换热量: ${result.subcooler_selection.cold_side.Q_kW.toFixed(2)} kW</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
 
                 <div class="space-y-1 bg-white/40 p-4 rounded-2xl border border-white/50 shadow-inner">
                     ${createSectionHeader('State Points', '📊')}
@@ -1352,6 +1524,7 @@ export function initMode5(CP) {
     slhxCheckbox = document.getElementById('enable_slhx_m5');
     slhxEff = document.getElementById('slhx_effectiveness_m5');
     tempDischargeActualInput = document.getElementById('temp_discharge_actual_m5');
+    tempDischargeMidInput = document.getElementById('temp_discharge_mid_m5');  // 低压级设定排气温度输入
     interSatTempInput = document.getElementById('temp_inter_sat_m5');
 
     // Initialize compressor model selectors
