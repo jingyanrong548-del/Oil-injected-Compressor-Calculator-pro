@@ -530,20 +530,28 @@ export function initUI() {
     });
 
     // Mode 6: Intermediate Cooler (ECO) Toggle Logic
-    const ecoCbM6 = document.getElementById('enable_eco_m6');
-    if (ecoCbM6) ecoCbM6.addEventListener('change', () => {
-        const settings = document.getElementById('eco-settings-m6');
-        const placeholder = document.getElementById('eco-placeholder-m6');
-        if (settings) settings.classList.toggle('hidden', !ecoCbM6.checked);
-        if (placeholder) placeholder.classList.toggle('hidden', ecoCbM6.checked);
-    });
+    // 中间冷却器ECO始终显示，不需要toggle逻辑
+    // const ecoCbM6 = document.getElementById('enable_eco_m6');
+    // if (ecoCbM6) ecoCbM6.addEventListener('change', () => {
+    //     const settings = document.getElementById('eco-settings-m6');
+    //     const placeholder = document.getElementById('eco-placeholder-m6');
+    //     if (settings) settings.classList.toggle('hidden', !ecoCbM6.checked);
+    //     if (placeholder) placeholder.classList.toggle('hidden', ecoCbM6.checked);
+    // });
     
     // Mode 6: ECO Type Toggle - Intermediate Cooler
     setupRadioToggle('eco_type_m6', v => {
         const flashTankInputs = document.getElementById('eco-flash-tank-inputs-m6');
         const subcoolerInputs = document.getElementById('eco-subcooler-inputs-m6');
-        if (flashTankInputs) flashTankInputs.classList.toggle('hidden', v !== 'flash_tank');
-        if (subcoolerInputs) subcoolerInputs.classList.toggle('hidden', v !== 'subcooler');
+        // 确保两种模式的输入框互斥显示
+        // 闪蒸罐模式：显示闪蒸罐输入框，隐藏过冷器输入框
+        // 过冷器模式：隐藏闪蒸罐输入框，显示过冷器输入框
+        if (flashTankInputs) {
+            flashTankInputs.classList.toggle('hidden', v !== 'flash_tank');
+        }
+        if (subcoolerInputs) {
+            subcoolerInputs.classList.toggle('hidden', v !== 'subcooler');
+        }
     });
     
     // Mode 6: ECO Toggle Logic - Low Pressure Stage
@@ -566,7 +574,13 @@ export function initUI() {
     
     // Mode 6: ECO Type Toggle - Low Pressure Stage
     setupRadioToggle('eco_type_m6_lp', v => {
+        const flashTankInputs = document.getElementById('eco-flash-tank-inputs-m6-lp');
         const subcoolerInputs = document.getElementById('eco-subcooler-inputs-m6-lp');
+        // 闪蒸罐模式：显示提示信息，隐藏过冷器输入框
+        // 过冷器模式：隐藏提示信息，显示过冷器输入框
+        if (flashTankInputs) {
+            flashTankInputs.classList.toggle('hidden', v !== 'flash_tank');
+        }
         if (subcoolerInputs) {
             subcoolerInputs.classList.toggle('hidden', v !== 'subcooler');
         }
@@ -574,7 +588,13 @@ export function initUI() {
     
     // Mode 6: ECO Type Toggle - High Pressure Stage
     setupRadioToggle('eco_type_m6_hp', v => {
+        const flashTankInputs = document.getElementById('eco-flash-tank-inputs-m6-hp');
         const subcoolerInputs = document.getElementById('eco-subcooler-inputs-m6-hp');
+        // 闪蒸罐模式：显示提示信息，隐藏过冷器输入框
+        // 过冷器模式：隐藏提示信息，显示过冷器输入框
+        if (flashTankInputs) {
+            flashTankInputs.classList.toggle('hidden', v !== 'flash_tank');
+        }
         if (subcoolerInputs) {
             subcoolerInputs.classList.toggle('hidden', v !== 'subcooler');
         }

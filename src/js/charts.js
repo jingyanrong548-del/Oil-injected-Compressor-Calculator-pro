@@ -216,14 +216,25 @@ export function drawPHDiagram(domId, data) {
 }
 
 export function drawTSDiagram(domId, data) {
-    const chart = getChartInstance(domId);
-    if (!chart) return;
-
     const container = document.getElementById(domId);
-    if (container && container.classList.contains('hidden')) {
-        container.classList.remove('hidden');
-        chart.resize();
+    if (!container) {
+        console.error(`Container ${domId} not found for T-S diagram`);
+        return;
     }
+    
+    // 确保容器可见
+    if (container.classList.contains('hidden')) {
+        container.classList.remove('hidden');
+    }
+    
+    const chart = getChartInstance(domId);
+    if (!chart) {
+        console.error(`Chart instance for ${domId} could not be created`);
+        return;
+    }
+    
+    // 如果容器刚被显示，需要调整图表大小
+    chart.resize();
 
     const { 
         mainPoints, 
