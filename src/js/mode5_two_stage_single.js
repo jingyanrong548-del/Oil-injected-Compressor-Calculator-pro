@@ -6,7 +6,7 @@
 // =====================================================================
 
 import { createKpiCard, createDetailRow, createSectionHeader, createErrorCard, createStateTable } from './components.js';
-import { drawPHDiagram } from './charts.js';
+import { drawPHDiagram, drawTSDiagram, getChartInstance } from './charts.js';
 import { HistoryDB, SessionState } from './storage.js';
 import { openMobileSheet } from './ui.js';
 import { updateFluidInfo } from './coolprop_loader.js';
@@ -82,6 +82,210 @@ function updateMobileSummary(kpi1Label, kpi1Value, kpi2Label, kpi2Value) {
             <p class="text-xl font-bold text-blue-600">${kpi2Value}</p>
         </div>
     `;
+}
+
+// ---------------------------------------------------------------------
+// Saturation Lines Calculation
+// ---------------------------------------------------------------------
+
+/**
+ * 生成压缩过程的中间点（用于 T-S 图，显示熵增加趋势）
+ * @param {string} fluid - 工质名称
+ * @param {number} h_start - 起始焓值 (J/kg)
+ * @param {number} P_start - 起始压力 (Pa)
+ * @param {number} h_end - 结束焓值 (J/kg)
+ * @param {number} P_end - 结束压力 (Pa)
+ * @param {number} numPoints - 中间点数量
+ * @returns {Array} T-S 图数据点数组 [[s, T], ...]
+ */
+function generateCompressionPathTS(fluid, h_start, P_start, h_end, P_end, numPoints = 10) {
+    if (!CP_INSTANCE) return [];
+    
+    const points = [];
+    
+    for (let i = 0; i <= numPoints; i++) {
+        const ratio = i / numPoints;
+        
+        // 压力插值（对数空间，更符合实际压缩过程）
+        const logP_start = Math.log10(P_start);
+        const logP_end = Math.log10(P_end);
+        const logP = logP_start + (logP_end - logP_start) * ratio;
+        const P = Math.pow(10, logP);
+        
+        // 焓值插值（线性插值，因为实际压缩功与焓值增加成正比）
+        const h = h_start + (h_end - h_start) * ratio;
+        
+        try {
+            // 从焓值和压力计算温度和熵值
+            const T_K = CP_INSTANCE.PropsSI('T', 'H', h, 'P', P, fluid);
+            const s = CP_INSTANCE.PropsSI('S', 'H', h, 'P', P, fluid);
+            points.push([s / 1000, T_K - 273.15]); // [s (kJ/kg·K), T (°C)]
+        } catch (e) {
+            continue;
+        }
+    }
+    
+    return points;
+}
+
+/**
+ * 生成节流过程的中间点（等焓过程，用于 T-S 图）
+ * @param {string} fluid - 工质名称
+ * @param {number} h - 焓值 (J/kg) - 节流过程等焓
+ * @param {number} P_start - 起始压力 (Pa)
+ * @param {number} P_end - 结束压力 (Pa)
+ * @param {number} numPoints - 中间点数量
+ * @returns {Array} T-S 图数据点数组 [[s, T], ...]
+ */
+function generateThrottlingPathTS(fluid, h, P_start, P_end, numPoints = 10) {
+    if (!CP_INSTANCE) return [];
+    
+    const points = [];
+    
+    for (let i = 0; i <= numPoints; i++) {
+        const ratio = i / numPoints;
+        // 线性插值压力（等焓过程）
+        const P = P_start + (P_end - P_start) * ratio;
+        
+        try {
+            const T_K = CP_INSTANCE.PropsSI('T', 'H', h, 'P', P, fluid);
+            const s = CP_INSTANCE.PropsSI('S', 'H', h, 'P', P, fluid);
+            points.push([s / 1000, T_K - 273.15]); // [s (kJ/kg·K), T (°C)]
+        } catch (e) {
+            continue;
+        }
+    }
+    
+    return points;
+}
+
+/**
+ * 生成等压过程的中间点（用于 T-S 图）
+ * @param {string} fluid - 工质名称
+ * @param {number} P - 压力 (Pa) - 等压过程
+ * @param {number} h_start - 起始焓值 (J/kg)
+ * @param {number} h_end - 结束焓值 (J/kg)
+ * @param {number} numPoints - 中间点数量
+ * @returns {Array} T-S 图数据点数组 [[s, T], ...]
+ */
+function generateIsobaricPathTS(fluid, P, h_start, h_end, numPoints = 10) {
+    if (!CP_INSTANCE) return [];
+    
+    const points = [];
+    
+    for (let i = 0; i <= numPoints; i++) {
+        const ratio = i / numPoints;
+        // 线性插值焓值（等压过程）
+        const h = h_start + (h_end - h_start) * ratio;
+        
+        try {
+            const T_K = CP_INSTANCE.PropsSI('T', 'H', h, 'P', P, fluid);
+            const s = CP_INSTANCE.PropsSI('S', 'H', h, 'P', P, fluid);
+            points.push([s / 1000, T_K - 273.15]); // [s (kJ/kg·K), T (°C)]
+        } catch (e) {
+            continue;
+        }
+    }
+    
+    return points;
+}
+
+/**
+ * 生成饱和线数据点（用于 P-h 图和 T-S 图）
+ * @param {string} fluid - 工质名称
+ * @param {number} Pe_Pa - 蒸发压力 (Pa)
+ * @param {number} Pc_Pa - 冷凝压力 (Pa)
+ * @param {number} numPoints - 数据点数量
+ * @returns {Object} 包含饱和液体线和饱和气体线的数据
+ */
+function generateSaturationLines(fluid, Pe_Pa, Pc_Pa, numPoints = 100) {
+    if (!CP_INSTANCE) return { liquid: [], vapor: [] };
+    
+    const liquidPoints = [];
+    const vaporPoints = [];
+    
+    // 计算压力范围（从蒸发压力到冷凝压力）
+    const P_min = Math.min(Pe_Pa, Pc_Pa) * 0.8;
+    const P_max = Math.max(Pe_Pa, Pc_Pa) * 1.2;
+    
+    // 对数分布压力点（因为压力通常是对数分布的）
+    for (let i = 0; i <= numPoints; i++) {
+        const logP_min = Math.log10(P_min);
+        const logP_max = Math.log10(P_max);
+        const logP = logP_min + (logP_max - logP_min) * (i / numPoints);
+        const P_Pa = Math.pow(10, logP);
+        
+        try {
+            // 饱和液体线 (Q=0)
+            const T_sat_K = CP_INSTANCE.PropsSI('T', 'P', P_Pa, 'Q', 0, fluid);
+            const h_liq = CP_INSTANCE.PropsSI('H', 'P', P_Pa, 'Q', 0, fluid);
+            const s_liq = CP_INSTANCE.PropsSI('S', 'P', P_Pa, 'Q', 0, fluid);
+            
+            // 饱和气体线 (Q=1)
+            const h_vap = CP_INSTANCE.PropsSI('H', 'P', P_Pa, 'Q', 1, fluid);
+            const s_vap = CP_INSTANCE.PropsSI('S', 'P', P_Pa, 'Q', 1, fluid);
+            
+            // P-h 图数据点
+            liquidPoints.push([h_liq / 1000, P_Pa / 1e5]); // [h (kJ/kg), P (bar)]
+            vaporPoints.push([h_vap / 1000, P_Pa / 1e5]);
+            
+        } catch (e) {
+            // 如果某个压力点计算失败，跳过
+            continue;
+        }
+    }
+    
+    return {
+        liquidPH: liquidPoints,
+        vaporPH: vaporPoints
+    };
+}
+
+/**
+ * 生成 T-S 图的饱和线数据点
+ * @param {string} fluid - 工质名称
+ * @param {number} Te_C - 蒸发温度 (°C)
+ * @param {number} Tc_C - 冷凝温度 (°C)
+ * @param {number} numPoints - 数据点数量
+ * @returns {Object} 包含饱和液体线和饱和气体线的 T-S 数据
+ */
+function generateSaturationLinesTS(fluid, Te_C, Tc_C, numPoints = 100) {
+    if (!CP_INSTANCE) return { liquid: [], vapor: [] };
+    
+    const liquidPoints = [];
+    const vaporPoints = [];
+    
+    // 计算温度范围
+    const T_min = Math.min(Te_C, Tc_C) - 20;
+    const T_max = Math.max(Te_C, Tc_C) + 20;
+    
+    for (let i = 0; i <= numPoints; i++) {
+        const T_C = T_min + (T_max - T_min) * (i / numPoints);
+        const T_K = T_C + 273.15;
+        
+        try {
+            // 饱和压力
+            const P_sat_Pa = CP_INSTANCE.PropsSI('P', 'T', T_K, 'Q', 0.5, fluid);
+            
+            // 饱和液体线 (Q=0)
+            const s_liq = CP_INSTANCE.PropsSI('S', 'T', T_K, 'Q', 0, fluid);
+            
+            // 饱和气体线 (Q=1)
+            const s_vap = CP_INSTANCE.PropsSI('S', 'T', T_K, 'Q', 1, fluid);
+            
+            // T-S 图数据点
+            liquidPoints.push([s_liq / 1000, T_C]); // [s (kJ/kg·K), T (°C)]
+            vaporPoints.push([s_vap / 1000, T_C]);
+            
+        } catch (e) {
+            continue;
+        }
+    }
+    
+    return {
+        liquid: liquidPoints,
+        vapor: vaporPoints
+    };
 }
 
 // ---------------------------------------------------------------------
@@ -768,8 +972,13 @@ function calculateMode5() {
             const fluid = fluidSelect.value;
             const Te_C = parseFloat(tempEvapInput.value);
             const Tc_C = parseFloat(tempCondInput.value);
-            const sh_K = parseFloat(superheatInput.value);
+            let sh_K = parseFloat(superheatInput.value);
             const sc_K = parseFloat(subcoolInput.value);
+            
+            // 过热度为 0 时按 0.001 处理，避免计算问题
+            if (sh_K === 0) {
+                sh_K = 0.001;
+            }
 
             let flow = parseFloat(flowInput.value);
             if (compressorModel && compressorModel.value) {
@@ -791,8 +1000,13 @@ function calculateMode5() {
             const interSatTempValue = interSatTempInput ? parseFloat(interSatTempInput.value) : null;
 
             // ECO参数：仅保留过冷器模式
-            const ecoSuperheatValue = ecoSuperheatInput ? parseFloat(ecoSuperheatInput.value) : 5;
+            let ecoSuperheatValue = ecoSuperheatInput ? parseFloat(ecoSuperheatInput.value) : 5;
             const ecoDtValue = ecoDtInput ? parseFloat(ecoDtInput.value) : 5.0;
+            
+            // ECO 补气过热度为 0 时按 0.001 处理，避免计算问题
+            if (ecoSuperheatValue === 0) {
+                ecoSuperheatValue = 0.001;
+            }
 
             // SLHX参数
             const isSlhxEnabled = slhxCheckbox && slhxCheckbox.checked;
@@ -1043,12 +1257,257 @@ function calculateMode5() {
             const pt3_clone = point('', result.h3, result.Pc_Pa);
             ecoVaporPoints = [pt3_clone, pt7, pt6, pt_mix];
 
+            // 初始化 lastCalculationData（如果尚未初始化）
+            if (!lastCalculationData) {
+                lastCalculationData = {
+                    fluid,
+                    Te_C,
+                    Tc_C,
+                    result: null,
+                    chartData: null
+                };
+            }
+            
+            // 生成饱和线数据
+            const satLinesPH = generateSaturationLines(fluid, result.Pe_Pa, result.Pc_Pa, 100);
+            const satLinesTS = generateSaturationLinesTS(fluid, Te_C, Tc_C, 100);
+            
+            // 构建 T-S 图主循环点（带过程中间点）
+            const mainPointsTS = [];
+            
+            // 点 4：节流后（蒸发压力）
+            const pt4_TS = {
+                name: '4',
+                value: [
+                    CP_INSTANCE.PropsSI('S', 'H', result.h4, 'P', result.Pe_Pa, fluid) / 1000,
+                    CP_INSTANCE.PropsSI('T', 'H', result.h4, 'P', result.Pe_Pa, fluid) - 273.15
+                ],
+                label: { show: true }
+            };
+            mainPointsTS.push(pt4_TS);
+            
+            // 点 1：蒸发器出口（等压过程 4->1，添加中间点）
+            const pt1_TS = {
+                name: '1',
+                value: [
+                    CP_INSTANCE.PropsSI('S', 'H', result.h1, 'P', result.Pe_Pa, fluid) / 1000,
+                    CP_INSTANCE.PropsSI('T', 'H', result.h1, 'P', result.Pe_Pa, fluid) - 273.15
+                ],
+                label: { show: true }
+            };
+            // 添加等压过程中间点（4->1 蒸发过程）
+            const evapPath = generateIsobaricPathTS(fluid, result.Pe_Pa, result.h4, result.h1, 8);
+            evapPath.forEach((pt, idx) => {
+                if (idx > 0 && idx < evapPath.length - 1) {
+                    mainPointsTS.push({ name: '', value: pt, label: { show: false } });
+                }
+            });
+            mainPointsTS.push(pt1_TS);
+            
+            // 点 1'：SLHX 后（如果有）
+            if (result.isSlhxEnabled) {
+                const pt1p_TS = {
+                    name: "1'",
+                    value: [
+                        CP_INSTANCE.PropsSI('S', 'H', result.h_suc, 'P', result.Pe_Pa, fluid) / 1000,
+                        CP_INSTANCE.PropsSI('T', 'H', result.h_suc, 'P', result.Pe_Pa, fluid) - 273.15
+                    ],
+                    label: { show: true }
+                };
+                // 添加等压过程中间点（1->1' SLHX 过程）
+                const slhxPath = generateIsobaricPathTS(fluid, result.Pe_Pa, result.h1, result.h_suc, 5);
+                slhxPath.forEach((pt, idx) => {
+                    if (idx > 0 && idx < slhxPath.length - 1) {
+                        mainPointsTS.push({ name: '', value: pt, label: { show: false } });
+                    }
+                });
+                mainPointsTS.push(pt1p_TS);
+            }
+            
+            // mid 点：低压级排气（压缩过程 1/1'->mid，添加中间点显示熵增加）
+            const h_start_comp1 = result.isSlhxEnabled ? result.h_suc : result.h1;
+            const pt_mid_TS = {
+                name: 'mid',
+                value: [
+                    CP_INSTANCE.PropsSI('S', 'H', result.h_mid, 'P', result.P_intermediate_Pa, fluid) / 1000,
+                    CP_INSTANCE.PropsSI('T', 'H', result.h_mid, 'P', result.P_intermediate_Pa, fluid) - 273.15
+                ],
+                label: { show: true }
+            };
+            // 添加压缩过程中间点（显示熵增加趋势）
+            const comp1Path = generateCompressionPathTS(fluid, h_start_comp1, result.Pe_Pa, result.h_mid, result.P_intermediate_Pa, 10);
+            comp1Path.forEach((pt, idx) => {
+                if (idx > 0 && idx < comp1Path.length - 1) {
+                    mainPointsTS.push({ name: '', value: pt, label: { show: false } });
+                }
+            });
+            mainPointsTS.push(pt_mid_TS);
+            
+            // mix 点：补气混合后（混合过程 mid->mix，熵增加）
+            const pt_mix_TS = {
+                name: 'mix',
+                value: [
+                    CP_INSTANCE.PropsSI('S', 'H', result.h_mix, 'P', result.P_intermediate_Pa, fluid) / 1000,
+                    CP_INSTANCE.PropsSI('T', 'H', result.h_mix, 'P', result.P_intermediate_Pa, fluid) - 273.15
+                ],
+                label: { show: true }
+            };
+            // 混合过程是瞬间的，但可以添加一个中间点显示趋势
+            const mixPath = generateIsobaricPathTS(fluid, result.P_intermediate_Pa, result.h_mid, result.h_mix, 3);
+            mixPath.forEach((pt, idx) => {
+                if (idx > 0 && idx < mixPath.length - 1) {
+                    mainPointsTS.push({ name: '', value: pt, label: { show: false } });
+                }
+            });
+            mainPointsTS.push(pt_mix_TS);
+            
+            // 点 2：高压级排气（压缩过程 mix->2，添加中间点显示熵增加）
+            const pt2_TS = {
+                name: '2',
+                value: [
+                    CP_INSTANCE.PropsSI('S', 'H', result.h2, 'P', result.Pc_Pa, fluid) / 1000,
+                    CP_INSTANCE.PropsSI('T', 'H', result.h2, 'P', result.Pc_Pa, fluid) - 273.15
+                ],
+                label: { show: true }
+            };
+            // 添加压缩过程中间点（显示熵增加趋势）
+            const comp2Path = generateCompressionPathTS(fluid, result.h_mix, result.P_intermediate_Pa, result.h2, result.Pc_Pa, 10);
+            comp2Path.forEach((pt, idx) => {
+                if (idx > 0 && idx < comp2Path.length - 1) {
+                    mainPointsTS.push({ name: '', value: pt, label: { show: false } });
+                }
+            });
+            mainPointsTS.push(pt2_TS);
+            
+            // 点 3：冷凝器出口（等压过程 2->3 冷凝，添加中间点）
+            const pt3_TS = {
+                name: '3',
+                value: [
+                    CP_INSTANCE.PropsSI('S', 'H', result.h3, 'P', result.Pc_Pa, fluid) / 1000,
+                    CP_INSTANCE.PropsSI('T', 'H', result.h3, 'P', result.Pc_Pa, fluid) - 273.15
+                ],
+                label: { show: true }
+            };
+            // 添加等压过程中间点（2->3 冷凝过程）
+            const condPath = generateIsobaricPathTS(fluid, result.Pc_Pa, result.h2, result.h3, 8);
+            condPath.forEach((pt, idx) => {
+                if (idx > 0 && idx < condPath.length - 1) {
+                    mainPointsTS.push({ name: '', value: pt, label: { show: false } });
+                }
+            });
+            mainPointsTS.push(pt3_TS);
+            
+            // 构建 T-S 图 ECO 液路点
+            const ecoLiquidPointsTS = [];
+            // 点 3 -> 点 5（等压过程）
+            const pt3_eco_TS = [
+                CP_INSTANCE.PropsSI('S', 'H', result.h3, 'P', result.Pc_Pa, fluid) / 1000,
+                CP_INSTANCE.PropsSI('T', 'H', result.h3, 'P', result.Pc_Pa, fluid) - 273.15
+            ];
+            ecoLiquidPointsTS.push(pt3_eco_TS);
+            // 添加等压过程中间点（3->5 过冷过程）
+            const subcoolPath = generateIsobaricPathTS(fluid, result.Pc_Pa, result.h3, result.h5, 5);
+            subcoolPath.forEach((pt, idx) => {
+                if (idx > 0 && idx < subcoolPath.length - 1) {
+                    ecoLiquidPointsTS.push(pt);
+                }
+            });
+            const pt5_eco_TS = [
+                CP_INSTANCE.PropsSI('S', 'H', result.h5, 'P', result.Pc_Pa, fluid) / 1000,
+                CP_INSTANCE.PropsSI('T', 'H', result.h5, 'P', result.Pc_Pa, fluid) - 273.15
+            ];
+            ecoLiquidPointsTS.push(pt5_eco_TS);
+            
+            // 点 5'（如果有 SLHX）
+            if (result.isSlhxEnabled) {
+                const pt5p_eco_TS = [
+                    CP_INSTANCE.PropsSI('S', 'H', result.h4, 'P', result.Pc_Pa, fluid) / 1000,
+                    CP_INSTANCE.PropsSI('T', 'H', result.h4, 'P', result.Pc_Pa, fluid) - 273.15
+                ];
+                ecoLiquidPointsTS.push(pt5p_eco_TS);
+            }
+            
+            // 点 4：节流过程（等焓过程 5/5'->4，添加中间点显示熵增加）
+            const pt4_eco_TS = [
+                CP_INSTANCE.PropsSI('S', 'H', result.h4, 'P', result.Pe_Pa, fluid) / 1000,
+                CP_INSTANCE.PropsSI('T', 'H', result.h4, 'P', result.Pe_Pa, fluid) - 273.15
+            ];
+            // 添加节流过程中间点（等焓过程，熵增加，温度下降）
+            const h_throttle_start = result.isSlhxEnabled ? result.h4 : result.h5;
+            const P_throttle_start = result.Pc_Pa;
+            const throttlePath = generateThrottlingPathTS(fluid, h_throttle_start, P_throttle_start, result.Pe_Pa, 8);
+            throttlePath.forEach((pt, idx) => {
+                if (idx > 0 && idx < throttlePath.length - 1) {
+                    ecoLiquidPointsTS.push(pt);
+                }
+            });
+            ecoLiquidPointsTS.push(pt4_eco_TS);
+            
+            // 构建 T-S 图 ECO 补气路点
+            const ecoVaporPointsTS = [];
+            // 点 3 -> 点 7（节流过程，等焓）
+            const pt3_vap_TS = [
+                CP_INSTANCE.PropsSI('S', 'H', result.h3, 'P', result.Pc_Pa, fluid) / 1000,
+                CP_INSTANCE.PropsSI('T', 'H', result.h3, 'P', result.Pc_Pa, fluid) - 273.15
+            ];
+            ecoVaporPointsTS.push(pt3_vap_TS);
+            // 添加节流过程中间点（3->7 等焓节流）
+            const throttlePath37 = generateThrottlingPathTS(fluid, result.h3, result.Pc_Pa, result.P_intermediate_Pa, 5);
+            throttlePath37.forEach((pt, idx) => {
+                if (idx > 0 && idx < throttlePath37.length - 1) {
+                    ecoVaporPointsTS.push(pt);
+                }
+            });
+            const pt7_vap_TS = [
+                CP_INSTANCE.PropsSI('S', 'H', result.h7, 'P', result.P_intermediate_Pa, fluid) / 1000,
+                CP_INSTANCE.PropsSI('T', 'H', result.h7, 'P', result.P_intermediate_Pa, fluid) - 273.15
+            ];
+            ecoVaporPointsTS.push(pt7_vap_TS);
+            
+            // 点 7 -> 点 6（等压过程，在过冷器中吸热）
+            const pt6_vap_TS = [
+                CP_INSTANCE.PropsSI('S', 'H', result.h6, 'P', result.P_intermediate_Pa, fluid) / 1000,
+                CP_INSTANCE.PropsSI('T', 'H', result.h6, 'P', result.P_intermediate_Pa, fluid) - 273.15
+            ];
+            // 添加等压过程中间点（7->6 在过冷器中吸热）
+            const subcoolerPath = generateIsobaricPathTS(fluid, result.P_intermediate_Pa, result.h7, result.h6, 5);
+            subcoolerPath.forEach((pt, idx) => {
+                if (idx > 0 && idx < subcoolerPath.length - 1) {
+                    ecoVaporPointsTS.push(pt);
+                }
+            });
+            ecoVaporPointsTS.push(pt6_vap_TS);
+            
+            // 点 6 -> mix（混合过程，可以添加一个中间点）
+            const pt_mix_vap_TS = [
+                CP_INSTANCE.PropsSI('S', 'H', result.h_mix, 'P', result.P_intermediate_Pa, fluid) / 1000,
+                CP_INSTANCE.PropsSI('T', 'H', result.h_mix, 'P', result.P_intermediate_Pa, fluid) - 273.15
+            ];
+            ecoVaporPointsTS.push(pt_mix_vap_TS);
+            
+            // 保存图表数据供切换使用
+            lastCalculationData.chartData = {
+                fluid,
+                mainPoints,
+                ecoLiquidPoints,
+                ecoVaporPoints,
+                mainPointsTS,
+                ecoLiquidPointsTS,
+                ecoVaporPointsTS,
+                satLinesPH,
+                satLinesTS,
+                chartType: 'ph' // 默认显示 P-h 图
+            };
+            
+            // 绘制 P-h 图（默认）
             ['chart-desktop-m5', 'chart-mobile-m5'].forEach(id => {
                 drawPHDiagram(id, {
                     title: `Two-Stage Single Compressor (${fluid})`,
                     mainPoints: mainPoints,
                     ecoLiquidPoints: ecoLiquidPoints,
                     ecoVaporPoints: ecoVaporPoints,
+                    saturationLiquidPoints: satLinesPH.liquidPH,
+                    saturationVaporPoints: satLinesPH.vaporPH,
                     xLabel: 'h (kJ/kg)',
                     yLabel: 'P (bar)'
                 });
@@ -1162,12 +1621,22 @@ function calculateMode5() {
             setButtonFresh5();
             if (printButtonM5) printButtonM5.disabled = false;
 
-            lastCalculationData = {
-                fluid,
-                Te_C,
-                Tc_C,
-                result
-            };
+            // 更新 lastCalculationData（如果尚未初始化，则初始化）
+            if (!lastCalculationData) {
+                lastCalculationData = {
+                    fluid,
+                    Te_C,
+                    Tc_C,
+                    result,
+                    chartData: null
+                };
+            } else {
+                // 更新现有数据
+                lastCalculationData.fluid = fluid;
+                lastCalculationData.Te_C = Te_C;
+                lastCalculationData.Tc_C = Tc_C;
+                lastCalculationData.result = result;
+            }
 
             const inputState = SessionState.collectInputs('calc-form-mode-5');
             HistoryDB.add(
@@ -1194,6 +1663,76 @@ function printReportMode5() {
     tableText += `COP_c\t${d.result.COP_c.toFixed(3)}\n`;
     resultDiv.innerText = `Two-Stage Single Compressor Report:\n` + tableText;
     window.print();
+}
+
+// 图表切换函数
+function toggleChartTypeM5() {
+    if (!lastCalculationData || !lastCalculationData.chartData) return;
+    
+    const chartData = lastCalculationData.chartData;
+    const currentType = chartData.chartType;
+    const newType = currentType === 'ph' ? 'ts' : 'ph';
+    chartData.chartType = newType;
+    
+    // 确保图表容器可见
+    ['chart-desktop-m5', 'chart-mobile-m5'].forEach(id => {
+        const container = document.getElementById(id);
+        if (container) {
+            container.classList.remove('hidden');
+        }
+    });
+    
+    if (newType === 'ph') {
+        // 切换到 P-h 图
+        ['chart-desktop-m5', 'chart-mobile-m5'].forEach(id => {
+            // 清除旧图表配置
+            const chart = getChartInstance(id);
+            if (chart) {
+                chart.clear();
+            }
+            
+            drawPHDiagram(id, {
+                title: `Two-Stage Single Compressor (${chartData.fluid})`,
+                mainPoints: chartData.mainPoints,
+                ecoLiquidPoints: chartData.ecoLiquidPoints,
+                ecoVaporPoints: chartData.ecoVaporPoints,
+                saturationLiquidPoints: chartData.satLinesPH.liquidPH,
+                saturationVaporPoints: chartData.satLinesPH.vaporPH,
+                xLabel: 'h (kJ/kg)',
+                yLabel: 'P (bar)'
+            });
+        });
+    } else {
+        // 切换到 T-S 图
+        ['chart-desktop-m5', 'chart-mobile-m5'].forEach(id => {
+            // 清除旧图表配置
+            const chart = getChartInstance(id);
+            if (chart) {
+                chart.clear();
+            }
+            
+            drawTSDiagram(id, {
+                title: `Two-Stage Single Compressor (${chartData.fluid})`,
+                mainPoints: chartData.mainPointsTS,
+                ecoLiquidPoints: chartData.ecoLiquidPointsTS,
+                ecoVaporPoints: chartData.ecoVaporPointsTS,
+                saturationLiquidPoints: chartData.satLinesTS.liquid,
+                saturationVaporPoints: chartData.satLinesTS.vapor,
+                xLabel: 'Entropy (kJ/kg·K)',
+                yLabel: 'Temperature (°C)'
+            });
+        });
+    }
+    
+    // 更新按钮文本
+    const toggleBtn = document.getElementById('chart-toggle-m5');
+    const toggleBtnMobile = document.getElementById('chart-toggle-m5-mobile');
+    if (toggleBtn) {
+        toggleBtn.textContent = newType === 'ph' ? '切换到 T-S 图' : '切换到 P-h 图';
+    }
+    if (toggleBtnMobile) {
+        toggleBtnMobile.textContent = newType === 'ph' ? '切换到 T-S 图' : '切换到 P-h 图';
+    }
 }
 
 // ---------------------------------------------------------------------
@@ -1318,16 +1857,26 @@ function updateIntermediatePressureM5() {
         const fluid = fluidSelect.value;
         const Te_C = parseFloat(tempEvapInput.value);
         const Tc_C = parseFloat(tempCondInput.value);
-        const superheat_K = parseFloat(superheatInput.value);
+        let superheat_K = parseFloat(superheatInput.value);
         const subcooling_K = parseFloat(subcoolInput.value);
         const flow_m3h = parseFloat(flowInput.value);
         const eta_v_lp = parseFloat(etaVLpInput.value);
         const eta_s_lp = parseFloat(etaSLpInput.value);
         const eta_s_hp = parseFloat(etaSHpInput.value);
         
+        // 过热度为 0 时按 0.001 处理，避免计算问题
+        if (superheat_K === 0) {
+            superheat_K = 0.001;
+        }
+        
         // ECO参数（用于估算补气流量）
-        const ecoSuperheat_K = ecoSuperheatInput ? parseFloat(ecoSuperheatInput.value) : 5.0;
+        let ecoSuperheat_K = ecoSuperheatInput ? parseFloat(ecoSuperheatInput.value) : 5.0;
         const ecoDt_K = ecoDtInput ? parseFloat(ecoDtInput.value) : 5.0;
+        
+        // ECO 补气过热度为 0 时按 0.001 处理，避免计算问题
+        if (ecoSuperheat_K === 0) {
+            ecoSuperheat_K = 0.001;
+        }
         
         if (isNaN(Te_C) || isNaN(Tc_C) || Tc_C <= Te_C) return;
         if (isNaN(superheat_K) || isNaN(subcooling_K) || isNaN(flow_m3h)) return;
@@ -1623,6 +2172,16 @@ export function initMode5(CP) {
 
         if (printButtonM5) {
             printButtonM5.addEventListener('click', printReportMode5);
+        }
+        
+        // 图表切换按钮
+        const chartToggleBtn = document.getElementById('chart-toggle-m5');
+        const chartToggleBtnMobile = document.getElementById('chart-toggle-m5-mobile');
+        if (chartToggleBtn) {
+            chartToggleBtn.addEventListener('click', toggleChartTypeM5);
+        }
+        if (chartToggleBtnMobile) {
+            chartToggleBtnMobile.addEventListener('click', toggleChartTypeM5);
         }
         
         // 初始化时触发一次效率更新和中间压力更新
