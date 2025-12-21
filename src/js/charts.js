@@ -239,8 +239,21 @@ export function drawTSDiagram(domId, data) {
     // Helper: Extract X and Y values for scaling
     const extractX = (arr) => arr.map(p => Array.isArray(p) ? p[0] : p.value[0]).filter(x => !isNaN(x));
     const extractY = (arr) => arr.map(p => Array.isArray(p) ? p[1] : p.value[1]).filter(y => !isNaN(y));
-    const allX = [...extractX(mainPoints), ...extractX(ecoLiquidPoints), ...extractX(ecoVaporPoints)];
-    const allY = [...extractY(mainPoints), ...extractY(ecoLiquidPoints), ...extractY(ecoVaporPoints)];
+    // 包含饱和线数据以确保坐标轴范围正确
+    const allX = [
+        ...extractX(mainPoints), 
+        ...extractX(ecoLiquidPoints), 
+        ...extractX(ecoVaporPoints),
+        ...extractX(saturationLiquidPoints),
+        ...extractX(saturationVaporPoints)
+    ];
+    const allY = [
+        ...extractY(mainPoints), 
+        ...extractY(ecoLiquidPoints), 
+        ...extractY(ecoVaporPoints),
+        ...extractY(saturationLiquidPoints),
+        ...extractY(saturationVaporPoints)
+    ];
     
     let minX = 0, maxX = 10, minY = -50, maxY = 100;
     if (allX.length > 0) {

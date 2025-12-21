@@ -914,7 +914,7 @@
                                         <input type="number" id="subcooling_m4_lt" value="5" step="any" class="glass-input block w-full rounded-xl py-2.5 px-3 text-gray-900 font-medium">
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-bold text-sky-600 mb-1 ml-1">预估排气温度 T2a (°C)</label>
+                                        <label class="block text-xs font-bold text-sky-600 mb-1 ml-1">设计排气温度 T2a (°C)</label>
                                         <input type="number" id="temp_discharge_actual_m4_lt" value="100" step="any" class="glass-input block w-full rounded-xl py-2.5 px-3 text-gray-900 font-bold bg-sky-50/50 border-sky-100 focus:ring-sky-200">
                                     </div>
                                 </div>
@@ -1080,7 +1080,7 @@
                                         <input type="number" id="subcooling_m4_ht" value="5" step="any" class="glass-input block w-full rounded-xl py-2.5 px-3 text-gray-900 font-medium">
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-bold text-orange-600 mb-1 ml-1">预估排气温度 T2a (°C)</label>
+                                        <label class="block text-xs font-bold text-orange-600 mb-1 ml-1">设计排气温度 T2a (°C)</label>
                                         <input type="number" id="temp_discharge_actual_m4_ht" value="130" step="any" class="glass-input block w-full rounded-xl py-2.5 px-3 text-gray-900 font-bold bg-orange-50/50 border-orange-100 focus:ring-orange-200">
                                     </div>
                                 </div>
@@ -1193,6 +1193,10 @@
                                 <span class="text-[10px] font-bold bg-sky-50 text-sky-400 px-2 py-1 rounded uppercase tracking-widest">Desktop View</span>
                             </div>
                             <div class="flex-grow p-6 overflow-y-auto bg-white/30 space-y-4">
+                                <div class="mb-3 flex justify-center gap-2">
+                                    <button type="button" class="chart-toggle-m4 bg-teal-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors" data-type="ph">P-h 图</button>
+                                    <button type="button" class="chart-toggle-m4 bg-white text-gray-600 px-4 py-2 rounded-lg text-sm font-semibold transition-colors hover:bg-gray-50" data-type="ts">T-s 图</button>
+                                </div>
                                 <div class="grid grid-cols-1 gap-4">
                                     <div id="chart-desktop-m4-lt" class="w-full h-56 bg-white/40 rounded-xl hidden border border-white/20"></div>
                                     <div id="chart-desktop-m4-ht" class="w-full h-56 bg-white/40 rounded-xl hidden border border-white/20"></div>
@@ -1230,6 +1234,10 @@
                             </div>
                         </div>
                         <div class="flex-grow overflow-y-auto p-6 bg-gray-50/50">
+                            <div class="mb-3 flex justify-center gap-2">
+                                <button type="button" class="chart-toggle-m4 bg-teal-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors" data-type="ph">P-h 图</button>
+                                <button type="button" class="chart-toggle-m4 bg-white text-gray-600 px-4 py-2 rounded-lg text-sm font-semibold transition-colors hover:bg-gray-50" data-type="ts">T-s 图</button>
+                            </div>
                             <div class="grid grid-cols-1 gap-4 mb-4">
                                 <div id="chart-mobile-m4-lt" class="w-full h-56 bg-white/40 rounded-xl hidden border border-white/20"></div>
                                 <div id="chart-mobile-m4-ht" class="w-full h-56 bg-white/40 rounded-xl hidden border border-white/20"></div>
