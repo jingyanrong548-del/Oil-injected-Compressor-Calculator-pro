@@ -17,7 +17,7 @@ import {
     createStateTable,
     createImpactGrid 
 } from './components.js';
-import { drawPHDiagram } from './charts.js';
+import { drawPHDiagram, drawTSDiagram, getChartInstance } from './charts.js';
 import { HistoryDB, SessionState } from './storage.js';
 import { AppState } from './state.js'; 
 import { calculatePoly10, calculatePolyVSD } from './logic/polynomial_models.js';
@@ -220,6 +220,170 @@ function initCompressorModelSelectorsM2() {
             }
         });
     });
+}
+
+// ---------------------------------------------------------------------
+// Saturation Lines Generation
+// ---------------------------------------------------------------------
+
+/**
+ * 生成 P-h 图的饱和线数据点
+ * @param {string} fluid - 工质名称
+ * @param {number} Pe_Pa - 蒸发压力 (Pa)
+ * @param {number} Pc_Pa - 冷凝压力 (Pa)
+ * @param {number} numPoints - 数据点数量
+ * @returns {Object} 包含饱和液体线和饱和气体线的 P-h 数据
+ */
+function generateSaturationLinesPH(fluid, Pe_Pa, Pc_Pa, numPoints = 100) {
+    if (!CP_INSTANCE) return { liquidPH: [], vaporPH: [] };
+    
+    const liquidPoints = [];
+    const vaporPoints = [];
+    
+    // 计算压力范围（从蒸发压力到冷凝压力）
+    const P_min = Math.min(Pe_Pa, Pc_Pa) * 0.8;
+    const P_max = Math.max(Pe_Pa, Pc_Pa) * 1.2;
+    
+    // 对数分布压力点（因为压力通常是对数分布的）
+    for (let i = 0; i <= numPoints; i++) {
+        const logP_min = Math.log10(P_min);
+        const logP_max = Math.log10(P_max);
+        const logP = logP_min + (logP_max - logP_min) * (i / numPoints);
+        const P_Pa = Math.pow(10, logP);
+        
+        try {
+            // 饱和液体线 (Q=0)
+            const h_liq = CP_INSTANCE.PropsSI('H', 'P', P_Pa, 'Q', 0, fluid);
+            
+            // 饱和气体线 (Q=1)
+            const h_vap = CP_INSTANCE.PropsSI('H', 'P', P_Pa, 'Q', 1, fluid);
+            
+            // P-h 图数据点
+            liquidPoints.push([h_liq / 1000, P_Pa / 1e5]); // [h (kJ/kg), P (bar)]
+            vaporPoints.push([h_vap / 1000, P_Pa / 1e5]);
+            
+        } catch (e) {
+            // 如果某个压力点计算失败，跳过
+            continue;
+        }
+    }
+    
+    return {
+        liquidPH: liquidPoints,
+        vaporPH: vaporPoints
+    };
+}
+
+/**
+ * 生成 T-S 图的饱和线数据点
+ * @param {string} fluid - 工质名称
+ * @param {number} Te_C - 蒸发温度 (°C)
+ * @param {number} Tc_C - 冷凝温度 (°C)
+ * @param {number} numPoints - 数据点数量
+ * @returns {Object} 包含饱和液体线和饱和气体线的 T-S 数据
+ */
+function generateSaturationLinesTS(fluid, Te_C, Tc_C, numPoints = 100) {
+    if (!CP_INSTANCE) return { liquid: [], vapor: [] };
+    
+    const liquidPoints = [];
+    const vaporPoints = [];
+    
+    // 计算温度范围
+    const T_min = Math.min(Te_C, Tc_C) - 20;
+    const T_max = Math.max(Te_C, Tc_C) + 20;
+    
+    for (let i = 0; i <= numPoints; i++) {
+        const T_C = T_min + (T_max - T_min) * (i / numPoints);
+        const T_K = T_C + 273.15;
+        
+        try {
+            // 饱和液体线 (Q=0)
+            const s_liq = CP_INSTANCE.PropsSI('S', 'T', T_K, 'Q', 0, fluid);
+            
+            // 饱和气体线 (Q=1)
+            const s_vap = CP_INSTANCE.PropsSI('S', 'T', T_K, 'Q', 1, fluid);
+            
+            // T-S 图数据点
+            liquidPoints.push([s_liq / 1000, T_C]); // [s (kJ/kg·K), T (°C)]
+            vaporPoints.push([s_vap / 1000, T_C]);
+            
+        } catch (e) {
+            continue;
+        }
+    }
+    
+    return {
+        liquid: liquidPoints,
+        vapor: vaporPoints
+    };
+}
+
+/**
+ * 将 P-h 图的点转换为 T-s 图的点
+ * @param {string} fluid - 工质名称
+ * @param {Array} points - P-h 图的点数组，格式为 { name, value: [h, p], label }
+ * @returns {Array} T-s 图的点数组，格式为 { name, value: [s, T], label }
+ */
+function convertPointsToTS(fluid, points) {
+    if (!CP_INSTANCE) return [];
+    
+    const tsPoints = [];
+    
+    for (const pt of points) {
+        if (!pt || !pt.value) continue;
+        
+        const [h_kJ, p_bar] = pt.value;
+        const h_J = h_kJ * 1000;
+        const p_Pa = p_bar * 1e5;
+        
+        try {
+            const s_J = CP_INSTANCE.PropsSI('S', 'H', h_J, 'P', p_Pa, fluid);
+            const T_K = CP_INSTANCE.PropsSI('T', 'H', h_J, 'P', p_Pa, fluid);
+            const T_C = T_K - 273.15;
+            
+            // 为 T-s 图智能设置标签位置，避免重叠
+            // 根据点的名称和位置决定标签位置
+            let labelPos = 'right'; // 默认右侧
+            if (pt.name) {
+                // 根据点名称设置位置，避免重叠
+                if (pt.name === '1' || pt.name === "1'") {
+                    labelPos = 'right'; // 蒸发器出口，通常在右侧
+                } else if (pt.name === '2') {
+                    labelPos = 'top'; // 排气点，通常在顶部
+                } else if (pt.name === '3') {
+                    labelPos = 'top'; // 冷凝器出口，改为顶部避免与饱和线重叠
+                } else if (pt.name === '4') {
+                    labelPos = 'bottom'; // 蒸发器入口，通常在底部
+                } else if (pt.name === '5' || pt.name === "5'") {
+                    labelPos = 'left'; // 膨胀阀入口，通常在左侧
+                } else if (pt.name === 'mid' || pt.name === 'mix') {
+                    labelPos = 'top'; // 中间点，通常在顶部
+                } else if (pt.name === '6' || pt.name === '7') {
+                    labelPos = 'right'; // ECO 相关点，通常在右侧
+                }
+            }
+            
+            // 保留原有的 label 配置，但更新位置
+            // 如果原标签显示（或未设置），则显示标签并设置位置
+            const labelConfig = pt.label ? { ...pt.label } : {};
+            // 主循环的点（1, 2, 3, 4, 1', 5'等）应该显示标签
+            const shouldShow = labelConfig.show !== false;
+            if (shouldShow) {
+                labelConfig.position = labelPos;
+                labelConfig.show = true;
+            }
+            
+            tsPoints.push({
+                name: pt.name,
+                value: [s_J / 1000, T_C], // [s (kJ/kg·K), T (°C)]
+                label: labelConfig
+            });
+        } catch (e) {
+            console.warn(`Failed to convert point ${pt.name} to T-S:`, e);
+        }
+    }
+    
+    return tsPoints;
 }
 
 // ---------------------------------------------------------------------
@@ -638,11 +802,43 @@ function calculateMode2() {
                 }
             }
 
+            // 生成饱和线数据
+            const satLinesPH = generateSaturationLinesPH(fluid, Pe_Pa, Pc_Pa);
+            const satLinesTS = generateSaturationLinesTS(fluid, Te_C, Tc_C);
+            
+            // 生成 T-s 图数据点
+            const mainPointsTS = convertPointsToTS(fluid, mainPoints);
+            const ecoLiquidPointsTS = convertPointsToTS(fluid, ecoLiquidPoints);
+            const ecoVaporPointsTS = convertPointsToTS(fluid, ecoVaporPoints);
+            
+            // 保存图表数据以便切换
+            lastCalculationData = lastCalculationData || {};
+            lastCalculationData.chartData = {
+                chartType: 'ph', // 默认显示 P-h 图
+                fluid,
+                mainPoints,
+                ecoLiquidPoints,
+                ecoVaporPoints,
+                mainPointsTS,
+                ecoLiquidPointsTS,
+                ecoVaporPointsTS,
+                satLinesPH,
+                satLinesTS,
+                isSlhxEnabled,
+                isEcoEnabled
+            };
+            
+            // 绘制 P-h 图（默认）
             ['chart-desktop-m2', 'chart-mobile-m2'].forEach(id => {
                 drawPHDiagram(id, {
                     title: `P-h Diagram (${fluid}) [${isSlhxEnabled?'SLHX+':''}${isEcoEnabled?'ECO+':''}]`,
-                    mainPoints, ecoLiquidPoints, ecoVaporPoints,
-                    xLabel: 'Enthalpy (kJ/kg)', yLabel: 'Pressure (bar)'
+                    mainPoints, 
+                    ecoLiquidPoints, 
+                    ecoVaporPoints,
+                    saturationLiquidPoints: satLinesPH.liquidPH,
+                    saturationVaporPoints: satLinesPH.vaporPH,
+                    xLabel: 'Enthalpy (kJ/kg)', 
+                    yLabel: 'Pressure (bar)'
                 });
             });
 
@@ -755,7 +951,14 @@ function calculateMode2() {
             setButtonFresh2();
             if(printButtonM2) printButtonM2.disabled = false;
 
-            lastCalculationData = { fluid, statePoints, COP_R, COP_H, Q_evap_W, Q_cond_W, Q_oil_W };
+            // 更新 lastCalculationData，保留图表数据
+            lastCalculationData.fluid = fluid;
+            lastCalculationData.statePoints = statePoints;
+            lastCalculationData.COP_R = COP_R;
+            lastCalculationData.COP_H = COP_H;
+            lastCalculationData.Q_evap_W = Q_evap_W;
+            lastCalculationData.Q_cond_W = Q_cond_W;
+            lastCalculationData.Q_oil_W = Q_oil_W;
             
             AppState.updateVSD(isVsdEnabled, ratedRpm, currentRpm);
             AppState.updateSLHX(isSlhxEnabled, slhxEff);
@@ -851,6 +1054,16 @@ export function initMode2(CP) {
         });
 
         if (printButtonM2) printButtonM2.addEventListener('click', printReportMode2);
+        
+        // 绑定图表切换按钮
+        const toggleBtn = document.getElementById('chart-toggle-m2');
+        const toggleBtnMobile = document.getElementById('chart-toggle-m2-mobile');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', toggleChartTypeM2);
+        }
+        if (toggleBtnMobile) {
+            toggleBtnMobile.addEventListener('click', toggleChartTypeM2);
+        }
     }
     console.log("Mode 2 (v7.4.4 Fix) initialized.");
 }
@@ -863,6 +1076,76 @@ function printReportMode2() {
     d.statePoints.forEach(p => { tableText += `${p.name}\t${p.temp}\t${p.press}\t${p.enth}\t${p.flow}\n`; });
     resultDiv.innerText = `Full report generated at ${new Date().toLocaleString()}` + tableText;
     window.print();
+}
+
+// 图表切换函数
+function toggleChartTypeM2() {
+    if (!lastCalculationData || !lastCalculationData.chartData) return;
+    
+    const chartData = lastCalculationData.chartData;
+    const currentType = chartData.chartType;
+    const newType = currentType === 'ph' ? 'ts' : 'ph';
+    chartData.chartType = newType;
+    
+    // 确保图表容器可见
+    ['chart-desktop-m2', 'chart-mobile-m2'].forEach(id => {
+        const container = document.getElementById(id);
+        if (container) {
+            container.classList.remove('hidden');
+        }
+    });
+    
+    if (newType === 'ph') {
+        // 切换到 P-h 图
+        ['chart-desktop-m2', 'chart-mobile-m2'].forEach(id => {
+            // 清除旧图表配置
+            const chart = getChartInstance(id);
+            if (chart) {
+                chart.clear();
+            }
+            
+            drawPHDiagram(id, {
+                title: `P-h Diagram (${chartData.fluid}) [${chartData.isSlhxEnabled?'SLHX+':''}${chartData.isEcoEnabled?'ECO+':''}]`,
+                mainPoints: chartData.mainPoints,
+                ecoLiquidPoints: chartData.ecoLiquidPoints,
+                ecoVaporPoints: chartData.ecoVaporPoints,
+                saturationLiquidPoints: chartData.satLinesPH.liquidPH,
+                saturationVaporPoints: chartData.satLinesPH.vaporPH,
+                xLabel: 'Enthalpy (kJ/kg)',
+                yLabel: 'Pressure (bar)'
+            });
+        });
+    } else {
+        // 切换到 T-S 图
+        ['chart-desktop-m2', 'chart-mobile-m2'].forEach(id => {
+            // 清除旧图表配置
+            const chart = getChartInstance(id);
+            if (chart) {
+                chart.clear();
+            }
+            
+            drawTSDiagram(id, {
+                title: `T-s Diagram (${chartData.fluid}) [${chartData.isSlhxEnabled?'SLHX+':''}${chartData.isEcoEnabled?'ECO+':''}]`,
+                mainPoints: chartData.mainPointsTS,
+                ecoLiquidPoints: chartData.ecoLiquidPointsTS,
+                ecoVaporPoints: chartData.ecoVaporPointsTS,
+                saturationLiquidPoints: chartData.satLinesTS.liquid,
+                saturationVaporPoints: chartData.satLinesTS.vapor,
+                xLabel: 'Entropy (kJ/kg·K)',
+                yLabel: 'Temperature (°C)'
+            });
+        });
+    }
+    
+    // 更新按钮文本
+    const toggleBtn = document.getElementById('chart-toggle-m2');
+    const toggleBtnMobile = document.getElementById('chart-toggle-m2-mobile');
+    if (toggleBtn) {
+        toggleBtn.textContent = newType === 'ph' ? '切换到 T-S 图' : '切换到 P-h 图';
+    }
+    if (toggleBtnMobile) {
+        toggleBtnMobile.textContent = newType === 'ph' ? '切换到 T-S 图' : '切换到 P-h 图';
+    }
 }
 
 export function triggerMode2EfficiencyUpdate() {

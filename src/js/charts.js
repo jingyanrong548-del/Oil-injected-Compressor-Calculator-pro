@@ -249,7 +249,8 @@ export function drawTSDiagram(domId, data) {
     }
     if (allY.length > 0) {
         minY = Math.min(...allY) - 10;
-        maxY = Math.max(...allY) + 10;
+        // 向上取整到最近的整数，避免出现 139.9999... 这样的值
+        maxY = Math.ceil(Math.max(...allY) + 10);
     }
 
     const labelStyle = {
@@ -326,7 +327,15 @@ export function drawTSDiagram(domId, data) {
             max: maxY,
             axisLine: { show: false },
             splitLine: { show: true, lineStyle: { type: 'dashed', color: COLORS.grid } },
-            axisLabel: { color: COLORS.text, fontSize: 10 }
+            axisLabel: { 
+                color: COLORS.text, 
+                fontSize: 10,
+                formatter: (v) => {
+                    // 格式化温度标签，避免显示 139.9999... 这样的值
+                    const rounded = Math.round(v * 10) / 10; // 四舍五入到小数点后1位
+                    return rounded % 1 === 0 ? rounded.toFixed(0) : rounded.toFixed(1);
+                }
+            }
         },
         series: [
             {
@@ -336,7 +345,8 @@ export function drawTSDiagram(domId, data) {
                 smooth: 0,
                 symbol: 'circle',
                 symbolSize: 6,
-                label: { ...labelStyle, show: true }, 
+                // 使用 labelStyle 作为默认配置，但数据点自己的 label 配置会覆盖它
+                label: labelStyle, 
                 itemStyle: { color: COLORS.primary },
                 lineStyle: { width: 2.5, color: COLORS.primary },
                 z: 10
