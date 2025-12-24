@@ -85,7 +85,7 @@ export function initUI() {
     // 主标签：气体压缩、制冷热泵
     const mainTabs = [
         { btnId: 'tab-btn-refrig', contentId: 'tab-content-refrig', subNavId: 'refrig-sub-nav' },
-        { btnId: 'tab-btn-gas', contentId: 'tab-content-gas', subNavId: null }
+        { btnId: 'tab-btn-gas', contentId: 'tab-content-gas', subNavId: 'gas-sub-nav' }
     ];
 
     // 子标签（制冷热泵模式下的4个子模式）
@@ -96,10 +96,17 @@ export function initUI() {
         { btnId: 'sub-tab-btn-m6', contentId: 'sub-tab-content-m6', sheetId: 'mobile-sheet-m6', calcBtnId: 'calc-button-mode-6', color: 'indigo' }
     ];
 
+    // 子标签（气体压缩模式下的2个子模式）
+    const gasSubTabs = [
+        { btnId: 'sub-tab-btn-m3', contentId: 'sub-tab-content-m3', sheetId: 'mobile-sheet-m3', calcBtnId: 'calc-button-mode-3', color: 'orange' },
+        { btnId: 'sub-tab-btn-m3-two-stage', contentId: 'sub-tab-content-m3-two-stage', sheetId: 'mobile-sheet-m3-two-stage', calcBtnId: 'calc-button-mode-3-two-stage', color: 'orange' }
+    ];
+
     // 模式标识到导航索引的映射
     const modeToNavMap = {
         'M2': { mainIdx: 0, subIdx: 0 },  // 制冷热泵 -> 单级
-        'M3': { mainIdx: 1, subIdx: null }, // 气体压缩
+        'M3': { mainIdx: 1, subIdx: 0 },   // 气体压缩 -> 单级
+        'M3TS': { mainIdx: 1, subIdx: 1 }, // 气体压缩 -> 双级
         'M4': { mainIdx: 0, subIdx: 1 },  // 制冷热泵 -> 复叠
         'M5': { mainIdx: 0, subIdx: 2 },  // 制冷热泵 -> 单机双级
         'M6': { mainIdx: 0, subIdx: 3 }   // 制冷热泵 -> 双机双级
@@ -164,6 +171,10 @@ export function initUI() {
         // 如果切换到制冷热泵模式，默认显示第一个子模式（单级）
         if (mainIdx === 0) {
             switchSubTab(0);
+        }
+        // 如果切换到气体压缩模式，默认显示第一个子模式（单级）
+        if (mainIdx === 1) {
+            switchGasSubTab(0);
         }
     }
 
@@ -331,6 +342,72 @@ export function initUI() {
         if (btn) btn.addEventListener('click', () => switchSubTab(i));
     });
 
+    // 气体压缩子标签切换函数
+    function switchGasSubTab(subIdx) {
+        console.log(`[UI] Switching to gas sub-tab index: ${subIdx}`);
+        
+        const gasContainer = document.getElementById('tab-content-gas');
+        if (gasContainer) {
+            gasContainer.classList.remove('hidden', 'opacity-0');
+            gasContainer.classList.add('opacity-100');
+            gasContainer.style.setProperty('display', 'block', 'important');
+            gasContainer.style.setProperty('visibility', 'visible', 'important');
+            gasContainer.style.setProperty('opacity', '1', 'important');
+        }
+        
+        gasSubTabs.forEach((t, i) => {
+            const btn = document.getElementById(t.btnId);
+            const content = document.getElementById(t.contentId);
+            const sheet = document.getElementById(t.sheetId);
+            
+            if (i === subIdx) {
+                // 选中状态
+                if (btn) {
+                    btn.classList.remove('bg-white', 'text-gray-600', 'font-semibold');
+                    btn.classList.add('bg-orange-500', 'text-white', 'font-bold', 'shadow-md', 'ring-2', 'ring-orange-400');
+                }
+                
+                if (content) {
+                    content.classList.remove('hidden', 'opacity-0');
+                    content.classList.add('opacity-100');
+                    content.style.setProperty('display', 'block', 'important');
+                    content.style.setProperty('visibility', 'visible', 'important');
+                    content.style.setProperty('opacity', '1', 'important');
+                }
+                
+                if (sheet) {
+                    sheet.classList.remove('hidden');
+                    sheet.style.display = '';
+                }
+            } else {
+                // 未选中状态
+                if (btn) {
+                    btn.classList.remove('bg-orange-500', 'text-white', 'font-bold', 'shadow-md', 'ring-2', 'ring-orange-400');
+                    btn.classList.add('bg-white', 'text-gray-600', 'font-semibold');
+                }
+                
+                if (content) {
+                    content.classList.remove('opacity-100');
+                    content.classList.add('hidden', 'opacity-0');
+                    content.style.setProperty('display', 'none', 'important');
+                    content.style.setProperty('visibility', 'hidden', 'important');
+                    content.style.setProperty('opacity', '0', 'important');
+                }
+                
+                if (sheet) {
+                    sheet.classList.add('hidden');
+                    sheet.style.setProperty('display', 'none', 'important');
+                }
+            }
+        });
+    }
+
+    // 气体压缩子标签事件监听
+    gasSubTabs.forEach((t, i) => {
+        const btn = document.getElementById(t.btnId);
+        if (btn) btn.addEventListener('click', () => switchGasSubTab(i));
+    });
+
     function loadRecord(rec) {
         const navInfo = modeToNavMap[rec.mode];
         if (!navInfo) {
@@ -342,8 +419,12 @@ export function initUI() {
         switchMainTab(navInfo.mainIdx);
 
         // 如果是制冷热泵模式，切换到对应的子标签
-        if (navInfo.subIdx !== null) {
+        if (navInfo.mainIdx === 0 && navInfo.subIdx !== null) {
             setTimeout(() => switchSubTab(navInfo.subIdx), 50);
+        }
+        // 如果是气体压缩模式，切换到对应的子标签
+        if (navInfo.mainIdx === 1 && navInfo.subIdx !== null) {
+            setTimeout(() => switchGasSubTab(navInfo.subIdx), 50);
         }
 
         // 恢复输入数据
@@ -376,8 +457,13 @@ export function initUI() {
                 let calcBtnId = null;
                 if (rec.mode === 'M3') {
                     calcBtnId = 'calc-button-mode-3';
-                } else {
+                } else if (rec.mode === 'M3TS') {
+                    calcBtnId = 'calc-button-mode-3-two-stage';
+                } else if (navInfo.mainIdx === 0) {
                     const subTab = subTabs[navInfo.subIdx];
+                    if (subTab) calcBtnId = subTab.calcBtnId;
+                } else if (navInfo.mainIdx === 1) {
+                    const subTab = gasSubTabs[navInfo.subIdx];
                     if (subTab) calcBtnId = subTab.calcBtnId;
                 }
                 if (calcBtnId) {
@@ -413,6 +499,7 @@ export function initUI() {
     }
     setupBottomSheet('mobile-sheet-m2', 'sheet-handle-m2', 'mobile-close-m2');
     setupBottomSheet('mobile-sheet-m3', 'sheet-handle-m3', 'mobile-close-m3');
+    setupBottomSheet('mobile-sheet-m3-two-stage', 'sheet-handle-m3-two-stage', 'mobile-close-m3-two-stage');
     setupBottomSheet('mobile-sheet-m4', 'sheet-handle-m4', 'mobile-close-m4');
     setupBottomSheet('mobile-sheet-m5', 'sheet-handle-m5', 'mobile-close-m5');
     setupBottomSheet('mobile-sheet-m6', 'sheet-handle-m6', 'mobile-close-m6');
@@ -514,6 +601,8 @@ export function initUI() {
     setupLock('auto-eff-m5-hp', ['eta_s_m5_hp']);
     setupLock('auto-eff-m6-lp', ['eta_v_m6_lp', 'eta_s_m6_lp']);
     setupLock('auto-eff-m6-hp', ['eta_v_m6_hp', 'eta_s_m6_hp']);
+    setupLock('auto-eff-m3-two-stage-lp', ['eta_v_m3_two_stage_lp', 'eta_s_m3_two_stage_lp']);
+    setupLock('auto-eff-m3-two-stage-hp', ['eta_v_m3_two_stage_hp', 'eta_s_m3_two_stage_hp']);
 
     // Mode 4: ECO Toggle Logic (HT only - LT取消ECO)
     const ecoCbHt = document.getElementById('enable_eco_m4_ht');
@@ -639,6 +728,15 @@ export function initUI() {
         if (satTempInput) {
             satTempInput.disabled = v === 'auto';
             satTempInput.classList.toggle('bg-white/50', v === 'auto');
+        }
+    });
+
+    // Mode 3 Two-Stage: Intermediate Pressure Mode Toggle
+    setupRadioToggle('inter_press_mode_m3_two_stage', v => {
+        const pressInput = document.getElementById('press_inter_m3_two_stage');
+        if (pressInput) {
+            pressInput.disabled = v === 'auto';
+            pressInput.classList.toggle('bg-white/50', v === 'auto');
         }
     });
 
@@ -776,6 +874,9 @@ export function initUI() {
     // 初始化默认状态：显示制冷热泵模式的第一个子模式（单级）
     switchMainTab(0);
     switchSubTab(0);
+    
+    // 初始化气体压缩子标签：默认显示单级
+    switchGasSubTab(0);
 
     // -----------------------------------------------------------------
     // 7. 初始化验证：检查所有必要的元素是否存在

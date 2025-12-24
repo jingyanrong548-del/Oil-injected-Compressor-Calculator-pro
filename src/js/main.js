@@ -7,6 +7,7 @@
 import { loadCoolProp, updateFluidInfo } from './coolprop_loader.js';
 import { initMode2, triggerMode2EfficiencyUpdate } from './mode2_oil_refrig.js';
 import { initMode3, triggerMode3EfficiencyUpdate } from './mode3_oil_gas.js';
+import { initMode3TwoStage, triggerMode3TwoStageEfficiencyUpdate } from './mode3_two_stage_gas.js';
 import { initMode4, triggerMode4EfficiencyUpdate } from './mode4_cascade.js';
 import { initMode5, triggerMode5EfficiencyUpdate } from './mode5_two_stage_single.js';
 import { initMode6, triggerMode6EfficiencyUpdate } from './mode6_two_stage_double.js';
@@ -26,6 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const buttons = [
         document.getElementById('calc-button-mode-2'),
         document.getElementById('calc-button-mode-3'),
+        document.getElementById('calc-button-mode-3-two-stage'),
         document.getElementById('calc-button-mode-4'),
         document.getElementById('calc-button-mode-5'),
         document.getElementById('calc-button-mode-6')
@@ -34,6 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const fluidInfos = [
         { select: document.getElementById('fluid_m2'), info: document.getElementById('fluid-info-m2') },
         { select: document.getElementById('fluid_m3'), info: document.getElementById('fluid-info-m3') },
+        { select: document.getElementById('fluid_m3_two_stage'), info: document.getElementById('fluid-info-m3-two-stage') },
         { select: document.getElementById('fluid_m4_lt'), info: document.getElementById('fluid-info-m4-lt') },
         { select: document.getElementById('fluid_m4_ht'), info: document.getElementById('fluid-info-m4-ht') },
         { select: document.getElementById('fluid_m5'), info: document.getElementById('fluid-info-m5') },
@@ -57,6 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // 7. 在CoolProp加载成功后，才初始化依赖于它的计算模块
             initMode2(CP);
             initMode3(CP);
+            initMode3TwoStage(CP);
             initMode4(CP);
             initMode5(CP);
             initMode6(CP);
@@ -79,6 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // 10. [修复] 在所有模块都初始化完毕后，再手动触发一次初始的经验效率计算
             triggerMode2EfficiencyUpdate();
             triggerMode3EfficiencyUpdate();
+            triggerMode3TwoStageEfficiencyUpdate();
             triggerMode4EfficiencyUpdate();
             triggerMode5EfficiencyUpdate();
             triggerMode6EfficiencyUpdate();
