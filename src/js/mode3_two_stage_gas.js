@@ -386,22 +386,10 @@ function computeTwoStageGasCycle({
     
     const Q_oil_total_W = Q_oil_lp_W + Q_oil_hp_W;
     
-    // 中间温度 = 低压级排气后的实际温度（经过油冷后）
-    // 对于纯气体，不使用饱和温度，而是使用实际排气温度
-    let T_intermediate_K;
-    try {
-        // 尝试计算饱和温度（适用于制冷剂等两相流体）
-        const T_sat_K = CP_INSTANCE.PropsSI('T', 'P', P_intermediate_Pa, 'Q', 0.5, fluid);
-        if (isFinite(T_sat_K) && T_sat_K > 0) {
-            T_intermediate_K = T_sat_K;
-        } else {
-            // 如果饱和温度无效（纯气体），使用实际排气温度
-            T_intermediate_K = T_mid_final_C + 273.15;
-        }
-    } catch (e) {
-        // 计算失败时，使用实际排气温度
-        T_intermediate_K = T_mid_final_C + 273.15;
-    }
+    // 中间温度 = 低压级排气后的实际温度（经过油冷和后冷却器后）
+    // 对于气体压缩，中间温度应该是实际排气温度，而不是饱和温度
+    // 如果启用了后冷却器，使用后冷却器出口温度；否则使用油冷后温度
+    const T_intermediate_K = (isAcLpEnabled ? T_mid_ac_C : T_mid_final_C) + 273.15;
     
     // =========================================================
     // 等温效率计算

@@ -52,7 +52,11 @@ export function drawPHDiagram(domId, data) {
 
     // Helper: Extract Y values for scaling
     // 兼容数组格式 [x, y] 和对象格式 { value: [x, y] }
-    const extractY = (arr) => arr.map(p => Array.isArray(p) ? p[1] : p.value[1]).filter(y => y > 0);
+    // 过滤掉null值（用于断开连接的占位符）
+    const extractY = (arr) => arr
+        .filter(p => p !== null && p !== undefined) // 过滤null值
+        .map(p => Array.isArray(p) ? p[1] : (p.value ? p.value[1] : null))
+        .filter(y => y !== null && y !== undefined && y > 0);
     const allY = [...extractY(mainPoints), ...extractY(ecoLiquidPoints), ...extractY(ecoVaporPoints)];
     
     // [v7.2 Fix] 针对低温工ZX（如 R23）优化 Y 轴下限，防止压缩
@@ -164,6 +168,7 @@ export function drawPHDiagram(domId, data) {
             {
                 name: 'Liquid/SLHX',
                 type: 'line',
+                // 保留null值，ECharts会自动处理null来断开连接
                 data: ecoLiquidPoints,
                 smooth: 0,
                 symbol: 'circle',
@@ -172,7 +177,9 @@ export function drawPHDiagram(domId, data) {
                 lineStyle: { width: 2, type: 'dashed', color: COLORS.ecoLiquid },
                 itemStyle: { color: COLORS.ecoLiquid },
                 label: labelStyle, // 允许个别点(如5')开启显示
-                z: 5
+                z: 5,
+                // 使用connectNulls: false来确保null值断开连接
+                connectNulls: false
             },
             {
                 name: 'Injection',
