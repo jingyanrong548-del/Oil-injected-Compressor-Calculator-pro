@@ -339,6 +339,113 @@ export const COMPRESSOR_MODELS = {
             { model: 'KS32MNB', displacement: 4765.8 },
             { model: 'KS32LNB', displacement: 5958.6 }
         ]
+    },
+    '汉钟': {
+        'RC2-G系列': [
+            { model: 'RC2-100G', displacement: 98 },
+            { model: 'RC2-230G', displacement: 230 },
+            { model: 'RC2-260G', displacement: 257 },
+            { model: 'RC2-300G', displacement: 293 },
+            { model: 'RC2-310G', displacement: 308 },
+            { model: 'RC2-340G', displacement: 339 },
+            { model: 'RC2-370G', displacement: 366 },
+            { model: 'RC2-410G', displacement: 407 },
+            { model: 'RC2-470G', displacement: 471 },
+            { model: 'RC2-510G', displacement: 508 },
+            { model: 'RC2-550G', displacement: 549 },
+            { model: 'RC2-580G', displacement: 583 },
+            { model: 'RC2-620G', displacement: 619 },
+            { model: 'RC2-710G', displacement: 713 },
+            { model: 'RC2-790G', displacement: 791 },
+            { model: 'RC2-830G', displacement: 825 },
+            { model: 'RC2-930G', displacement: 929 },
+            { model: 'RC2-1020G', displacement: 1017 },
+            { model: 'RC2-1270G', displacement: 1268 },
+            { model: 'RC2-1530G', displacement: 1539 }
+        ],
+        'RC2-T系列': [
+            { model: 'RC2-200T', displacement: 193 },
+            { model: 'RC2-230T', displacement: 230 },
+            { model: 'RC2-260T', displacement: 257 },
+            { model: 'RC2-300T', displacement: 293 },
+            { model: 'RC2-310T', displacement: 308 },
+            { model: 'RC2-340T', displacement: 339 },
+            { model: 'RC2-370T', displacement: 366 },
+            { model: 'RC2-410T', displacement: 407 },
+            { model: 'RC2-470T', displacement: 471 },
+            { model: 'RC2-510T', displacement: 508 },
+            { model: 'RC2-550T', displacement: 549 },
+            { model: 'RC2-580T', displacement: 583 },
+            { model: 'RC2-620T', displacement: 619 },
+            { model: 'RC2-710T', displacement: 713 },
+            { model: 'RC2-790T', displacement: 791 },
+            { model: 'RC2-830T', displacement: 825 },
+            { model: 'RC2-930T', displacement: 929 },
+            { model: 'RC2-1020T', displacement: 1017 },
+            { model: 'RC2-1130T', displacement: 1122 },
+            { model: 'RC2-1270T', displacement: 1268 },
+            { model: 'RC2-1530T', displacement: 1539 }
+        ],
+        'RC2-B系列': [
+            { model: 'RC2-100B', displacement: 98 },
+            { model: 'RC2-140B', displacement: 137 },
+            { model: 'RC2-180B', displacement: 180 },
+            { model: 'RC2-200B', displacement: 193 },
+            { model: 'RC2-230B', displacement: 230 },
+            { model: 'RC2-260B', displacement: 257 },
+            { model: 'RC2-300B', displacement: 293 },
+            { model: 'RC2-310B', displacement: 308 },
+            { model: 'RC2-340B', displacement: 339 },
+            { model: 'RC2-370B', displacement: 366 },
+            { model: 'RC2-410B', displacement: 407 },
+            { model: 'RC2-470B', displacement: 471 },
+            { model: 'RC2-510B', displacement: 508 },
+            { model: 'RC2-550B', displacement: 549 },
+            { model: 'RC2-580B', displacement: 583 },
+            { model: 'RC2-620B', displacement: 619 },
+            { model: 'RC2-710B', displacement: 713 },
+            { model: 'RC2-790B', displacement: 791 },
+            { model: 'RC2-830B', displacement: 825 },
+            { model: 'RC2-930B', displacement: 929 },
+            { model: 'RC2-1020B', displacement: 1017 },
+            { model: 'RC2-1130B', displacement: 1122 },
+            { model: 'RC2-1270B', displacement: 1268 },
+            { model: 'RC2-1530B', displacement: 1539 }
+        ],
+        'LT-S系列': [
+            {
+                model: 'LT-S-45/20-H',
+                displacement: 436,      // = disp_lp
+                disp_lp: 436,
+                disp_hp: 193,
+                vi_ratio: 2.259,
+                rotor_code: '单机双级'
+            },
+            {
+                model: 'LT-S-55/25-H',
+                displacement: 546,      // = disp_lp
+                disp_lp: 546,
+                disp_hp: 257,
+                vi_ratio: 2.125,
+                rotor_code: '单机双级'
+            },
+            {
+                model: 'LT-S-65/32-H',
+                displacement: 654,      // = disp_lp
+                disp_lp: 654,
+                disp_hp: 322,
+                vi_ratio: 2.031,
+                rotor_code: '单机双级'
+            },
+            {
+                model: 'LT-S-83/41-H',
+                displacement: 830,      // = disp_lp
+                disp_lp: 830,
+                disp_hp: 409,
+                vi_ratio: 2.029,
+                rotor_code: '单机双级'
+            }
+        ]
     }
 };
 
@@ -423,8 +530,8 @@ export function getFilteredBrands(mode) {
     const allBrands = getAllBrands();
     
     if (mode === 'm5') {
-        // Mode 5 (单机双级模式): 只保留前川品牌，其余全部删除
-        return allBrands.filter(brand => brand === '前川(MYCOM)');
+        // Mode 5 (单机双级模式): 保留前川和汉钟品牌
+        return allBrands.filter(brand => brand === '前川(MYCOM)' || brand === '汉钟');
     }
     
     // Mode 2, 3, 4, 6: 保留所有品牌
@@ -451,6 +558,20 @@ export function getFilteredSeriesByBrand(mode, brand) {
         } else {
             // Mode 2, 3, 4, 6: 前川只保留 N 系列
             return allSeries.filter(series => series === 'N系列');
+        }
+    }
+    
+    if (brand === '汉钟') {
+        if (mode === 'm5') {
+            // Mode 5 (单机双级模式): 汉钟只保留 LT-S系列
+            return allSeries.filter(series => series === 'LT-S系列');
+        } else {
+            // Mode 2, 3, 4, 6: 汉钟保留 RC2-G系列、RC2-T系列 和 RC2-B系列
+            return allSeries.filter(series => 
+                series === 'RC2-G系列' || 
+                series === 'RC2-T系列' ||
+                series === 'RC2-B系列'
+            );
         }
     }
     
