@@ -755,6 +755,29 @@ function calculateMode4() {
                 const Q_cascade_ht = htStage.Q_evap_W;        // 高温级在中间换热器吸热
                 const balance = (Q_cascade_lt - Q_cascade_ht) / Math.max(1, Math.abs(Q_cascade_lt));
 
+                // ========== 添加调试日志（开始）==========
+                // 只在前3次迭代或接近收敛时打印详细日志
+                if (iter < 3 || Math.abs(balance) < 0.01) {
+                    // 计算质量流量、体积流量、密度
+                    const m_lt_kg_h = ltStage.m_dot * 3600;  // kg/s -> kg/h
+                    const m_ht_kg_h = htStage.m_dot * 3600;  // kg/s -> kg/h
+
+                    // 从输入参数获取体积流量（理论值）
+                    const v_lt_act_m3h = flowLt * eta_v_lt;  // 实际体积流量 m³/h
+                    const v_ht_act_m3h = flowHt * eta_v_ht;  // 实际体积流量 m³/h
+
+                    // 计算密度：rho = m_dot / v_act
+                    // m_dot 是 kg/s, v_act 需要从 m³/h 转换为 m³/s
+                    const rho_lt = ltStage.m_dot / (v_lt_act_m3h / 3600.0);  // kg/m³
+                    const rho_ht = htStage.m_dot / (v_ht_act_m3h / 3600.0);  // kg/m³
+
+                    // 打印日志（注意：Q_cond_W 和 Q_evap_W 是 W，需要转换为 kW 显示）
+                    console.log(`[Ref Iter ${iter + 1}] T_int_C=${T_int_C.toFixed(2)}, T_cond_lt=${TcLt_C.toFixed(2)}, Q_lt=${(Q_cascade_lt/1000).toFixed(2)} kW, Q_ht=${(Q_cascade_ht/1000).toFixed(2)} kW, balance=${(balance * 100).toFixed(4)}%`);
+                    console.log(`  -> LT: m=${m_lt_kg_h.toFixed(1)} kg/h, v=${v_lt_act_m3h.toFixed(2)} m³/h, rho=${rho_lt.toFixed(3)} kg/m³, T_evap=${TeLt_C.toFixed(2)}°C`);
+                    console.log(`  -> HT: m=${m_ht_kg_h.toFixed(1)} kg/h, v=${v_ht_act_m3h.toFixed(2)} m³/h, rho=${rho_ht.toFixed(3)} kg/m³, T_evap=${T_int_C.toFixed(2)}°C`);
+                }
+                // ========== 调试日志结束 ==========
+
                 bestSolution = { T_int_C, TcLt_C, ltStage, htStage, balance };
 
                 // 检查是否收敛（能量平衡 0.1% 以内）

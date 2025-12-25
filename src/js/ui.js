@@ -872,11 +872,47 @@ export function initUI() {
     });
 
     // 初始化默认状态：显示制冷热泵模式的第一个子模式（单级）
+    // 首先调用切换函数确保状态一致
     switchMainTab(0);
     switchSubTab(0);
     
-    // 初始化气体压缩子标签：默认显示单级
+    // 初始化气体压缩子标签：默认显示单级（但此时内容应该是隐藏的）
+    // 注意：switchGasSubTab会显示tab-content-gas，所以需要在调用后再次隐藏
     switchGasSubTab(0);
+    
+    // 确保气体压缩内容被隐藏（因为switchGasSubTab会显示它）
+    const gasContent = document.getElementById('tab-content-gas');
+    if (gasContent) {
+        gasContent.classList.add('hidden', 'opacity-0');
+        gasContent.classList.remove('opacity-100');
+        gasContent.style.setProperty('display', 'none', 'important');
+        gasContent.style.setProperty('visibility', 'hidden', 'important');
+        gasContent.style.setProperty('opacity', '0', 'important');
+    }
+    
+    // 确保气体压缩子导航被隐藏
+    const gasSubNav = document.getElementById('gas-sub-nav');
+    if (gasSubNav) {
+        gasSubNav.classList.add('hidden');
+        gasSubNav.style.setProperty('display', 'none', 'important');
+    }
+    
+    // 确保制冷热泵内容可见
+    const refrigContent = document.getElementById('tab-content-refrig');
+    if (refrigContent) {
+        refrigContent.classList.remove('hidden', 'opacity-0');
+        refrigContent.classList.add('opacity-100');
+        refrigContent.style.setProperty('display', 'block', 'important');
+        refrigContent.style.setProperty('visibility', 'visible', 'important');
+        refrigContent.style.setProperty('opacity', '1', 'important');
+    }
+    
+    // 确保制冷热泵子导航可见
+    const refrigSubNav = document.getElementById('refrig-sub-nav');
+    if (refrigSubNav) {
+        refrigSubNav.classList.remove('hidden');
+        refrigSubNav.style.setProperty('display', 'block', 'important');
+    }
 
     // -----------------------------------------------------------------
     // 7. 初始化验证：检查所有必要的元素是否存在
