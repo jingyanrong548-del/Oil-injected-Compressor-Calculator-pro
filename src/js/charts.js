@@ -10,7 +10,9 @@ const chartInstances = {};
 const COLORS = {
     primary: '#14B8A6',   // Teal (主循环 1-2-3-4)
     ecoLiquid: '#F97316', // Orange (液路/回热冷却 3-5-5')
-    ecoVapor: '#3B82F6',  // Blue (补气回路)
+    ecoVapor: '#3B82F6',  // Blue (补气回路，通用)
+    intercoolerVapor: '#8B5CF6', // Purple (中冷辅助循环 - 中间冷却器ECO补气路)
+    economizerVapor: '#EF4444',  // Red (经济器循环 - 高压级ECO补气路)
     saturation: '#9CA3AF', // Gray (饱和线)
     grid: '#E5E7EB',
     text: '#6B7280',
@@ -43,6 +45,8 @@ export function drawPHDiagram(domId, data) {
         mainPoints, 
         ecoLiquidPoints = [], 
         ecoVaporPoints = [],
+        intercoolerVaporPoints = [], // 中冷辅助循环（中间冷却器ECO补气路）
+        economizerVaporPoints = [],  // 经济器循环（高压级ECO补气路）
         saturationLiquidPoints = [],
         saturationVaporPoints = [],
         title = 'Thermodynamic Cycle',
@@ -57,7 +61,13 @@ export function drawPHDiagram(domId, data) {
         .filter(p => p !== null && p !== undefined) // 过滤null值
         .map(p => Array.isArray(p) ? p[1] : (p.value ? p.value[1] : null))
         .filter(y => y !== null && y !== undefined && y > 0);
-    const allY = [...extractY(mainPoints), ...extractY(ecoLiquidPoints), ...extractY(ecoVaporPoints)];
+    const allY = [
+        ...extractY(mainPoints), 
+        ...extractY(ecoLiquidPoints), 
+        ...extractY(ecoVaporPoints),
+        ...extractY(intercoolerVaporPoints),
+        ...extractY(economizerVaporPoints)
+    ];
     
     // [v7.2 Fix] 针对低温工ZX（如 R23）优化 Y 轴下限，防止压缩
     let minY = 1, maxY = 100;
@@ -192,6 +202,30 @@ export function drawPHDiagram(domId, data) {
                 lineStyle: { width: 2, type: 'dotted', color: COLORS.ecoVapor },
                 label: labelStyle,
                 z: 6
+            },
+            {
+                name: 'Intercooler Injection',
+                type: 'line',
+                data: intercoolerVaporPoints,
+                smooth: 0,
+                symbol: 'triangle',
+                symbolSize: 5,
+                itemStyle: { color: COLORS.intercoolerVapor },
+                lineStyle: { width: 2, type: 'dotted', color: COLORS.intercoolerVapor },
+                label: labelStyle,
+                z: 7
+            },
+            {
+                name: 'Economizer Injection',
+                type: 'line',
+                data: economizerVaporPoints,
+                smooth: 0,
+                symbol: 'triangle',
+                symbolSize: 5,
+                itemStyle: { color: COLORS.economizerVapor },
+                lineStyle: { width: 2, type: 'dotted', color: COLORS.economizerVapor },
+                label: labelStyle,
+                z: 8
             },
             {
                 name: 'Saturation Liquid',

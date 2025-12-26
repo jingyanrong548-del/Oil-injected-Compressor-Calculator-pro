@@ -1238,19 +1238,28 @@ function calculateMode5() {
             const pt5_subcooler = point('5', result.h5, result.Pc_Pa, 'top');
             const pt1_start = result.isSlhxEnabled ? pt1_p : pt1;
 
-            // 主循环：4 -> 1 -> [1'] -> mid -> mix -> 2 -> 3
+            // 主循环：4 -> 1 -> [1'] -> mid -> mix -> 2 -> 3 -> 5 -> [5'] -> 4
             mainPoints = [pt4, pt1];
             if (result.isSlhxEnabled) {
                 mainPoints.push(pt1_start);
             }
             mainPoints.push(pt_mid, pt_mix, pt2, pt3);
-
-            // 液路：3 -> 5 -> [5'] -> 4
+            
+            // 从点3到点4的路径（主循环的一部分）
+            mainPoints.push(pt5_subcooler);
             if (result.isSlhxEnabled) {
                 const pt5_p_subcooler = point("5'", result.h4, result.Pc_Pa, 'top');
-                ecoLiquidPoints = [pt3, pt5_subcooler, pt5_p_subcooler, pt4];
+                mainPoints.push(pt5_p_subcooler);
+            }
+            // 为了闭合循环，需要在最后添加点4
+            mainPoints.push(pt4);
+
+            // 液路：3 -> 5 -> [5'] -> 4（只显示到节流起点，不包括到点4的连接）
+            if (result.isSlhxEnabled) {
+                const pt5_p_subcooler = point("5'", result.h4, result.Pc_Pa, 'top');
+                ecoLiquidPoints = [pt3, pt5_subcooler, pt5_p_subcooler];
             } else {
-                ecoLiquidPoints = [pt3, pt5_subcooler, pt4];
+                ecoLiquidPoints = [pt3, pt5_subcooler];
             }
 
             // 补气路：3 -> 7 -> 6 -> mix（连接到混合点，因为mid点和点6混合后形成mix点）
