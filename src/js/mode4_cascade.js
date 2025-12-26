@@ -1626,7 +1626,7 @@ function initCompressorModelSelectorsM4Lt() {
         modelDisplacementInfoLt.classList.add('hidden');
 
         if (brand) {
-            const series = getFilteredSeriesByBrand('m4', brand);
+            const series = getFilteredSeriesByBrand('m4', brand, 'lt');
             series.forEach(s => {
                 const option = document.createElement('option');
                 option.value = s;
@@ -1700,7 +1700,7 @@ function initCompressorModelSelectorsM4Ht() {
         modelDisplacementInfoHt.classList.add('hidden');
 
         if (brand) {
-            const series = getFilteredSeriesByBrand('m4', brand);
+            const series = getFilteredSeriesByBrand('m4', brand, 'ht');
             series.forEach(s => {
                 const option = document.createElement('option');
                 option.value = s;

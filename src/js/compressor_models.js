@@ -446,6 +446,37 @@ export const COMPRESSOR_MODELS = {
                 rotor_code: '单机双级'
             }
         ]
+    },
+    '开利': {
+        '06TU-G系列': [
+            { model: '06TUG483', displacement: 670, note: '高温热泵专用 (Vi=G)' },
+            { model: '06TUG554', displacement: 769, note: '高温热泵专用 (Vi=G)' }
+        ],
+        '06TS系列': [
+            { model: '06TS*137', displacement: 190 },
+            { model: '06TS*155', displacement: 215 },
+            { model: '06TS*186', displacement: 258 }
+        ],
+        '06TT系列': [
+            { model: '06TT*266', displacement: 369 },
+            { model: '06TT*301', displacement: 418 },
+            { model: '06TT*356', displacement: 494 }
+        ],
+        '06TU系列': [
+            { model: '06TU*483', displacement: 670 },
+            { model: '06TU*554', displacement: 769 }
+        ],
+        '06TV系列': [
+            { model: '06TV*680', displacement: 944 },
+            { model: '06TV*753', displacement: 1045 },
+            { model: '06TV*819', displacement: 1137 },
+            { model: '06TV*879', displacement: 1220 }
+        ],
+        '06TX系列': [
+            { model: '06TX*13K', displacement: 1792 },
+            { model: '06TX*14K', displacement: 1852 },
+            { model: '06TX*15K', displacement: 2056 }
+        ]
     }
 };
 
@@ -542,9 +573,10 @@ export function getFilteredBrands(mode) {
  * 根据模式和品牌获取过滤后的系列列表
  * @param {string} mode - 模式标识: 'm2', 'm3', 'm4', 'm5', 'm6'
  * @param {string} brand - 品牌名称
+ * @param {string|null} level - 级别标识: 'ht' (高温级), 'lt' (低温级), null (单级或其他)
  * @returns {string[]} 过滤后的系列名称数组
  */
-export function getFilteredSeriesByBrand(mode, brand) {
+export function getFilteredSeriesByBrand(mode, brand, level = null) {
     const allSeries = getSeriesByBrand(brand);
     
     if (brand === '前川(MYCOM)') {
@@ -571,6 +603,22 @@ export function getFilteredSeriesByBrand(mode, brand) {
                 series === 'RC2-G系列' || 
                 series === 'RC2-T系列' ||
                 series === 'RC2-B系列'
+            );
+        }
+    }
+    
+    if (brand === '开利') {
+        if (level === 'ht') {
+            // 高温级: 只显示高温热泵系列
+            return allSeries.filter(series => series === '06TU-G系列');
+        } else {
+            // 单级或低温级: 只显示常规系列
+            return allSeries.filter(series => 
+                series === '06TS系列' ||
+                series === '06TT系列' ||
+                series === '06TU系列' ||
+                series === '06TV系列' ||
+                series === '06TX系列'
             );
         }
     }
