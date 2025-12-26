@@ -88,12 +88,13 @@ export function initUI() {
         { btnId: 'tab-btn-gas', contentId: 'tab-content-gas', subNavId: 'gas-sub-nav' }
     ];
 
-    // 子标签（制冷热泵模式下的4个子模式）
+    // 子标签（制冷热泵模式下的5个子模式）
     const subTabs = [
         { btnId: 'sub-tab-btn-m2', contentId: 'sub-tab-content-m2', sheetId: 'mobile-sheet-m2', calcBtnId: 'calc-button-mode-2', color: 'teal' },
         { btnId: 'sub-tab-btn-m4', contentId: 'sub-tab-content-m4', sheetId: 'mobile-sheet-m4', calcBtnId: 'calc-button-mode-4', color: 'sky' },
         { btnId: 'sub-tab-btn-m5', contentId: 'sub-tab-content-m5', sheetId: 'mobile-sheet-m5', calcBtnId: 'calc-button-mode-5', color: 'purple' },
-        { btnId: 'sub-tab-btn-m6', contentId: 'sub-tab-content-m6', sheetId: 'mobile-sheet-m6', calcBtnId: 'calc-button-mode-6', color: 'indigo' }
+        { btnId: 'sub-tab-btn-m6', contentId: 'sub-tab-content-m6', sheetId: 'mobile-sheet-m6', calcBtnId: 'calc-button-mode-6', color: 'indigo' },
+        { btnId: 'sub-tab-btn-m7', contentId: 'sub-tab-content-m7', sheetId: 'mobile-sheet-m7', calcBtnId: 'calc-button-mode-7', color: 'teal' }
     ];
 
     // 子标签（气体压缩模式下的2个子模式）
@@ -109,7 +110,8 @@ export function initUI() {
         'M3TS': { mainIdx: 1, subIdx: 1 }, // 气体压缩 -> 双级
         'M4': { mainIdx: 0, subIdx: 1 },  // 制冷热泵 -> 复叠
         'M5': { mainIdx: 0, subIdx: 2 },  // 制冷热泵 -> 单机双级
-        'M6': { mainIdx: 0, subIdx: 3 }   // 制冷热泵 -> 双机双级
+        'M6': { mainIdx: 0, subIdx: 3 },   // 制冷热泵 -> 双机双级
+        'M7': { mainIdx: 0, subIdx: 4 }   // 制冷热泵 -> 氨热泵
     };
 
     // 主标签切换函数
@@ -728,6 +730,14 @@ export function initUI() {
     setupRadioToggle('flow_mode_m4_ht', v => {
         const rpmPanel = document.getElementById('rpm-inputs-m4-ht');
         const volPanel = document.getElementById('vol-inputs-m4-ht');
+        if (rpmPanel) rpmPanel.style.display = v === 'rpm' ? 'grid' : 'none';
+        if (volPanel) volPanel.style.display = v === 'vol' ? 'block' : 'none';
+    });
+
+    // Mode 7: Ammonia Heat Pump Flow Mode Toggle
+    setupRadioToggle('flow_mode_m7', v => {
+        const rpmPanel = document.getElementById('rpm-inputs-m7');
+        const volPanel = document.getElementById('vol-inputs-m7');
         if (rpmPanel) rpmPanel.style.display = v === 'rpm' ? 'grid' : 'none';
         if (volPanel) volPanel.style.display = v === 'vol' ? 'block' : 'none';
     });

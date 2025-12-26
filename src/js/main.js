@@ -11,6 +11,7 @@ import { initMode3TwoStage, triggerMode3TwoStageEfficiencyUpdate } from './mode3
 import { initMode4, triggerMode4EfficiencyUpdate } from './mode4_cascade.js';
 import { initMode5, triggerMode5EfficiencyUpdate } from './mode5_two_stage_single.js';
 import { initMode6, triggerMode6EfficiencyUpdate } from './mode6_two_stage_double.js';
+import { initMode7, triggerMode7EfficiencyUpdate } from './mode7_ammonia_heatpump.js';
 import { initUI } from './ui.js';
 import { APP_VERSION } from './version.js'; 
 
@@ -30,7 +31,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('calc-button-mode-3-two-stage'),
         document.getElementById('calc-button-mode-4'),
         document.getElementById('calc-button-mode-5'),
-        document.getElementById('calc-button-mode-6')
+        document.getElementById('calc-button-mode-6'),
+        document.getElementById('calc-button-mode-7')
     ];
     
     const fluidInfos = [
@@ -40,7 +42,8 @@ document.addEventListener('DOMContentLoaded', () => {
         { select: document.getElementById('fluid_m4_lt'), info: document.getElementById('fluid-info-m4-lt') },
         { select: document.getElementById('fluid_m4_ht'), info: document.getElementById('fluid-info-m4-ht') },
         { select: document.getElementById('fluid_m5'), info: document.getElementById('fluid-info-m5') },
-        { select: document.getElementById('fluid_m6'), info: document.getElementById('fluid-info-m6') }
+        { select: document.getElementById('fluid_m6'), info: document.getElementById('fluid-info-m6') },
+        { select: document.getElementById('fluid_m7'), info: document.getElementById('fluid-info-m7') }
     ];
 
     const buttonTexts = {
@@ -48,7 +51,8 @@ document.addEventListener('DOMContentLoaded', () => {
         'calc-button-mode-3': '计算',
         'calc-button-mode-4': '计算',
         'calc-button-mode-5': '计算',
-        'calc-button-mode-6': '计算'
+        'calc-button-mode-6': '计算',
+        'calc-button-mode-7': '计算'
     };
 
     // 5. 然后，开始异步加载 CoolProp 物性库
@@ -64,6 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
             initMode4(CP);
             initMode5(CP);
             initMode6(CP);
+            initMode7(CP);
 
             // 8. 更新所有计算按钮的状态
             buttons.forEach(btn => {
@@ -87,6 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
             triggerMode4EfficiencyUpdate();
             triggerMode5EfficiencyUpdate();
             triggerMode6EfficiencyUpdate();
+            triggerMode7EfficiencyUpdate();
 
         })
         .catch((err) => {
