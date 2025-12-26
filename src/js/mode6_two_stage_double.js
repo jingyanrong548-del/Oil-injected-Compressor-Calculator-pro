@@ -1446,18 +1446,23 @@ function calculateMode6() {
             });
 
             // 确定点4的焓值（根据ECO类型，确保与节流起点一致）
+            // 重要：当同时有高压级ECO和中间冷却器ECO时，点4应该从5-Inter等焓节流（5-Inter是主路）
+            // 此逻辑必须与P-h图中的逻辑保持一致
             let h4_for_state_table;
-            if (hasEcoHp) {
-                h4_for_state_table = hpStage.h5; // 高压级ECO：从点5-HP等焓节流
-            } else if (hasEcoInter) {
-                h4_for_state_table = h_5_inter; // 中间冷却器ECO：从点5-Inter等焓节流
+            if (hasEcoInter) {
+                // 中间冷却器ECO：点4从点5-Inter等焓节流到蒸发压力（5-Inter是主路，优先）
+                h4_for_state_table = h_5_inter;
+            } else if (hasEcoHp) {
+                // 高压级ECO：点4从点5-HP等焓节流到蒸发压力
+                h4_for_state_table = hpStage.h5;
             } else {
-                h4_for_state_table = hpStage.h3; // 无ECO：从点3等焓节流
+                // 无ECO：点4从点3等焓节流到蒸发压力
+                h4_for_state_table = hpStage.h3;
             }
             
             statePoints.push({
                 name: '4',
-                desc: 'Exp Valve Out (Evap)',
+                desc: 'Evaporator Inlet',
                 temp: hpStage.T4_C.toFixed(1),
                 press: ((hpStage.h4_pressure || Pe_Pa) / 1e5).toFixed(2),
                 enth: (h4_for_state_table / 1000).toFixed(1), // 使用正确的焓值，确保与5-Inter一致
@@ -1620,18 +1625,23 @@ function calculateMode6() {
             // 中间冷却器ECO始终启用，所以总是显示ECO路径
             if (hasEcoInter || hasEcoHp) {
                 // ECO模式：需要显示补气和混合过程
+                // 调整标签位置，避免中间压力下各点标注重合
+                // 最右边的点（焓值最大）：使用'right'和'bottom'分散
                 pt_lp2 = point('LP-2', lpStage.h2a, P_intermediate_Pa, 'right');
                 // mid点：补气混合后的实际状态（如果有ECO补气），否则等于等熵压缩状态
                 // 使用h_mix（补气混合后的状态）而不是h_mid（等熵状态），确保显示实际状态点
-                pt_mid = point('mid', lpStage.h_mix, P_intermediate_Pa, 'right');
+                pt_mid = point('mid', lpStage.h_mix, P_intermediate_Pa, 'bottom');
                 
                 // 中间冷却器ECO点（始终显示）
-                pt6_inter = point('6-Inter', h_6_inter, P_intermediate_Pa, 'left');
+                // 6-Inter是补气点，焓值较大，在右边，使用'right'和'top'分散
+                pt6_inter = point('6-Inter', h_6_inter, P_intermediate_Pa, 'top');
                 if (ecoTypeValue === 'flash_tank') {
-                    pt7_inter = point('7-Inter', h_7_inter, P_intermediate_Pa, 'right');
-                    pt5_inter = point('5-Inter', h_5_inter, P_intermediate_Pa, 'top');
+                    // 7-Inter在中间位置，使用'bottom'避免与6-Inter重合
+                    pt7_inter = point('7-Inter', h_7_inter, P_intermediate_Pa, 'bottom');
+                    // 5-Inter在左边（焓值小），使用'left'和'top'
+                    pt5_inter = point('5-Inter', h_5_inter, P_intermediate_Pa, 'left');
                 } else {
-                    // 过冷器模式：与mode5一致
+                    // 过冷器模式：5-Inter在冷凝压力下，不在中间压力
                     pt7_inter = point('7-Inter', h_7_inter, P_intermediate_Pa, 'bottom');
                     pt5_inter = point('5-Inter', h_5_inter, hpStage.Pc_Pa, 'top');
                 }
@@ -1639,13 +1649,15 @@ function calculateMode6() {
                 // 低压级经济器已移除，不再显示相关点
                 
                 // mix点：中间冷却器混合后的状态（包含中间冷却器ECO补气，但不包含高压级ECO补气）
-                pt_mix = point('mix', h_mix, P_intermediate_Pa, 'left');
+                // 使用'top'避免与HP-1重合（如果它们焓值相同）
+                pt_mix = point('mix', h_mix, P_intermediate_Pa, 'top');
                 
                 // HP-1点：高压级压缩起点（等于mix点，因为高压级ECO补气在压缩过程中处理）
-                pt_hp1 = point('HP-1', hpStage.h1, P_intermediate_Pa, 'left');
+                // 使用'bottom'避免与mix重合（如果它们焓值相同）
+                pt_hp1 = point('HP-1', hpStage.h1, P_intermediate_Pa, 'bottom');
                 
                 // 高压级ECO点（如果启用）
-                let pt_mid_hp, pt_mix_hp; // 高压级ECO压缩过程中的中间点和混合点
+                let pt_mid_hp, pt_mix_hp, pt5_hp_inter; // 高压级ECO压缩过程中的中间点和混合点，以及5-HP在中间压力下的点
                 if (hasEcoHp) {
                     // 计算高压级经济器压力
                     const P_eco_hp_Pa = hpStage.P_eco_Pa || Math.sqrt(Pe_Pa * hpStage.Pc_Pa);
@@ -1661,6 +1673,10 @@ function calculateMode6() {
                         pt7 = point('7-HP', hpStage.h7, P_eco_hp_Pa, 'bottom');
                         pt5 = point('5-HP', hpStage.h5, hpStage.Pc_Pa, 'top');
                     }
+                    
+                    // 5-HP等焓节流到中间压力，添加中间压力下的点
+                    // 5-HP-inter在左边（焓值小），使用'left'避免与其他点重合
+                    pt5_hp_inter = point('5-HP-inter', hpStage.h5, P_intermediate_Pa, 'left');
                     
                     // 高压级ECO压缩过程中的中间点（第一级压缩到经济器压力）
                     pt_mid_hp = point('mid-HP', hpStage.h_mid, P_eco_hp_Pa, 'right');
@@ -1682,14 +1698,15 @@ function calculateMode6() {
                 
                 // 确定点4（根据启用的ECO类型）
                 // 重要：点4的焓值必须等于点5的焓值（等焓节流过程），确保P-h图中显示为垂直向下的等焓线
+                // 当同时有高压级ECO和中间冷却器ECO时，点4应该从5-Inter等焓节流（5-Inter是主路）
                 let h4_for_plot; // 用于绘图的点4焓值
-                if (hasEcoHp) {
+                if (hasEcoInter) {
+                    // 中间冷却器ECO：点4从点5-Inter等焓节流到蒸发压力（5-Inter是主路，优先）
+                    h4_for_plot = h_5_inter; // 使用点5-Inter的焓值，确保等焓
+                    pt4 = point('4', h4_for_plot, Pe_Pa, 'bottom');
+                } else if (hasEcoHp) {
                     // 高压级ECO：点4从点5-HP等焓节流到蒸发压力
                     h4_for_plot = hpStage.h5; // 使用点5-HP的焓值，确保等焓
-                    pt4 = point('4', h4_for_plot, Pe_Pa, 'bottom');
-                } else if (hasEcoInter) {
-                    // 中间冷却器ECO：点4从点5-Inter等焓节流到蒸发压力
-                    h4_for_plot = h_5_inter; // 使用点5-Inter的焓值，确保等焓
                     pt4 = point('4', h4_for_plot, Pe_Pa, 'bottom');
                 } else {
                     // 无ECO：点4从点3等焓节流到蒸发压力
@@ -1704,6 +1721,10 @@ function calculateMode6() {
                 }
                 if (hasEcoInter && !hasEcoHp && Math.abs(h4_for_plot - h_5_inter) > 10) {
                     console.warn(`警告：点4和点5-Inter的焓值差异较大，h4_for_plot=${h4_for_plot}, h5_inter=${h_5_inter}`);
+                }
+                // 当同时有高压级ECO和中间冷却器ECO时，验证5-Inter和点4的焓值是否一致
+                if (hasEcoHp && hasEcoInter && Math.abs(h4_for_plot - h_5_inter) > 10) {
+                    console.warn(`警告：当同时有高压级ECO和中间冷却器ECO时，点4和点5-Inter的焓值差异较大，h4_for_plot=${h4_for_plot}, h5_inter=${h_5_inter}。点4的焓值来自5-HP，但5-Inter也要节流到点4。`);
                 }
                 // 构建主循环点
                 // 主循环路径：4 → LP-1 → LP-2 → mix → HP-1 → (mid-HP → mix-HP) → HP-2 → 3 → [ECO路径] → 4
@@ -1724,26 +1745,53 @@ function calculateMode6() {
                 
                 mainPoints.push(pt_hp2, pt3);
                 
-                // 从点3到点4的路径（根据启用的经济器类型，优先级：高压级 > 中间冷却器）
+                // 从点3到点4的路径（根据启用的经济器类型）
                 // 确保主循环正确闭合，所有非压缩过程都是等焓（竖直）或等压（水平）
                 // 重要：5-Inter/5-HP到4的路径必须包含在主循环中，确保循环闭合
                 if (hasEcoHp) {
                     // 高压级经济器
                     if (ecoTypeHpValue === 'flash_tank') {
-                        // 闪蒸罐模式：3 → 7-HP（等焓节流，竖直线）→ 5-HP（等压闪蒸，水平线）→ 4（等焓节流，竖直线）
-                        mainPoints.push(pt7, pt5, pt4);
+                        // 闪蒸罐模式：3 → 7-HP（等焓节流，竖直线）→ 5-HP（等压闪蒸，水平线）→ 5-HP-inter（等焓节流到中间压力，竖直线）
+                        mainPoints.push(pt7, pt5);
+                        if (pt5_hp_inter) {
+                            mainPoints.push(pt5_hp_inter);
+                        }
                     } else {
-                        // 过冷器模式：3 → 5-HP（等压过冷，水平线）→ 4（等焓节流，竖直线）
-                        mainPoints.push(pt5, pt4);
+                        // 过冷器模式：3 → 5-HP（等压过冷，水平线）→ 5-HP-inter（等焓节流到中间压力，竖直线）
+                        mainPoints.push(pt5);
+                        if (pt5_hp_inter) {
+                            mainPoints.push(pt5_hp_inter);
+                        }
                     }
-                } else if (hasEcoInter) {
-                    // 中间冷却器经济器
-                    if (ecoTypeValue === 'flash_tank') {
-                        // 闪蒸罐模式：3 → 7-Inter（等焓节流，竖直线）→ 5-Inter（等压闪蒸，水平线）→ 4（等焓节流，竖直线）
-                        mainPoints.push(pt7_inter, pt5_inter, pt4);
+                }
+                // 中间冷却器ECO：5-Inter → 4（等焓节流，竖直线），点4在5-Inter正下方
+                if (hasEcoInter) {
+                    // 5-Inter等焓节流到点4，点4应该在5-Inter正下方
+                    if (!hasEcoHp) {
+                        // 只有中间冷却器ECO时，需要添加完整的路径
+                        if (ecoTypeValue === 'flash_tank') {
+                            // 闪蒸罐模式：3 → 7-Inter（等焓节流，竖直线）→ 5-Inter（等压闪蒸，水平线）→ 4（等焓节流，竖直线）
+                            mainPoints.push(pt7_inter, pt5_inter, pt4);
+                        } else {
+                            // 过冷器模式：3 → 5-Inter（等压过冷，水平线）→ 4（等焓节流，竖直线）
+                            mainPoints.push(pt5_inter, pt4);
+                        }
                     } else {
-                        // 过冷器模式：3 → 5-Inter（等压过冷，水平线）→ 4（等焓节流，竖直线）
-                        mainPoints.push(pt5_inter, pt4);
+                        // 同时有高压级ECO和中间冷却器ECO时，需要添加3→7-Inter→5-Inter的路径，然后5-Inter到点4
+                        if (ecoTypeValue === 'flash_tank') {
+                            // 闪蒸罐模式：3 → 7-Inter（等焓节流，竖直线）→ 5-Inter（等压闪蒸，水平线）→ 4（等焓节流，竖直线）
+                            mainPoints.push(pt7_inter, pt5_inter, pt4);
+                        } else {
+                            // 过冷器模式：3 → 5-Inter（等压过冷，水平线）→ 4（等焓节流，竖直线）
+                            mainPoints.push(pt5_inter, pt4);
+                        }
+                    }
+                } else if (hasEcoHp) {
+                    // 只有高压级ECO时，点4从5-HP-inter等焓节流到蒸发压力
+                    if (pt5_hp_inter) {
+                        mainPoints.push(pt5_hp_inter, pt4);
+                    } else {
+                        mainPoints.push(pt4);
                     }
                 } else {
                     // 无经济器时：3 → 4（等焓节流，竖直线）
@@ -1821,12 +1869,26 @@ function calculateMode6() {
                 // 构建 T-S 图主循环点（带过程中间点）
                 const mainPointsTS = [];
                 
+                // 确定点4的焓值（与P-h图和状态点表保持一致）
+                // 重要：当同时有高压级ECO和中间冷却器ECO时，点4应该从5-Inter等焓节流（5-Inter是主路）
+                let h4_for_TS;
+                if (hasEcoInter) {
+                    // 中间冷却器ECO：点4从点5-Inter等焓节流到蒸发压力（5-Inter是主路，优先）
+                    h4_for_TS = h_5_inter;
+                } else if (hasEcoHp) {
+                    // 高压级ECO：点4从点5-HP等焓节流到蒸发压力
+                    h4_for_TS = hpStage.h5;
+                } else {
+                    // 无ECO：点4从点3等焓节流到蒸发压力
+                    h4_for_TS = hpStage.h3;
+                }
+                
                 // 点 4：节流后（蒸发压力）
                 const pt4_TS = {
                     name: '4',
                     value: [
-                        CP_INSTANCE.PropsSI('S', 'H', hpStage.h4, 'P', Pe_Pa, fluid) / 1000,
-                        CP_INSTANCE.PropsSI('T', 'H', hpStage.h4, 'P', Pe_Pa, fluid) - 273.15
+                        CP_INSTANCE.PropsSI('S', 'H', h4_for_TS, 'P', Pe_Pa, fluid) / 1000,
+                        CP_INSTANCE.PropsSI('T', 'H', h4_for_TS, 'P', Pe_Pa, fluid) - 273.15
                     ],
                     label: { show: true }
                 };
@@ -1842,7 +1904,7 @@ function calculateMode6() {
                     label: { show: true }
                 };
                 // 添加等压过程中间点（4->LP-1 蒸发过程）
-                const evapPath = generateIsobaricPathTS(fluid, Pe_Pa, hpStage.h4, lpStage.h1, 8);
+                const evapPath = generateIsobaricPathTS(fluid, Pe_Pa, h4_for_TS, lpStage.h1, 8);
                 evapPath.forEach((pt, idx) => {
                     if (idx > 0 && idx < evapPath.length - 1) {
                         mainPointsTS.push({ name: '', value: pt, label: { show: false } });
@@ -1954,7 +2016,8 @@ function calculateMode6() {
                 }
                 
                 // 节流过程 5/3 -> 4
-                const h_throttle_start = ecoTypeValue === 'subcooler' ? h_5_inter : hpStage.h3;
+                // 使用与点4相同的焓值逻辑，确保节流路径与点4一致
+                const h_throttle_start = h4_for_TS; // 使用与点4相同的焓值
                 const throttlePath = generateThrottlingPathTS(fluid, h_throttle_start, hpStage.Pc_Pa, Pe_Pa, 8);
                 throttlePath.forEach((pt, idx) => {
                     if (idx > 0 && idx < throttlePath.length - 1) {
@@ -2081,20 +2144,25 @@ function calculateMode6() {
                 });
             } else {
                 // 只有中间冷却器ECO（无其他ECO）
+                // 调整标签位置，避免中间压力下各点标注重合
                 pt_lp2 = point('LP-2', lpStage.h2a, P_intermediate_Pa, 'right');
-                pt_mix = point('mix', h_mix, P_intermediate_Pa, 'left');
-                pt_hp1 = point('HP-1', hpStage.h1, P_intermediate_Pa, 'left');
+                // mix和HP-1可能焓值相同，使用不同的垂直位置分散
+                pt_mix = point('mix', h_mix, P_intermediate_Pa, 'top');
+                pt_hp1 = point('HP-1', hpStage.h1, P_intermediate_Pa, 'bottom');
                 // HP-2点：高压级实际排气点（考虑了压缩效率的实际排气状态）
                 pt_hp2 = point('HP-2', hpStage.h2a, hpStage.Pc_Pa, 'top');
                 pt3 = point('3', hpStage.h3, hpStage.Pc_Pa, 'top');
                 
                 // 中间冷却器ECO点（始终显示）
-                pt6_inter = point('6-Inter', h_6_inter, P_intermediate_Pa, 'left');
+                // 6-Inter是补气点，焓值较大，在右边，使用'top'避免与其他点重合
+                pt6_inter = point('6-Inter', h_6_inter, P_intermediate_Pa, 'top');
                 if (ecoTypeValue === 'flash_tank') {
-                    pt7_inter = point('7-Inter', h_7_inter, P_intermediate_Pa, 'right');
-                    pt5_inter = point('5-Inter', h_5_inter, P_intermediate_Pa, 'top');
+                    // 7-Inter在中间位置，使用'bottom'避免与6-Inter重合
+                    pt7_inter = point('7-Inter', h_7_inter, P_intermediate_Pa, 'bottom');
+                    // 5-Inter在左边（焓值小），使用'left'避免与其他点重合
+                    pt5_inter = point('5-Inter', h_5_inter, P_intermediate_Pa, 'left');
                 } else {
-                    // 过冷器模式：与mode5一致
+                    // 过冷器模式：5-Inter在冷凝压力下，不在中间压力
                     pt7_inter = point('7-Inter', h_7_inter, P_intermediate_Pa, 'bottom');
                     pt5_inter = point('5-Inter', h_5_inter, hpStage.Pc_Pa, 'top');
                 }
@@ -2161,12 +2229,27 @@ function calculateMode6() {
                 // 构建 T-S 图主循环点（带过程中间点）
                 const mainPointsTS = [];
                 
+                // 确定点4的焓值（与P-h图和状态点表保持一致）
+                // 重要：当同时有高压级ECO和中间冷却器ECO时，点4应该从5-Inter等焓节流（5-Inter是主路）
+                // 注意：这里hasEcoInter始终为true，hasEcoHp为false（只有中间冷却器ECO的情况）
+                let h4_for_TS;
+                if (hasEcoInter) {
+                    // 中间冷却器ECO：点4从点5-Inter等焓节流到蒸发压力（5-Inter是主路，优先）
+                    h4_for_TS = h_5_inter;
+                } else if (hasEcoHp) {
+                    // 高压级ECO：点4从点5-HP等焓节流到蒸发压力
+                    h4_for_TS = hpStage.h5;
+                } else {
+                    // 无ECO：点4从点3等焓节流到蒸发压力
+                    h4_for_TS = hpStage.h3;
+                }
+                
                 // 点 4：节流后（蒸发压力）
                 const pt4_TS = {
                     name: '4',
                     value: [
-                        CP_INSTANCE.PropsSI('S', 'H', hpStage.h4, 'P', Pe_Pa, fluid) / 1000,
-                        CP_INSTANCE.PropsSI('T', 'H', hpStage.h4, 'P', Pe_Pa, fluid) - 273.15
+                        CP_INSTANCE.PropsSI('S', 'H', h4_for_TS, 'P', Pe_Pa, fluid) / 1000,
+                        CP_INSTANCE.PropsSI('T', 'H', h4_for_TS, 'P', Pe_Pa, fluid) - 273.15
                     ],
                     label: { show: true }
                 };
@@ -2182,7 +2265,7 @@ function calculateMode6() {
                     label: { show: true }
                 };
                 // 添加等压过程中间点（4->LP-1 蒸发过程）
-                const evapPath = generateIsobaricPathTS(fluid, Pe_Pa, hpStage.h4, lpStage.h1, 8);
+                const evapPath = generateIsobaricPathTS(fluid, Pe_Pa, h4_for_TS, lpStage.h1, 8);
                 evapPath.forEach((pt, idx) => {
                     if (idx > 0 && idx < evapPath.length - 1) {
                         mainPointsTS.push({ name: '', value: pt, label: { show: false } });
@@ -2273,8 +2356,9 @@ function calculateMode6() {
                 });
                 mainPointsTS.push(pt3_TS);
                 
-                // 节流过程 3 -> 4（如果中间冷却器ECO是过冷器模式，则从5_inter节流；否则从3节流）
-                const h_throttle_start = ecoTypeValue === 'subcooler' ? h_5_inter : hpStage.h3;
+                // 节流过程 3 -> 4
+                // 使用与点4相同的焓值逻辑，确保节流路径与点4一致
+                const h_throttle_start = h4_for_TS; // 使用与点4相同的焓值
                 const throttlePath = generateThrottlingPathTS(fluid, h_throttle_start, hpStage.Pc_Pa, Pe_Pa, 8);
                 throttlePath.forEach((pt, idx) => {
                     if (idx > 0 && idx < throttlePath.length - 1) {
