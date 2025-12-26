@@ -15,7 +15,9 @@ import {
     createSectionHeader, 
     createErrorCard,
     createStateTable,
-    createImpactGrid 
+    createImpactGrid,
+    createHeatExchangerSelectionTable,
+    createFlashTankSelectionTable
 } from './components.js';
 import { drawPHDiagram, drawTSDiagram, getChartInstance } from './charts.js';
 import { HistoryDB, SessionState } from './storage.js';
@@ -651,6 +653,7 @@ function calculateMode2() {
             
             // 1. SLHX Benefit (Current vs No-SLHX)
             let slhxHtml = '';
+            let slhxSelection = null;
             if (isSlhxEnabled) {
                 const m_dot_base = m_dot_suc * (rho_1 / rho_suc);
                 const q_cool_base = m_dot_base * (h_1 - h_liq_in);
@@ -686,6 +689,54 @@ function calculateMode2() {
                     COPh: { val: COP_H.toFixed(2), diff: ((COP_H - cop_h_base)/cop_h_base)*100 }
                 };
 
+                // 计算回热器选型参数
+                const P_liq_side = (isEcoEnabled && ecoType === 'flash_tank') ? P_eco_Pa : Pc_Pa;
+                const T_liq_in = CP_INSTANCE.PropsSI('T', 'H', h_liq_in, 'P', P_liq_side, fluid) - 273.15;
+                const T_liq_out = CP_INSTANCE.PropsSI('T', 'H', h_liq_out, 'P', P_liq_side, fluid) - 273.15;
+                const T_vap_in = T_1_K - 273.15;
+                const T_vap_out = T_suc_K - 273.15;
+                
+                const Cp_liq = CP_INSTANCE.PropsSI('C', 'H', h_liq_in, 'P', P_liq_side, fluid);
+                const Cp_vap = CP_INSTANCE.PropsSI('C', 'H', h_1, 'P', Pe_Pa, fluid);
+                const C_liq = m_dot_suc * Cp_liq;
+                const C_vap = m_dot_suc * Cp_vap;
+                const C_min = Math.min(C_liq, C_vap);
+                const Q_max = C_min * (T_liq_in - T_vap_in);
+                const Q_slhx = slhxEff * Q_max;
+
+                slhxSelection = {
+                    hot_side: {
+                        inlet: {
+                            T_C: T_liq_in,
+                            P_bar: P_liq_side / 1e5,
+                            h_kJ: h_liq_in / 1000,
+                            m_dot: m_dot_suc
+                        },
+                        outlet: {
+                            T_C: T_liq_out,
+                            P_bar: P_liq_side / 1e5,
+                            h_kJ: h_liq_out / 1000,
+                            m_dot: m_dot_suc
+                        },
+                        Q_kW: Q_slhx / 1000
+                    },
+                    cold_side: {
+                        inlet: {
+                            T_C: T_vap_in,
+                            P_bar: Pe_Pa / 1e5,
+                            h_kJ: h_1 / 1000,
+                            m_dot: m_dot_suc
+                        },
+                        outlet: {
+                            T_C: T_vap_out,
+                            P_bar: Pe_Pa / 1e5,
+                            h_kJ: h_suc / 1000,
+                            m_dot: m_dot_suc
+                        },
+                        Q_kW: Q_slhx / 1000
+                    }
+                };
+
                 slhxHtml = `
                     ${createSectionHeader('SLHX Benefit', '🔥')}
                     ${createImpactGrid(slhxData, 'orange')}
@@ -695,6 +746,8 @@ function calculateMode2() {
 
             // 2. ECO Benefit (Current vs No-ECO)
             let ecoHtml = '';
+            let economizerSelection = null;
+            let flashTankSelection = null;
             if (isEcoEnabled) {
                 const q_cool_base_eco = m_dot_suc * (h_suc - h_3); 
                 const h_2s_base_eco = CP_INSTANCE.PropsSI('H', 'P', Pc_Pa, 'S', s_suc, fluid);
@@ -711,6 +764,91 @@ function calculateMode2() {
                     COPc: { val: COP_R.toFixed(2), diff: ((COP_R - cop_c_base_eco)/cop_c_base_eco)*100 },
                     COPh: { val: COP_H.toFixed(2), diff: ((COP_H - cop_h_base_eco)/cop_h_base_eco)*100 }
                 };
+
+                // 计算经济器选型参数
+                const T_3_C = T_3_K - 273.15;
+                const T_eco_sat_C = T_eco_sat_K - 273.15;
+                
+                if (ecoType === 'flash_tank') {
+                    // 闪蒸罐模式：计算闪蒸罐选型参数
+                    const T_7_C = CP_INSTANCE.PropsSI('T', 'H', h_7, 'P', P_eco_Pa, fluid) - 273.15;
+                    const T_5_C = CP_INSTANCE.PropsSI('T', 'P', P_eco_Pa, 'Q', 0, fluid) - 273.15;
+                    const T_6_C = CP_INSTANCE.PropsSI('T', 'P', P_eco_Pa, 'Q', 1, fluid) - 273.15;
+                    
+                    // 计算闪蒸干度
+                    const x_flash = (h_7 - h_5) / (h_6 - h_5);
+                    const vapor_liquid_ratio = m_dot_inj / m_dot_suc;
+                    
+                    flashTankSelection = {
+                        working_pressure: P_eco_Pa / 1e5,
+                        sat_temp: T_eco_sat_C,
+                        inlet: {
+                            T_C: T_7_C,
+                            P_bar: P_eco_Pa / 1e5,
+                            h_kJ: h_7 / 1000,
+                            quality: x_flash
+                        },
+                        outlet_vapor: {
+                            T_C: T_6_C,
+                            P_bar: P_eco_Pa / 1e5,
+                            h_kJ: h_6 / 1000,
+                            m_dot: m_dot_inj
+                        },
+                        outlet_liquid: {
+                            T_C: T_5_C,
+                            P_bar: P_eco_Pa / 1e5,
+                            h_kJ: h_5 / 1000,
+                            m_dot: m_dot_suc
+                        },
+                        flash_quality: x_flash,
+                        vapor_liquid_ratio: vapor_liquid_ratio,
+                        total_inlet_flow: m_dot_total,
+                        vapor_outlet_flow: m_dot_inj,
+                        liquid_outlet_flow: m_dot_suc
+                    };
+                } else {
+                    // 过冷器模式：计算换热器选型参数
+                    const T_7_C = CP_INSTANCE.PropsSI('T', 'H', h_7, 'P', P_eco_Pa, fluid) - 273.15;
+                    const T_5_K = T_eco_sat_K + eco_dt_K;
+                    const T_5_C = T_5_K - 273.15;
+                    const T_inj_K = T_eco_sat_K + eco_superheat_K;
+                    const T_6_C = T_inj_K - 273.15;
+                    const Q_eco_hot_W = m_dot_suc * (h_3 - h_5);
+                    const Q_eco_cold_W = m_dot_inj * (h_6 - h_7);
+                    
+                    economizerSelection = {
+                        hot_side: {
+                            inlet: {
+                                T_C: T_3_C,
+                                P_bar: Pc_Pa / 1e5,
+                                h_kJ: h_3 / 1000,
+                                m_dot: m_dot_suc
+                            },
+                            outlet: {
+                                T_C: T_5_C,
+                                P_bar: Pc_Pa / 1e5,
+                                h_kJ: h_5 / 1000,
+                                m_dot: m_dot_suc
+                            },
+                            Q_kW: Q_eco_hot_W / 1000
+                        },
+                        cold_side: {
+                            inlet: {
+                                T_C: T_7_C,
+                                P_bar: P_eco_Pa / 1e5,
+                                h_kJ: h_7 / 1000,
+                                m_dot: m_dot_inj
+                            },
+                            outlet: {
+                                T_C: T_6_C,
+                                P_bar: P_eco_Pa / 1e5,
+                                h_kJ: h_6 / 1000,
+                                m_dot: m_dot_inj
+                            },
+                            Q_kW: Q_eco_cold_W / 1000
+                        }
+                    };
+                }
 
                 ecoHtml = `
                     ${createSectionHeader('Economizer Benefit', '⚡')}
@@ -941,6 +1079,10 @@ function calculateMode2() {
 
                     ${createSectionHeader('State Points Detail', '📊')}
                     ${createStateTable(statePoints)}
+                    
+                    ${flashTankSelection ? createFlashTankSelectionTable(flashTankSelection, '闪蒸罐选型参数', '⚡') : ''}
+                    ${economizerSelection ? createHeatExchangerSelectionTable(economizerSelection, '过冷器选型参数', '🌡️') : ''}
+                    ${slhxSelection ? createHeatExchangerSelectionTable(slhxSelection, '回热器选型参数', '🔥') : ''}
                 </div>
             `;
 
