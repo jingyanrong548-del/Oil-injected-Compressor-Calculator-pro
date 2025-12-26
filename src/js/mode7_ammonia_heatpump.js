@@ -39,10 +39,10 @@ let compressorBrandM7, compressorSeriesM7, compressorModelM7, modelDisplacementI
 let flowM3hM7;
 // Water Circuit Heat Exchangers
 let waterInletTempM7, waterOutletTempM7, waterFlowDisplayM7;
-let subcoolerEnabledM7, subcoolerEfficiencyM7, subcoolerQM7, subcoolerWaterOutM7;
-let oilCoolerEnabledM7, oilCoolerEfficiencyM7, oilCoolerQM7, oilCoolerWaterOutM7;
-let condenserEnabledM7, condenserEfficiencyM7, condenserQM7, condenserWaterOutM7;
-let desuperheaterEnabledM7, desuperheaterEfficiencyM7, desuperheaterTargetTempM7, desuperheaterQM7, desuperheaterWaterOutM7;
+let subcoolerEnabledM7, subcoolerApproachTempM7, subcoolerQM7, subcoolerWaterOutM7;
+let oilCoolerEnabledM7, oilCoolerApproachTempM7, oilCoolerQM7, oilCoolerWaterOutM7;
+let condenserEnabledM7, condenserApproachTempM7, condenserQM7, condenserWaterOutM7;
+let desuperheaterEnabledM7, desuperheaterApproachTempM7, desuperheaterTargetTempM7, desuperheaterQM7, desuperheaterWaterOutM7;
 
 // Button States
 const BTN_TEXT_CALCULATE = "Calculate Performance";
@@ -547,10 +547,11 @@ function calculateMode7() {
             const isCondenserEnabled = condenserEnabledM7?.checked !== false; // Default true
             const isDesuperheaterEnabled = desuperheaterEnabledM7?.checked || false;
             
-            const eta_subcooler = parseFloat(subcoolerEfficiencyM7?.value) || 0.90;
-            const eta_oil_cooler = parseFloat(oilCoolerEfficiencyM7?.value) || 0.85;
-            const eta_condenser = parseFloat(condenserEfficiencyM7?.value) || 0.95;
-            const eta_desuperheater = parseFloat(desuperheaterEfficiencyM7?.value) || 0.88;
+            // Approach temperatures (K) - 逼近温差
+            const approach_subcooler = parseFloat(subcoolerApproachTempM7?.value) || 5; // K
+            const approach_oil_cooler = parseFloat(oilCoolerApproachTempM7?.value) || 10; // K
+            const approach_condenser = parseFloat(condenserApproachTempM7?.value) || 5; // K
+            const approach_desuperheater = parseFloat(desuperheaterApproachTempM7?.value) || 8; // K
             const T_desuperheater_target = parseFloat(desuperheaterTargetTempM7?.value) || 90;
             
             // Initialize heat exchanger results
@@ -596,44 +597,161 @@ function calculateMode7() {
             // Calculate total heat transfer
             const Q_total_W = Q_subcooler_W + Q_oil_cooler_W + Q_cond_W + Q_desuperheater_W;
             
-            // Calculate water flow rate from heat balance
-            const deltaT_water = T_water_out - T_water_in;
+            // Calculate water flow rate from total heat balance
+            const deltaT_water_total = T_water_out - T_water_in;
             let m_dot_water = 0;
-            if (deltaT_water > 0 && Q_total_W > 0) {
-                m_dot_water = Q_total_W / (c_p_water * deltaT_water); // kg/s
-            } else if (Q_total_W > 0 && deltaT_water <= 0) {
+            if (deltaT_water_total > 0 && Q_total_W > 0) {
+                m_dot_water = Q_total_W / (c_p_water * deltaT_water_total); // kg/s
+            } else if (Q_total_W > 0 && deltaT_water_total <= 0) {
                 // Warning: water outlet temperature should be higher than inlet
                 console.warn('Water outlet temperature must be higher than inlet temperature for heat transfer.');
             }
             
             // Calculate water temperatures through each heat exchanger (in order)
-            const heatExchangers = [
-                { name: 'subcooler', enabled: isSubcoolerEnabled, Q_W: Q_subcooler_W, efficiency: eta_subcooler, order: 1 },
-                { name: 'oil_cooler', enabled: isOilCoolerEnabled, Q_W: Q_oil_cooler_W, efficiency: eta_oil_cooler, order: 2 },
-                { name: 'condenser', enabled: isCondenserEnabled, Q_W: Q_cond_W, efficiency: eta_condenser, order: 3 },
-                { name: 'desuperheater', enabled: isDesuperheaterEnabled, Q_W: Q_desuperheater_W, efficiency: eta_desuperheater, order: 4 }
-            ].filter(he => he.enabled).sort((a, b) => a.order - b.order);
-            
+            // Primary calculation: based on heat transfer and flow rate
+            // Approach temperature: used as constraint, not for direct calculation
             let T_water_current = T_water_in;
             const waterTemps = {};
+            const approachWarnings = []; // Collect warnings for display
             
-            heatExchangers.forEach(he => {
-                if (m_dot_water > 0 && he.Q_W > 0) {
-                    const deltaT_he = he.Q_W / (m_dot_water * c_p_water * he.efficiency);
-                    T_water_current += deltaT_he;
-                    waterTemps[he.name] = {
-                        inlet: T_water_current - deltaT_he,
-                        outlet: T_water_current,
-                        Q_kW: he.Q_W / 1000
-                    };
-                } else {
-                    waterTemps[he.name] = {
-                        inlet: T_water_current,
-                        outlet: T_water_current,
-                        Q_kW: 0
-                    };
+            // Determine the last enabled heat exchanger
+            const lastHE = isDesuperheaterEnabled ? 'desuperheater' : 
+                          (isCondenserEnabled ? 'condenser' : 
+                          (isOilCoolerEnabled ? 'oil_cooler' : 
+                          (isSubcoolerEnabled ? 'subcooler' : null)));
+            
+            // 1. Subcooler (过冷器) - 顺序1
+            if (isSubcoolerEnabled && Q_subcooler_W > 0) {
+                // 主要计算：根据换热量和流量计算热水出口温度
+                let T_water_out_subcooler = T_water_current;
+                if (m_dot_water > 0) {
+                    const deltaT_subcooler = Q_subcooler_W / (m_dot_water * c_p_water);
+                    T_water_out_subcooler = T_water_current + deltaT_subcooler;
                 }
-            });
+                
+                // 验证逼近温差约束
+                const T_refrigerant_out_subcooler = CP_INSTANCE.PropsSI('T', 'P', Pc_Pa, 'H', h_3_final, fluid) - 273.15;
+                const actual_approach = T_refrigerant_out_subcooler - T_water_current;
+                const max_water_inlet = T_refrigerant_out_subcooler - approach_subcooler;
+                
+                if (T_water_current > max_water_inlet || actual_approach < approach_subcooler) {
+                    approachWarnings.push(`过冷器: 实际逼近温差(${actual_approach.toFixed(1)}K) 小于设定值(${approach_subcooler.toFixed(1)}K)`);
+                }
+                
+                waterTemps.subcooler = {
+                    inlet: T_water_current,
+                    outlet: T_water_out_subcooler,
+                    Q_kW: Q_subcooler_W / 1000,
+                    approach: approach_subcooler,
+                    approachSatisfied: T_water_current <= max_water_inlet
+                };
+                T_water_current = T_water_out_subcooler;
+            } else if (isSubcoolerEnabled) {
+                waterTemps.subcooler = {
+                    inlet: T_water_current,
+                    outlet: T_water_current,
+                    Q_kW: Q_subcooler_W / 1000,
+                    approach: approach_subcooler,
+                    approachSatisfied: true
+                };
+            }
+            
+            // 2. Oil Cooler (油冷) - 顺序2
+            if (isOilCoolerEnabled && Q_oil_cooler_W > 0) {
+                // 主要计算：根据换热量和流量计算热水出口温度
+                let T_water_out_oil = T_water_current;
+                if (m_dot_water > 0) {
+                    const deltaT_oil = Q_oil_cooler_W / (m_dot_water * c_p_water);
+                    T_water_out_oil = T_water_current + deltaT_oil;
+                }
+                
+                // 验证逼近温差约束
+                const T_oil_out_est = T_2a_final_C - 20; // 估算油出口温度
+                const actual_approach = T_oil_out_est - T_water_current;
+                const max_water_inlet = T_oil_out_est - approach_oil_cooler;
+                
+                if (T_water_current > max_water_inlet || actual_approach < approach_oil_cooler) {
+                    approachWarnings.push(`油冷: 实际逼近温差(${actual_approach.toFixed(1)}K) 小于设定值(${approach_oil_cooler.toFixed(1)}K)`);
+                }
+                
+                waterTemps.oil_cooler = {
+                    inlet: T_water_current,
+                    outlet: T_water_out_oil,
+                    Q_kW: Q_oil_cooler_W / 1000,
+                    approach: approach_oil_cooler,
+                    approachSatisfied: T_water_current <= max_water_inlet
+                };
+                T_water_current = T_water_out_oil;
+            } else if (isOilCoolerEnabled) {
+                waterTemps.oil_cooler = {
+                    inlet: T_water_current,
+                    outlet: T_water_current,
+                    Q_kW: Q_oil_cooler_W / 1000,
+                    approach: approach_oil_cooler,
+                    approachSatisfied: true
+                };
+            }
+            
+            // 3. Condenser (冷凝器) - 顺序3
+            if (isCondenserEnabled && Q_cond_W > 0) {
+                let T_water_out_cond;
+                
+                // 如果冷凝器是最后一个启用的换热器，其出水温度 = 用户输入的总出水温度
+                if (lastHE === 'condenser') {
+                    T_water_out_cond = T_water_out;
+                } else {
+                    // 主要计算：根据换热量和流量计算热水出口温度
+                    if (m_dot_water > 0) {
+                        const deltaT_cond = Q_cond_W / (m_dot_water * c_p_water);
+                        T_water_out_cond = T_water_current + deltaT_cond;
+                    } else {
+                        T_water_out_cond = T_water_current;
+                    }
+                }
+                
+                // 验证逼近温差约束
+                // 对于冷凝器，逼近温差 = 冷凝温度 - 热水出口温度
+                // 因为最小温差出现在热水出口端（逆流换热）
+                const actual_approach = Tc_C - T_water_out_cond;
+                const max_water_outlet = Tc_C - approach_condenser;
+                
+                // 检查：实际逼近温差是否小于设定值
+                if (actual_approach < approach_condenser) {
+                    approachWarnings.push(`冷凝器: 实际逼近温差(${actual_approach.toFixed(1)}K) 小于设定值(${approach_condenser.toFixed(1)}K)，热水出口温度(${T_water_out_cond.toFixed(1)}°C) 过高`);
+                }
+                
+                waterTemps.condenser = {
+                    inlet: T_water_current,
+                    outlet: T_water_out_cond,
+                    Q_kW: Q_cond_W / 1000,
+                    approach: approach_condenser,
+                    approachSatisfied: actual_approach >= approach_condenser
+                };
+                T_water_current = T_water_out_cond;
+            }
+            
+            // 4. Desuperheater (降低过热器) - 顺序4
+            if (isDesuperheaterEnabled && Q_desuperheater_W > 0) {
+                // 降低过热器是最后一个，其出水温度 = 用户输入的总出水温度
+                const T_water_out_desuper = T_water_out;
+                
+                // 验证逼近温差约束
+                const actual_approach = T_2a_after_desuper_C - T_water_current;
+                const max_water_inlet = T_2a_after_desuper_C - approach_desuperheater;
+                
+                if (T_water_current > max_water_inlet || actual_approach < approach_desuperheater) {
+                    approachWarnings.push(`降低过热器: 实际逼近温差(${actual_approach.toFixed(1)}K) 小于设定值(${approach_desuperheater.toFixed(1)}K)`);
+                }
+                
+                waterTemps.desuperheater = {
+                    inlet: T_water_current,
+                    outlet: T_water_out_desuper,
+                    Q_kW: Q_desuperheater_W / 1000,
+                    approach: approach_desuperheater,
+                    approachSatisfied: T_water_current <= max_water_inlet
+                };
+                T_water_current = T_water_out_desuper;
+            }
             
             // Update h_liq_out if subcooler is enabled
             const h_liq_out_final = isSubcoolerEnabled ? h_3_final : h_liq_out;
@@ -651,6 +769,8 @@ function calculateMode7() {
 
 
             // --- Chart ---
+            // Note: h_3_final and h_liq_out_final are calculated after water circuit section
+            // We need to ensure they are available here
             const point = (name, h_j, p_pa, pos='top') => ({ name, value: [h_j/1000, p_pa/1e5], label: { position: pos, show: true } });
             
             const pt1 = point('1', h_1, Pe_Pa, 'bottom');
@@ -659,7 +779,9 @@ function calculateMode7() {
             if (isDesuperheaterEnabled) {
                 pt2b = point('2b', h_2a_after_desuper, Pc_Pa, 'top');
             }
-            const pt3 = point('3', h_3, Pc_Pa, 'top');
+            // Point 3: Use h_3_final (after subcooler if enabled), not h_3
+            const pt3 = point('3', h_3_final, Pc_Pa, 'top');
+            // Point 4: Isenthalpic expansion from point 3 to evaporation pressure
             const pt4 = point('4', h_liq_out_final, Pe_Pa, 'bottom'); 
             
             const mainPoints = [pt1, pt2];
@@ -707,8 +829,9 @@ function calculateMode7() {
             }
             
             const T_3_final_C = isSubcoolerEnabled ? (CP_INSTANCE.PropsSI('T','P',Pc_Pa,'H',h_3_final,fluid)-273.15) : (T_3_K-273.15);
+            const desc_3 = isSubcoolerEnabled ? 'Subcooler Out' : 'Cond Out';
             statePoints.push(
-                { name: '3', desc: 'Cond Out', temp: T_3_final_C.toFixed(1), press: (Pc_Pa/1e5).toFixed(2), enth: (h_3_final/1000).toFixed(1), flow: m_dot_suc.toFixed(3) },
+                { name: '3', desc: desc_3, temp: T_3_final_C.toFixed(1), press: (Pc_Pa/1e5).toFixed(2), enth: (h_3_final/1000).toFixed(1), flow: m_dot_suc.toFixed(3) },
                 { name: '4', desc: 'Evap In', temp: (CP_INSTANCE.PropsSI('T','P',Pe_Pa,'H',h_liq_out_final,fluid)-273.15).toFixed(1), press: (Pe_Pa/1e5).toFixed(2), enth: (h_liq_out_final/1000).toFixed(1), flow: m_dot_suc.toFixed(3) }
             );
 
@@ -730,7 +853,7 @@ function calculateMode7() {
                     </div>
                 `;
                 
-                // Heat Exchanger Details
+                // Heat Exchanger Details (Simple)
                 const heDetails = [];
                 if (isSubcoolerEnabled && waterTemps.subcooler) {
                     heDetails.push(`<div class="text-xs py-1 border-b border-cyan-100"><span class="font-semibold text-cyan-700">Subcooler:</span> ${waterTemps.subcooler.Q_kW.toFixed(2)} kW | Water: ${waterTemps.subcooler.inlet.toFixed(1)} → ${waterTemps.subcooler.outlet.toFixed(1)} °C</div>`);
@@ -750,6 +873,218 @@ function calculateMode7() {
                         <div class="bg-cyan-50/40 p-3 rounded-xl border border-cyan-200/50 mt-3">
                             <div class="text-xs font-bold text-cyan-700 mb-2">Heat Exchanger Details:</div>
                             ${heDetails.join('')}
+                        </div>
+                    `;
+                }
+                
+                // Add approach temperature warnings if any
+                if (approachWarnings.length > 0) {
+                    waterCircuitHtml += `
+                        <div class="bg-amber-50/60 p-3 rounded-xl border border-amber-300/50 mt-3">
+                            <div class="text-xs font-bold text-amber-800 mb-2 flex items-center gap-2">
+                                <span>⚠️ 逼近温差约束警告</span>
+                            </div>
+                            <div class="text-xs text-amber-700 space-y-1">
+                                ${approachWarnings.map(w => `<div>• ${w}</div>`).join('')}
+                            </div>
+                            <div class="text-xs text-amber-600 mt-2 italic">
+                                提示: 逼近温差是设计约束条件，当前计算结果可能不满足换热器设计要求。建议调整热水流量或换热器参数。
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // Heat Exchanger Selection Parameters (Detailed for manufacturer)
+                const heSelectionParams = [];
+                
+                // 1. Subcooler (过冷器) Selection Parameters
+                if (isSubcoolerEnabled && Q_subcooler_W > 0) {
+                    const T_refrigerant_in_subcooler = T_3_K - 273.15; // Condenser outlet temperature
+                    const T_refrigerant_out_subcooler = CP_INSTANCE.PropsSI('T', 'P', Pc_Pa, 'H', h_3_final, fluid) - 273.15;
+                    const m_dot_refrigerant_subcooler = m_dot_suc; // kg/s
+                    const m_dot_refrigerant_subcooler_kg_h = m_dot_refrigerant_subcooler * 3600;
+                    
+                    heSelectionParams.push(`
+                        <div class="bg-white/60 p-4 rounded-xl border border-cyan-300/50 mb-3">
+                            <div class="text-sm font-bold text-cyan-800 mb-3 flex items-center gap-2">
+                                <span>🔧 过冷器 (Subcooler) 选型参数</span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3 text-xs">
+                                <div class="space-y-2">
+                                    <div class="font-semibold text-gray-700 mb-1">换热量:</div>
+                                    <div class="pl-2">${(Q_subcooler_W/1000).toFixed(2)} kW</div>
+                                    <div class="font-semibold text-gray-700 mb-1 mt-2">制冷剂侧 (R717):</div>
+                                    <div class="pl-2 space-y-1">
+                                        <div>入口温度: ${T_refrigerant_in_subcooler.toFixed(1)} °C</div>
+                                        <div>出口温度: ${T_refrigerant_out_subcooler.toFixed(1)} °C</div>
+                                        <div>压力: ${(Pc_Pa/1e5).toFixed(2)} bar</div>
+                                        <div>流量: ${m_dot_refrigerant_subcooler.toFixed(3)} kg/s (${m_dot_refrigerant_subcooler_kg_h.toFixed(2)} kg/h)</div>
+                                        <div>状态: 过冷液体</div>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <div class="font-semibold text-gray-700 mb-1">热水侧:</div>
+                                    <div class="pl-2 space-y-1">
+                                        <div>入口温度: ${waterTemps.subcooler.inlet.toFixed(1)} °C</div>
+                                        <div>出口温度: ${waterTemps.subcooler.outlet.toFixed(1)} °C</div>
+                                        <div>流量: ${m_dot_water.toFixed(3)} kg/s (${(m_dot_water*3600/1000).toFixed(2)} m³/h)</div>
+                                        <div>温升: ${(waterTemps.subcooler.outlet - waterTemps.subcooler.inlet).toFixed(1)} K</div>
+                                    </div>
+                                    <div class="font-semibold text-gray-700 mb-1 mt-2">设计参数:</div>
+                                    <div class="pl-2 space-y-1">
+                                        <div>逼近温差: ${approach_subcooler.toFixed(1)} K</div>
+                                        <div>传热方式: 液-液换热</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `);
+                }
+                
+                // 2. Oil Cooler (油冷) Selection Parameters
+                if (isOilCoolerEnabled && Q_oil_cooler_W > 0) {
+                    const T_oil_in_est = T_2a_final_C; // Oil temperature at compressor discharge
+                    const T_oil_out_est = T_2a_final_C - 20; // Estimated oil outlet temperature
+                    const m_dot_oil_est = m_dot_suc * 0.1; // Estimated oil flow (10% of refrigerant flow)
+                    const m_dot_oil_est_kg_h = m_dot_oil_est * 3600;
+                    
+                    heSelectionParams.push(`
+                        <div class="bg-white/60 p-4 rounded-xl border border-cyan-300/50 mb-3">
+                            <div class="text-sm font-bold text-cyan-800 mb-3 flex items-center gap-2">
+                                <span>🔧 油冷 (Oil Cooler) 选型参数</span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3 text-xs">
+                                <div class="space-y-2">
+                                    <div class="font-semibold text-gray-700 mb-1">换热量:</div>
+                                    <div class="pl-2">${(Q_oil_cooler_W/1000).toFixed(2)} kW</div>
+                                    <div class="font-semibold text-gray-700 mb-1 mt-2">油侧:</div>
+                                    <div class="pl-2 space-y-1">
+                                        <div>入口温度: ${T_oil_in_est.toFixed(1)} °C (估算)</div>
+                                        <div>出口温度: ${T_oil_out_est.toFixed(1)} °C (估算)</div>
+                                        <div>流量: ${m_dot_oil_est.toFixed(3)} kg/s (${m_dot_oil_est_kg_h.toFixed(2)} kg/h) (估算)</div>
+                                        <div>介质: 润滑油</div>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <div class="font-semibold text-gray-700 mb-1">热水侧:</div>
+                                    <div class="pl-2 space-y-1">
+                                        <div>入口温度: ${waterTemps.oil_cooler.inlet.toFixed(1)} °C</div>
+                                        <div>出口温度: ${waterTemps.oil_cooler.outlet.toFixed(1)} °C</div>
+                                        <div>流量: ${m_dot_water.toFixed(3)} kg/s (${(m_dot_water*3600/1000).toFixed(2)} m³/h)</div>
+                                        <div>温升: ${(waterTemps.oil_cooler.outlet - waterTemps.oil_cooler.inlet).toFixed(1)} K</div>
+                                    </div>
+                                    <div class="font-semibold text-gray-700 mb-1 mt-2">设计参数:</div>
+                                    <div class="pl-2 space-y-1">
+                                        <div>逼近温差: ${approach_oil_cooler.toFixed(1)} K</div>
+                                        <div>传热方式: 油-水换热</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `);
+                }
+                
+                // 3. Condenser (冷凝器) Selection Parameters
+                if (isCondenserEnabled && Q_cond_W > 0) {
+                    const T_refrigerant_in_cond = isDesuperheaterEnabled ? T_2a_after_desuper_C : T_2a_final_C;
+                    const T_refrigerant_out_cond = T_3_K - 273.15;
+                    const m_dot_refrigerant_cond = m_dot_suc;
+                    const m_dot_refrigerant_cond_kg_h = m_dot_refrigerant_cond * 3600;
+                    
+                    heSelectionParams.push(`
+                        <div class="bg-white/60 p-4 rounded-xl border border-cyan-300/50 mb-3">
+                            <div class="text-sm font-bold text-cyan-800 mb-3 flex items-center gap-2">
+                                <span>🔧 冷凝器 (Condenser) 选型参数</span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3 text-xs">
+                                <div class="space-y-2">
+                                    <div class="font-semibold text-gray-700 mb-1">换热量:</div>
+                                    <div class="pl-2">${(Q_cond_W/1000).toFixed(2)} kW</div>
+                                    <div class="font-semibold text-gray-700 mb-1 mt-2">制冷剂侧 (R717):</div>
+                                    <div class="pl-2 space-y-1">
+                                        <div>入口温度: ${T_refrigerant_in_cond.toFixed(1)} °C</div>
+                                        <div>冷凝温度: ${Tc_C.toFixed(1)} °C</div>
+                                        <div>出口温度: ${T_refrigerant_out_cond.toFixed(1)} °C</div>
+                                        <div>压力: ${(Pc_Pa/1e5).toFixed(2)} bar</div>
+                                        <div>流量: ${m_dot_refrigerant_cond.toFixed(3)} kg/s (${m_dot_refrigerant_cond_kg_h.toFixed(2)} kg/h)</div>
+                                        <div>状态: 过热蒸汽 → 饱和液体</div>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <div class="font-semibold text-gray-700 mb-1">热水侧:</div>
+                                    <div class="pl-2 space-y-1">
+                                        <div>入口温度: ${waterTemps.condenser.inlet.toFixed(1)} °C</div>
+                                        <div>出口温度: ${waterTemps.condenser.outlet.toFixed(1)} °C</div>
+                                        <div>流量: ${m_dot_water.toFixed(3)} kg/s (${(m_dot_water*3600/1000).toFixed(2)} m³/h)</div>
+                                        <div>温升: ${(waterTemps.condenser.outlet - waterTemps.condenser.inlet).toFixed(1)} K</div>
+                                    </div>
+                                    <div class="font-semibold text-gray-700 mb-1 mt-2">设计参数:</div>
+                                    <div class="pl-2 space-y-1">
+                                        <div>逼近温差: ${approach_condenser.toFixed(1)} K</div>
+                                        <div>传热方式: 冷凝-水换热</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `);
+                }
+                
+                // 4. Desuperheater (降低过热器) Selection Parameters
+                if (isDesuperheaterEnabled && Q_desuperheater_W > 0) {
+                    const T_refrigerant_in_desuper = T_2a_final_C;
+                    const T_refrigerant_out_desuper = T_2a_after_desuper_C;
+                    const m_dot_refrigerant_desuper = m_dot_suc;
+                    const m_dot_refrigerant_desuper_kg_h = m_dot_refrigerant_desuper * 3600;
+                    
+                    heSelectionParams.push(`
+                        <div class="bg-white/60 p-4 rounded-xl border border-cyan-300/50 mb-3">
+                            <div class="text-sm font-bold text-cyan-800 mb-3 flex items-center gap-2">
+                                <span>🔧 降低过热器 (Desuperheater) 选型参数</span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3 text-xs">
+                                <div class="space-y-2">
+                                    <div class="font-semibold text-gray-700 mb-1">换热量:</div>
+                                    <div class="pl-2">${(Q_desuperheater_W/1000).toFixed(2)} kW</div>
+                                    <div class="font-semibold text-gray-700 mb-1 mt-2">制冷剂侧 (R717):</div>
+                                    <div class="pl-2 space-y-1">
+                                        <div>入口温度: ${T_refrigerant_in_desuper.toFixed(1)} °C</div>
+                                        <div>出口温度: ${T_refrigerant_out_desuper.toFixed(1)} °C</div>
+                                        <div>压力: ${(Pc_Pa/1e5).toFixed(2)} bar</div>
+                                        <div>流量: ${m_dot_refrigerant_desuper.toFixed(3)} kg/s (${m_dot_refrigerant_desuper_kg_h.toFixed(2)} kg/h)</div>
+                                        <div>状态: 过热蒸汽</div>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <div class="font-semibold text-gray-700 mb-1">热水侧:</div>
+                                    <div class="pl-2 space-y-1">
+                                        <div>入口温度: ${waterTemps.desuperheater.inlet.toFixed(1)} °C</div>
+                                        <div>出口温度: ${waterTemps.desuperheater.outlet.toFixed(1)} °C</div>
+                                        <div>流量: ${m_dot_water.toFixed(3)} kg/s (${(m_dot_water*3600/1000).toFixed(2)} m³/h)</div>
+                                        <div>温升: ${(waterTemps.desuperheater.outlet - waterTemps.desuperheater.inlet).toFixed(1)} K</div>
+                                    </div>
+                                    <div class="font-semibold text-gray-700 mb-1 mt-2">设计参数:</div>
+                                    <div class="pl-2 space-y-1">
+                                        <div>逼近温差: ${approach_desuperheater.toFixed(1)} K</div>
+                                        <div>目标排气温度: ${T_desuperheater_target.toFixed(1)} °C</div>
+                                        <div>传热方式: 过热蒸汽-水换热</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `);
+                }
+                
+                // Add selection parameters section if any heat exchangers are enabled
+                if (heSelectionParams.length > 0) {
+                    waterCircuitHtml += `
+                        <div class="bg-gradient-to-br from-cyan-50/60 to-blue-50/60 p-4 rounded-2xl border-2 border-cyan-300/50 mt-4">
+                            <div class="text-sm font-bold text-cyan-900 mb-3 flex items-center gap-2">
+                                <span>📋 换热器选型参数 (Heat Exchanger Selection Parameters)</span>
+                            </div>
+                            <div class="text-xs text-gray-600 mb-3 italic">
+                                以下参数可用于提供给换热器厂家进行选型设计
+                            </div>
+                            ${heSelectionParams.join('')}
                         </div>
                     `;
                 }
@@ -890,22 +1225,22 @@ export function initMode7(CP) {
     
     // Heat Exchanger Configs
     subcoolerEnabledM7 = document.getElementById('subcooler_enabled_m7');
-    subcoolerEfficiencyM7 = document.getElementById('subcooler_efficiency_m7');
+    subcoolerApproachTempM7 = document.getElementById('subcooler_approach_temp_m7');
     subcoolerQM7 = document.getElementById('subcooler_q_m7');
     subcoolerWaterOutM7 = document.getElementById('subcooler_water_out_m7');
     
     oilCoolerEnabledM7 = document.getElementById('oil_cooler_enabled_m7');
-    oilCoolerEfficiencyM7 = document.getElementById('oil_cooler_efficiency_m7');
+    oilCoolerApproachTempM7 = document.getElementById('oil_cooler_approach_temp_m7');
     oilCoolerQM7 = document.getElementById('oil_cooler_q_m7');
     oilCoolerWaterOutM7 = document.getElementById('oil_cooler_water_out_m7');
     
     condenserEnabledM7 = document.getElementById('condenser_enabled_m7');
-    condenserEfficiencyM7 = document.getElementById('condenser_efficiency_m7');
+    condenserApproachTempM7 = document.getElementById('condenser_approach_temp_m7');
     condenserQM7 = document.getElementById('condenser_q_m7');
     condenserWaterOutM7 = document.getElementById('condenser_water_out_m7');
     
     desuperheaterEnabledM7 = document.getElementById('desuperheater_enabled_m7');
-    desuperheaterEfficiencyM7 = document.getElementById('desuperheater_efficiency_m7');
+    desuperheaterApproachTempM7 = document.getElementById('desuperheater_approach_temp_m7');
     desuperheaterTargetTempM7 = document.getElementById('desuperheater_target_temp_m7');
     desuperheaterQM7 = document.getElementById('desuperheater_q_m7');
     desuperheaterWaterOutM7 = document.getElementById('desuperheater_water_out_m7');
@@ -974,10 +1309,10 @@ export function initMode7(CP) {
         
         // Water circuit inputs - trigger recalculation
         [waterInletTempM7, waterOutletTempM7, 
-         subcoolerEnabledM7, subcoolerEfficiencyM7,
-         oilCoolerEnabledM7, oilCoolerEfficiencyM7,
-         condenserEnabledM7, condenserEfficiencyM7,
-         desuperheaterEnabledM7, desuperheaterEfficiencyM7, desuperheaterTargetTempM7].forEach(el => {
+         subcoolerEnabledM7, subcoolerApproachTempM7,
+         oilCoolerEnabledM7, oilCoolerApproachTempM7,
+         condenserEnabledM7, condenserApproachTempM7,
+         desuperheaterEnabledM7, desuperheaterApproachTempM7, desuperheaterTargetTempM7].forEach(el => {
             if(el) el.addEventListener('change', setButtonStale7);
         });
         
