@@ -193,6 +193,15 @@ export const COMPRESSOR_MODELS = {
             { model: 'SRM-41S', displacement: 6804 },
             { model: 'SRM-41M', displacement: 8410 },
             { model: 'SRM-41L', displacement: 10850 }
+        ],
+        'SRH M系列': [
+            { model: 'SRH-12M', displacement: 161, note: '12系列 (125~161 m³/h) 的大排量款' },
+            { model: 'SRH-16M', displacement: 322, note: '16系列 (265~322 m³/h) 的大排量款' },
+            { model: 'SRH-18M', displacement: 480, note: '18系列 (395~480 m³/h) 的大排量款' },
+            { model: 'SRH-20M', displacement: 854, note: '20系列 (640~854 m³/h) 的大排量款' },
+            { model: 'SRH-26M', displacement: 1409, note: '26系列 (1185~1409 m³/h) 的大排量款' },
+            { model: 'SRH-28M', displacement: 2097, note: '28系列 (1640~2097 m³/h) 的大排量款' },
+            { model: 'SRH-34M', displacement: 2770, note: '34系列 (2360~2770 m³/h) 的大排量款' }
         ]
     },
     '武冷': {

@@ -14,7 +14,7 @@ import {
     createErrorCard,
     createStateTable
 } from './components.js';
-import { drawPHDiagram, drawTSDiagram, getChartInstance } from './charts.js';
+import { drawPHDiagram, drawTSDiagram, getChartInstance, drawSystemDiagramM7 } from './charts.js';
 import { HistoryDB, SessionState } from './storage.js';
 import { AppState } from './state.js'; 
 import { calculatePoly10, calculatePolyVSD } from './logic/polynomial_models.js';
@@ -779,14 +779,21 @@ function calculateMode7() {
             if (isDesuperheaterEnabled) {
                 pt2b = point('2b', h_2a_after_desuper, Pc_Pa, 'top');
             }
-            // Point 3: Use h_3_final (after subcooler if enabled), not h_3
-            const pt3 = point('3', h_3_final, Pc_Pa, 'top');
-            // Point 4: Isenthalpic expansion from point 3 to evaporation pressure
+            // Point 3: Condenser outlet (before subcooler if enabled)
+            const pt3 = point('3', h_3, Pc_Pa, 'top');
+            let pt3p = null;
+            // Point 3': After subcooler (if enabled)
+            if (isSubcoolerEnabled) {
+                pt3p = point("3'", h_3_final, Pc_Pa, 'top');
+            }
+            // Point 4: Isenthalpic expansion from point 3' (if subcooler) or point 3
             const pt4 = point('4', h_liq_out_final, Pe_Pa, 'bottom'); 
             
             const mainPoints = [pt1, pt2];
             if (pt2b) mainPoints.push(pt2b);
-            mainPoints.push(pt3, pt4, pt1);
+            mainPoints.push(pt3);
+            if (pt3p) mainPoints.push(pt3p);
+            mainPoints.push(pt4, pt1);
 
             // 生成饱和线数据
             const satLinesPH = generateSaturationLinesPH(fluid, Pe_Pa, Pc_Pa);
@@ -816,6 +823,106 @@ function calculateMode7() {
                     xLabel: 'Enthalpy (kJ/kg)', 
                     yLabel: 'Pressure (bar)'
                 });
+            });
+
+            // 绘制系统示意图
+            // 先收集节点数据（在statePoints创建之前需要的数据）
+            const T_1_C_diagram = Te_C + superheat_K;
+            const T_4_C_diagram = CP_INSTANCE.PropsSI('T','P',Pe_Pa,'H',h_liq_out_final,fluid) - 273.15;
+            const T_3_final_C_diagram = isSubcoolerEnabled ? (CP_INSTANCE.PropsSI('T','P',Pc_Pa,'H',h_3_final,fluid)-273.15) : (T_3_K-273.15);
+            
+            // 点3：冷凝器出口（过冷器前）
+            const T_3_C_diagram = T_3_K - 273.15;
+            
+            const nodeDataForDiagram = {
+                point1: {
+                    T: T_1_C_diagram,
+                    P: Pe_Pa / 1e5,
+                    h: h_1 / 1000
+                },
+                point2: {
+                    T: T_2a_final_C,
+                    P: Pc_Pa / 1e5,
+                    h: h_2a_final / 1000
+                },
+                point3: {
+                    T: T_3_C_diagram,
+                    P: Pc_Pa / 1e5,
+                    h: h_3 / 1000
+                },
+                point4: {
+                    T: T_4_C_diagram,
+                    P: Pe_Pa / 1e5,
+                    h: h_liq_out_final / 1000
+                },
+                isDesuperheaterEnabled: isDesuperheaterEnabled,
+                isSubcoolerEnabled: isSubcoolerEnabled,
+                isOilCoolerEnabled: isOilCoolerEnabled,
+                water: m_dot_water > 0 ? {
+                    inlet: T_water_in,
+                    outlet: T_water_out
+                } : null
+            };
+
+            // Add point 2b if desuperheater is enabled
+            if (isDesuperheaterEnabled) {
+                nodeDataForDiagram.point2b = {
+                    T: T_2a_after_desuper_C,
+                    P: Pc_Pa / 1e5,
+                    h: h_2a_after_desuper / 1000
+                };
+            }
+
+            // Add point 3' if subcooler is enabled
+            if (isSubcoolerEnabled) {
+                const T_3p_C = CP_INSTANCE.PropsSI('T', 'P', Pc_Pa, 'H', h_3_final, fluid) - 273.15;
+                nodeDataForDiagram.point3p = {
+                    T: T_3p_C,
+                    P: Pc_Pa / 1e5,
+                    h: h_3_final / 1000
+                };
+            }
+
+            // 添加热水回路各节点温度信息
+            if (m_dot_water > 0 && waterTemps) {
+                nodeDataForDiagram.waterTemps = {};
+                if (isSubcoolerEnabled && waterTemps.subcooler) {
+                    nodeDataForDiagram.waterTemps.subcooler = {
+                        inlet: waterTemps.subcooler.inlet,
+                        outlet: waterTemps.subcooler.outlet,
+                        flow: m_dot_water
+                    };
+                }
+                if (isOilCoolerEnabled && waterTemps.oil_cooler) {
+                    nodeDataForDiagram.waterTemps.oil_cooler = {
+                        inlet: waterTemps.oil_cooler.inlet,
+                        outlet: waterTemps.oil_cooler.outlet,
+                        flow: m_dot_water
+                    };
+                }
+                if (isCondenserEnabled && waterTemps.condenser) {
+                    nodeDataForDiagram.waterTemps.condenser = {
+                        inlet: waterTemps.condenser.inlet,
+                        outlet: waterTemps.condenser.outlet,
+                        flow: m_dot_water
+                    };
+                }
+                if (isDesuperheaterEnabled && waterTemps.desuperheater) {
+                    nodeDataForDiagram.waterTemps.desuperheater = {
+                        inlet: waterTemps.desuperheater.inlet,
+                        outlet: waterTemps.desuperheater.outlet,
+                        flow: m_dot_water
+                    };
+                }
+            }
+
+            // 绘制系统示意图（桌面和移动端）
+            ['system-diagram-m7', 'system-diagram-m7-mobile'].forEach(id => {
+                const diagramContainer = document.getElementById(id);
+                if (diagramContainer) {
+                    diagramContainer.classList.remove('hidden');
+                    drawSystemDiagramM7(id, nodeDataForDiagram);
+                }
             });
 
             // --- HTML Table ---
@@ -1214,6 +1321,12 @@ export function initMode7(CP) {
         const tc = parseFloat(tempCondM7.value) || 73;
         tempDischargeActualM7.value = (tc + 25).toFixed(1);
     }
+    
+    // 初始化降低过热器目标温度（基于冷凝温度 + 2）
+    if (tempCondM7 && desuperheaterTargetTempM7) {
+        const tc = parseFloat(tempCondM7.value) || 73;
+        desuperheaterTargetTempM7.value = (tc + 2).toFixed(1);
+    }
     etaVM7 = document.getElementById('eta_v_m7');
     etaSM7 = document.getElementById('eta_s_m7');
     viRatioM7 = document.getElementById('vi_ratio_m7');
@@ -1348,6 +1461,39 @@ export function initMode7(CP) {
                     setButtonStale7();
                 }
                 lastCondTemp = tc;
+            });
+        }
+        
+        // 冷凝温度改变时，自动更新降低过热器目标温度（默认 +2°C）
+        if (tempCondM7 && desuperheaterTargetTempM7) {
+            let isAutoAdjustingDesuper = true; // 标记是否应该自动调整
+            
+            // 监听降低过热器目标温度的手动输入（用户开始编辑时，暂停自动调整）
+            desuperheaterTargetTempM7.addEventListener('focus', () => {
+                isAutoAdjustingDesuper = false;
+            });
+            
+            // 监听降低过热器目标温度的手动修改完成
+            desuperheaterTargetTempM7.addEventListener('change', () => {
+                // 用户手动修改后，检查是否与自动计算值一致
+                const tc = parseFloat(tempCondM7.value);
+                const expected = tc + 2;
+                const current = parseFloat(desuperheaterTargetTempM7.value);
+                // 如果用户输入的值与自动计算值接近（±0.5°C），则恢复自动调整
+                if (!isNaN(tc) && !isNaN(current) && Math.abs(current - expected) <= 0.5) {
+                    isAutoAdjustingDesuper = true;
+                } else {
+                    isAutoAdjustingDesuper = false;
+                }
+            });
+            
+            // 监听冷凝温度改变
+            tempCondM7.addEventListener('change', () => {
+                const tc = parseFloat(tempCondM7.value);
+                if (!isNaN(tc) && isAutoAdjustingDesuper) {
+                    desuperheaterTargetTempM7.value = (tc + 2).toFixed(1);
+                    setButtonStale7();
+                }
             });
         }
         
