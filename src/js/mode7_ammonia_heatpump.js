@@ -543,7 +543,7 @@ function calculateMode7() {
             
             // Read heat exchanger configurations
             const isSubcoolerEnabled = subcoolerEnabledM7?.checked || false;
-            const isOilCoolerEnabled = oilCoolerEnabledM7?.checked || false;
+            const isOilCoolerEnabled = oilCoolerEnabledM7?.checked !== false; // Default true
             const isCondenserEnabled = condenserEnabledM7?.checked !== false; // Default true
             const isDesuperheaterEnabled = desuperheaterEnabledM7?.checked || false;
             
@@ -579,10 +579,13 @@ function calculateMode7() {
             
             // Calculate Subcooler (if enabled) - further subcools condenser outlet
             if (isSubcoolerEnabled) {
-                // Additional subcooling beyond the basic subcooling_K
-                const additional_subcooling_K = 5; // Additional 5K subcooling
-                const T_3_subcooled_K = T_3_K - additional_subcooling_K;
-                const h_3_subcooled = CP_INSTANCE.PropsSI('H', 'T', T_3_subcooled_K, 'P', Pc_Pa, fluid);
+                // 根据逼近温差严格计算：制冷剂出口温度 = 热水入口温度 + 逼近温差
+                // 过冷器是第一个换热器，热水入口温度就是 T_water_in
+                const T_3_subcooled_C = T_water_in + approach_subcooler;
+                const T_3_subcooled_K = T_3_subcooled_C + 273.15;
+                // 确保过冷后的温度不超过冷凝器出口温度（物理限制）
+                const T_3_subcooled_K_final = Math.min(T_3_subcooled_K, T_3_K);
+                const h_3_subcooled = CP_INSTANCE.PropsSI('H', 'T', T_3_subcooled_K_final, 'P', Pc_Pa, fluid);
                 Q_subcooler_W = m_dot_suc * (h_3 - h_3_subcooled);
                 h_3_final = h_3_subcooled;
             } else {
@@ -761,7 +764,8 @@ function calculateMode7() {
                 Q_evap_W = m_dot_suc * (h_1 - h_liq_out_final);
             }
             
-            const Q_heating_total_W = Q_cond_W + Q_oil_W + Q_subcooler_W + Q_desuperheater_W;
+            // 总供热 = 冷凝器 + 油冷（仅当启用时）+ 过冷器 + 降低过热器
+            const Q_heating_total_W = Q_cond_W + Q_oil_cooler_W + Q_subcooler_W + Q_desuperheater_W;
 
             // COP 计算使用轴功率
             const COP_R = Q_evap_W / W_shaft_W;
@@ -1048,22 +1052,55 @@ function calculateMode7() {
                     `);
                 }
                 
-                // 2. Oil Cooler (油冷) Selection Parameters
-                if (isOilCoolerEnabled && Q_oil_cooler_W > 0) {
+                // 2. Oil Cooler (油冷) Selection Parameters - 无论是否启用都显示选型参数
+                if (Q_oil_W > 0) {
                     const T_oil_in_est = T_2a_final_C; // Oil temperature at compressor discharge
                     const T_oil_out_est = T_2a_final_C - 20; // Estimated oil outlet temperature
                     const m_dot_oil_est = m_dot_suc * 0.1; // Estimated oil flow (10% of refrigerant flow)
                     const m_dot_oil_est_kg_h = m_dot_oil_est * 3600;
                     
+                    // 判断是否启用，决定显示热水侧信息还是备注说明
+                    const oilCoolerQ_kW = isOilCoolerEnabled ? (Q_oil_cooler_W/1000) : (Q_oil_W/1000);
+                    const hasWaterTemps = isOilCoolerEnabled && waterTemps.oil_cooler;
+                    
+                    let waterSideHtml = '';
+                    if (hasWaterTemps) {
+                        // 启用状态：显示热水侧信息
+                        waterSideHtml = `
+                            <div class="font-semibold text-gray-700 mb-1">热水侧:</div>
+                            <div class="pl-2 space-y-1">
+                                <div>入口温度: ${waterTemps.oil_cooler.inlet.toFixed(1)} °C</div>
+                                <div>出口温度: ${waterTemps.oil_cooler.outlet.toFixed(1)} °C</div>
+                                <div>流量: ${m_dot_water.toFixed(3)} kg/s (${(m_dot_water*3600/1000).toFixed(2)} m³/h)</div>
+                                <div>温升: ${(waterTemps.oil_cooler.outlet - waterTemps.oil_cooler.inlet).toFixed(1)} K</div>
+                            </div>
+                        `;
+                    } else {
+                        // 未启用状态：显示备注说明
+                        waterSideHtml = `
+                            <div class="font-semibold text-gray-700 mb-1">冷却侧:</div>
+                            <div class="pl-2 space-y-1">
+                                <div class="text-amber-700 font-semibold">⚠️ 需要外配冷源</div>
+                                <div class="text-gray-600 italic text-xs mt-1">
+                                    建议：尽量应用油冷热量至热水回路以提高供热量与系统能效
+                                </div>
+                                <div class="text-gray-500 text-xs mt-2">
+                                    如需外配冷却，请根据油侧参数选择合适的冷却器
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
                     heSelectionParams.push(`
-                        <div class="bg-white/60 p-4 rounded-xl border border-cyan-300/50 mb-3">
-                            <div class="text-sm font-bold text-cyan-800 mb-3 flex items-center gap-2">
+                        <div class="bg-white/60 p-4 rounded-xl border ${isOilCoolerEnabled ? 'border-cyan-300/50' : 'border-amber-300/50'} mb-3">
+                            <div class="text-sm font-bold ${isOilCoolerEnabled ? 'text-cyan-800' : 'text-amber-800'} mb-3 flex items-center gap-2">
                                 <span>🔧 油冷 (Oil Cooler) 选型参数</span>
+                                ${!isOilCoolerEnabled ? '<span class="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded">未启用</span>' : ''}
                             </div>
                             <div class="grid grid-cols-2 gap-3 text-xs">
                                 <div class="space-y-2">
                                     <div class="font-semibold text-gray-700 mb-1">换热量:</div>
-                                    <div class="pl-2">${(Q_oil_cooler_W/1000).toFixed(2)} kW</div>
+                                    <div class="pl-2">${oilCoolerQ_kW.toFixed(2)} kW</div>
                                     <div class="font-semibold text-gray-700 mb-1 mt-2">油侧:</div>
                                     <div class="pl-2 space-y-1">
                                         <div>入口温度: ${T_oil_in_est.toFixed(1)} °C (估算)</div>
@@ -1073,13 +1110,7 @@ function calculateMode7() {
                                     </div>
                                 </div>
                                 <div class="space-y-2">
-                                    <div class="font-semibold text-gray-700 mb-1">热水侧:</div>
-                                    <div class="pl-2 space-y-1">
-                                        <div>入口温度: ${waterTemps.oil_cooler.inlet.toFixed(1)} °C</div>
-                                        <div>出口温度: ${waterTemps.oil_cooler.outlet.toFixed(1)} °C</div>
-                                        <div>流量: ${m_dot_water.toFixed(3)} kg/s (${(m_dot_water*3600/1000).toFixed(2)} m³/h)</div>
-                                        <div>温升: ${(waterTemps.oil_cooler.outlet - waterTemps.oil_cooler.inlet).toFixed(1)} K</div>
-                                    </div>
+                                    ${waterSideHtml}
                                     <div class="font-semibold text-gray-700 mb-1 mt-2">设计参数:</div>
                                     <div class="pl-2 space-y-1">
                                         <div>逼近温差: ${approach_oil_cooler.toFixed(1)} K</div>
@@ -1343,6 +1374,10 @@ export function initMode7(CP) {
     subcoolerWaterOutM7 = document.getElementById('subcooler_water_out_m7');
     
     oilCoolerEnabledM7 = document.getElementById('oil_cooler_enabled_m7');
+    // 默认启用油冷
+    if (oilCoolerEnabledM7) {
+        oilCoolerEnabledM7.checked = true;
+    }
     oilCoolerApproachTempM7 = document.getElementById('oil_cooler_approach_temp_m7');
     oilCoolerQM7 = document.getElementById('oil_cooler_q_m7');
     oilCoolerWaterOutM7 = document.getElementById('oil_cooler_water_out_m7');

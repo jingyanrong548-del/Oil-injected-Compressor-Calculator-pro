@@ -14,7 +14,7 @@
 export const APP_VERSION = {
     major: 7,
     minor: 2,
-    patch: 13,
+    patch: 14,
     
     /**
      * 获取完整版本号字符串
