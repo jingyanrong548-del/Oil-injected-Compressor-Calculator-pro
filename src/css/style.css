@@ -69,4 +69,13 @@
   .safe-area-bottom {
     padding-bottom: env(safe-area-inset-bottom);
   }
+
+  /* 10. 移动端结果面板滚动优化 - 确保所有内容可滚动显示 */
+  .mobile-results-container {
+    -webkit-overflow-scrolling: touch; /* iOS 平滑滚动 */
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0; /* 允许 flex 子元素缩小 */
+    max-height: 100%; /* 确保不超过父容器 */
+  }
 }
