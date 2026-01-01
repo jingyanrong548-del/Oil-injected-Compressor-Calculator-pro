@@ -71,8 +71,12 @@ function setButtonFresh7() {
 }
 
 function renderToAllViews(htmlContent) {
-    if(resultsDesktopM7) resultsDesktopM7.innerHTML = htmlContent;
-    if(resultsMobileM7) resultsMobileM7.innerHTML = htmlContent;
+    if(resultsDesktopM7) {
+        resultsDesktopM7.innerHTML = htmlContent;
+    }
+    if(resultsMobileM7) {
+        resultsMobileM7.innerHTML = htmlContent;
+    }
 }
 
 function updateMobileSummary(kpi1Label, kpi1Value, kpi2Label, kpi2Value) {

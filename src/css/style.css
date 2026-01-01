@@ -73,9 +73,12 @@
   /* 10. 移动端结果面板滚动优化 - 确保所有内容可滚动显示 */
   .mobile-results-container {
     -webkit-overflow-scrolling: touch; /* iOS 平滑滚动 */
-    overflow-y: auto;
+    overflow-y: auto !important;
     overflow-x: hidden;
-    min-height: 0; /* 允许 flex 子元素缩小 */
-    max-height: 100%; /* 确保不超过父容器 */
+    min-height: 0 !important; /* 允许 flex 子元素缩小，必须设置 */
+    max-height: none; /* 移除最大高度限制 */
+    flex: 1 1 0% !important; /* 使用0%作为flex-basis，确保flex-grow正常工作 */
+    position: relative; /* 确保定位上下文 */
+    height: 0; /* flex布局技巧：设置height:0让flex正确计算 */
   }
 }

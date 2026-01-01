@@ -505,6 +505,7 @@ export function initUI() {
     setupBottomSheet('mobile-sheet-m4', 'sheet-handle-m4', 'mobile-close-m4');
     setupBottomSheet('mobile-sheet-m5', 'sheet-handle-m5', 'mobile-close-m5');
     setupBottomSheet('mobile-sheet-m6', 'sheet-handle-m6', 'mobile-close-m6');
+    setupBottomSheet('mobile-sheet-m7', 'sheet-handle-m7', 'mobile-close-m7');
 
     // -----------------------------------------------------------------
     // 4. Inputs Setup & Standard Logic
@@ -965,10 +966,28 @@ export function initUI() {
 // 导出函数：自动展开移动端结果面板
 export function openMobileSheet(mode) {
     const sheet = document.getElementById(`mobile-sheet-${mode}`);
-    const handle = document.getElementById(`sheet-handle-${mode}`);
     
-    if (sheet && handle && sheet.classList.contains('translate-y-[calc(100%-80px)]')) {
-        console.log(`[UI] Auto-expanding mobile sheet for ${mode}`);
-        handle.click();
+    if (sheet) {
+        // 检查sheet是否处于折叠状态
+        const isCollapsed = sheet.classList.contains('translate-y-[calc(100%-80px)]');
+        if (isCollapsed) {
+            console.log(`[UI] Auto-expanding mobile sheet for ${mode}`);
+            // 直接操作DOM来展开sheet，确保展开成功
+            sheet.classList.remove('translate-y-[calc(100%-80px)]');
+            sheet.classList.add('translate-y-0', 'shadow-2xl');
+            // 强制设置高度，确保容器有明确高度
+            sheet.style.height = '95vh';
+            const innerDiv = sheet.querySelector('.bg-white\\/90');
+            if (innerDiv) {
+                innerDiv.style.height = '100%';
+                innerDiv.style.minHeight = '0';
+            }
+            // 触发图表调整，延迟执行以确保sheet已完全展开
+            setTimeout(() => { 
+                resizeAllCharts(); 
+            }, 350);
+        }
+    } else {
+        console.warn(`[UI] Cannot find mobile sheet for ${mode}`);
     }
 }
