@@ -29,6 +29,7 @@ import {
     getModelsBySeries, 
     getDisplacementByModel 
 } from './compressor_models.js';
+import i18next from './i18n.js';
 
 let CP_INSTANCE = null;
 let lastCalculationData = null; 
@@ -44,17 +45,17 @@ let slhxCheckbox, slhxEffInput;
 let compressorBrandM2, compressorSeriesM2, compressorModelM2, modelDisplacementInfoM2, modelDisplacementValueM2;
 let flowM3hM2;
 
-// Button States
-const BTN_TEXT_CALCULATE = "Calculate Performance";
-const BTN_TEXT_RECALCULATE = "Recalculate (Input Changed)";
+// Button States - 使用i18n
+const getBtnTextCalculate = () => i18next.t('mode2.calculatePerformance');
+const getBtnTextRecalculate = () => i18next.t('common.recalculate');
 
 // ---------------------------------------------------------------------
 // Helper Functions
 // ---------------------------------------------------------------------
 
 function setButtonStale2() {
-    if (calcButtonM2 && calcButtonM2.innerText !== BTN_TEXT_RECALCULATE) {
-        calcButtonM2.innerText = BTN_TEXT_RECALCULATE;
+    if (calcButtonM2 && calcButtonM2.innerText !== getBtnTextRecalculate()) {
+        calcButtonM2.innerText = getBtnTextRecalculate();
         calcButtonM2.classList.add('opacity-90', 'ring-2', 'ring-yellow-400', 'ring-offset-2');
         if(printButtonM2) {
             printButtonM2.disabled = true;
@@ -65,7 +66,7 @@ function setButtonStale2() {
 
 function setButtonFresh2() {
     if (calcButtonM2) {
-        calcButtonM2.innerText = BTN_TEXT_CALCULATE;
+        calcButtonM2.innerText = getBtnTextCalculate();
         calcButtonM2.classList.remove('opacity-90', 'ring-2', 'ring-yellow-400', 'ring-offset-2');
     }
 }
@@ -122,7 +123,7 @@ function updateAndDisplayEfficienciesM2() {
 function initCompressorModelSelectorsM2() {
     // Populate brand dropdown (Mode 2: 前川只保留N系列，其余品牌保留全部)
     const brands = getFilteredBrands('m2');
-    compressorBrandM2.innerHTML = '<option value="">-- 选择品牌 --</option>';
+    compressorBrandM2.innerHTML = `<option value="">${i18next.t('common.selectBrand')}</option>`;
     brands.forEach(brand => {
         const option = document.createElement('option');
         option.value = brand;
@@ -133,8 +134,8 @@ function initCompressorModelSelectorsM2() {
     // Brand change handler
     compressorBrandM2.addEventListener('change', () => {
         const brand = compressorBrandM2.value;
-        compressorSeriesM2.innerHTML = '<option value="">-- 选择系列 --</option>';
-        compressorModelM2.innerHTML = '<option value="">-- 选择型号 --</option>';
+        compressorSeriesM2.innerHTML = `<option value="">${i18next.t('common.selectSeries')}</option>`;
+        compressorModelM2.innerHTML = `<option value="">${i18next.t('common.selectModel')}</option>`;
         compressorSeriesM2.disabled = !brand;
         compressorModelM2.disabled = true;
         modelDisplacementInfoM2.classList.add('hidden');
@@ -155,7 +156,7 @@ function initCompressorModelSelectorsM2() {
     compressorSeriesM2.addEventListener('change', () => {
         const brand = compressorBrandM2.value;
         const series = compressorSeriesM2.value;
-        compressorModelM2.innerHTML = '<option value="">-- 选择型号 --</option>';
+        compressorModelM2.innerHTML = `<option value="">${i18next.t('common.selectModel')}</option>`;
         compressorModelM2.disabled = !series;
         modelDisplacementInfoM2.classList.add('hidden');
 
@@ -1060,13 +1061,13 @@ function calculateMode2() {
 
             let html = `
                 <div class="grid grid-cols-2 gap-4 mb-6">
-                    ${createKpiCard('制冷量 (Cooling)', (Q_evap_W/1000).toFixed(2), 'kW', `COP: ${COP_R.toFixed(2)}`, 'blue')}
-                    ${createKpiCard('总供热 (Heating)', (Q_heating_total_W/1000).toFixed(2), 'kW', `COP: ${COP_H.toFixed(2)}`, 'orange')}
+                    ${createKpiCard(i18next.t('components.coolingCapacity'), (Q_evap_W/1000).toFixed(2), 'kW', `COP: ${COP_R.toFixed(2)}`, 'blue')}
+                    ${createKpiCard(i18next.t('components.heatingCapacity'), (Q_heating_total_W/1000).toFixed(2), 'kW', `COP: ${COP_H.toFixed(2)}`, 'orange')}
                 </div>
                 <div class="space-y-1 bg-white/40 p-4 rounded-2xl border border-white/50 shadow-inner">
-                    ${createSectionHeader('Power & Efficiency')}
-                    ${createDetailRow('Input Power', `${(W_input_W/1000).toFixed(2)} kW`, true)}
-                    ${createDetailRow('Shaft Power', `${(W_shaft_W/1000).toFixed(2)} kW`)}
+                    ${createSectionHeader(i18next.t('components.powerAndEfficiency'))}
+                    ${createDetailRow(i18next.t('mode2.inputPower'), `${(W_input_W/1000).toFixed(2)} kW`, true)}
+                    ${createDetailRow(i18next.t('components.shaftPower'), `${(W_shaft_W/1000).toFixed(2)} kW`)}
                     ${createDetailRow('Oil Load', `${(Q_oil_W/1000).toFixed(2)} kW`)}
                     ${createDetailRow('Calc Logic', efficiency_info_text)}
                     ${createDetailRow('Volumetric Eff (η_v)', displayEtaV, AppState.currentMode === 'polynomial')}
@@ -1081,13 +1082,13 @@ function calculateMode2() {
                     ${createStateTable(statePoints)}
                     
                     ${flashTankSelection ? createFlashTankSelectionTable(flashTankSelection, '闪蒸罐选型参数', '⚡') : ''}
-                    ${economizerSelection ? createHeatExchangerSelectionTable(economizerSelection, '过冷器选型参数', '🌡️') : ''}
-                    ${slhxSelection ? createHeatExchangerSelectionTable(slhxSelection, '回热器选型参数', '🔥') : ''}
+                    ${economizerSelection ? createHeatExchangerSelectionTable(economizerSelection, i18next.t('components.subcoolerSelection'), '🌡️') : ''}
+                    ${slhxSelection ? createHeatExchangerSelectionTable(slhxSelection, i18next.t('components.slhxSelection'), '🔥') : ''}
                 </div>
             `;
 
             renderToAllViews(html);
-            updateMobileSummary('Cooling', `${(Q_evap_W/1000).toFixed(1)} kW`, 'COP', COP_R.toFixed(2));
+            updateMobileSummary(i18next.t('mode2.coolingCapacity'), `${(Q_evap_W/1000).toFixed(1)} kW`, 'COP', COP_R.toFixed(2));
             openMobileSheet('m2');
             
             setButtonFresh2();
@@ -1283,10 +1284,10 @@ function toggleChartTypeM2() {
     const toggleBtn = document.getElementById('chart-toggle-m2');
     const toggleBtnMobile = document.getElementById('chart-toggle-m2-mobile');
     if (toggleBtn) {
-        toggleBtn.textContent = newType === 'ph' ? '切换到 T-S 图' : '切换到 P-h 图';
+        toggleBtn.textContent = newType === 'ph' ? i18next.t('ui.switchToTS') : i18next.t('ui.switchToPH');
     }
     if (toggleBtnMobile) {
-        toggleBtnMobile.textContent = newType === 'ph' ? '切换到 T-S 图' : '切换到 P-h 图';
+        toggleBtnMobile.textContent = newType === 'ph' ? i18next.t('ui.switchToTS') : i18next.t('ui.switchToPH');
     }
 }
 

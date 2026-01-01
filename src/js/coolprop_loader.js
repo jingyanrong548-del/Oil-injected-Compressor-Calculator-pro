@@ -92,9 +92,11 @@ const fluidInfoData = {
  * @param {HTMLElement} infoElement - 显示信息的 DOM
  * @param {object} CP - CoolProp 实例
  */
+import i18next from './i18n.js';
+
 export function updateFluidInfo(selectElement, infoElement, CP) {
     if (!CP) {
-        infoElement.innerHTML = `<span class="text-red-400">Wait: Library Loading...</span>`;
+        infoElement.innerHTML = `<span class="text-red-400">${i18next.t('common.loading')}</span>`;
         return;
     }
 

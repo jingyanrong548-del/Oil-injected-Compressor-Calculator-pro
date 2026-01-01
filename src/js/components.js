@@ -3,6 +3,8 @@
 // 职责: 生成标准化 HTML 片段，支持 ECO 和 SLHX 的通用效益矩阵
 // =====================================================================
 
+import i18next from './i18n.js';
+
 /**
  * 生成 KPI 核心指标卡片
  */
@@ -63,7 +65,7 @@ export function createErrorCard(message) {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
         </svg>
         <div>
-            <h3 class="text-sm font-bold">计算中断</h3>
+            <h3 class="text-sm font-bold">${i18next.t('components.calculationInterrupted')}</h3>
             <p class="text-xs mt-1 opacity-90 leading-relaxed">${message}</p>
         </div>
     </div>
@@ -124,10 +126,10 @@ export function createImpactGrid(data, theme = 'teal') {
 
     return `
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 mb-2 animate-fade-in ${t.container} p-2 rounded-2xl border border-dashed">
-        ${renderItem('Cooling Cap.', data.Qc, 'kW')}
-        ${renderItem('Heating Cap.', data.Qh, 'kW')}
-        ${renderItem('Cooling COP', data.COPc)}
-        ${renderItem('Heating COP', data.COPh)}
+        ${renderItem(i18next.t('components.coolingCap'), data.Qc, 'kW')}
+        ${renderItem(i18next.t('components.heatingCap'), data.Qh, 'kW')}
+        ${renderItem(i18next.t('components.coolingCOP'), data.COPc)}
+        ${renderItem(i18next.t('components.heatingCOP'), data.COPh)}
     </div>
     `;
 }
@@ -163,11 +165,11 @@ export function createStateTable(points) {
         <table class="min-w-full">
             <thead>
                 <tr class="border-b border-gray-200/50 bg-gray-100/40 text-left text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
-                    <th class="py-2 pl-3 whitespace-nowrap sticky left-0 z-10 bg-gray-50/80 backdrop-blur-[2px]">Point</th>
-                    <th class="py-2 text-right whitespace-nowrap">T [°C]</th>
-                    <th class="py-2 text-right whitespace-nowrap">P [bar]</th>
-                    <th class="py-2 text-right whitespace-nowrap">h [kJ/kg]</th>
-                    <th class="py-2 pr-3 text-right whitespace-nowrap">m [kg/s]</th>
+                    <th class="py-2 pl-3 whitespace-nowrap sticky left-0 z-10 bg-gray-50/80 backdrop-blur-[2px]">${i18next.t('components.point')}</th>
+                    <th class="py-2 text-right whitespace-nowrap">${i18next.t('components.temp')}</th>
+                    <th class="py-2 text-right whitespace-nowrap">${i18next.t('components.press')}</th>
+                    <th class="py-2 text-right whitespace-nowrap">${i18next.t('components.enthalpy')}</th>
+                    <th class="py-2 pr-3 text-right whitespace-nowrap">${i18next.t('components.massFlow')}</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100/30">
@@ -196,43 +198,43 @@ export function createHeatExchangerSelectionTable(selectionData, title, icon = '
             <div class="text-xs font-bold text-gray-600 mb-2 uppercase tracking-wide">${sideName}</div>
             <div class="grid grid-cols-2 gap-2 text-xs">
                 <div class="bg-white/60 rounded-lg p-2 border border-white/50">
-                    <div class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">入口</div>
+                    <div class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">${i18next.t('components.inlet')}</div>
                     <div class="space-y-1">
                         <div class="flex justify-between">
-                            <span class="text-gray-600">温度:</span>
+                            <span class="text-gray-600">${i18next.t('components.temperature')}</span>
                             <span class="font-mono font-semibold text-gray-800">${inlet.T_C.toFixed(1)} °C</span>
                         </div>
                         <div class="flex justify-between">
-                            <span class="text-gray-600">压力:</span>
+                            <span class="text-gray-600">${i18next.t('components.pressure')}</span>
                             <span class="font-mono font-semibold text-gray-800">${inlet.P_bar.toFixed(2)} bar</span>
                         </div>
                         <div class="flex justify-between">
-                            <span class="text-gray-600">焓值:</span>
+                            <span class="text-gray-600">${i18next.t('components.enthalpyValue')}</span>
                             <span class="font-mono font-semibold text-gray-800">${inlet.h_kJ.toFixed(1)} kJ/kg</span>
                         </div>
                         <div class="flex justify-between">
-                            <span class="text-gray-600">流量:</span>
+                            <span class="text-gray-600">${i18next.t('components.flowRate')}</span>
                             <span class="font-mono font-bold text-gray-800">${inlet.m_dot.toFixed(3)} kg/s</span>
                         </div>
                     </div>
                 </div>
                 <div class="bg-white/60 rounded-lg p-2 border border-white/50">
-                    <div class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">出口</div>
+                    <div class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">${i18next.t('components.outlet')}</div>
                     <div class="space-y-1">
                         <div class="flex justify-between">
-                            <span class="text-gray-600">温度:</span>
+                            <span class="text-gray-600">${i18next.t('components.temperature')}</span>
                             <span class="font-mono font-semibold text-gray-800">${outlet.T_C.toFixed(1)} °C</span>
                         </div>
                         <div class="flex justify-between">
-                            <span class="text-gray-600">压力:</span>
+                            <span class="text-gray-600">${i18next.t('components.pressure')}</span>
                             <span class="font-mono font-semibold text-gray-800">${outlet.P_bar.toFixed(2)} bar</span>
                         </div>
                         <div class="flex justify-between">
-                            <span class="text-gray-600">焓值:</span>
+                            <span class="text-gray-600">${i18next.t('components.enthalpyValue')}</span>
                             <span class="font-mono font-semibold text-gray-800">${outlet.h_kJ.toFixed(1)} kJ/kg</span>
                         </div>
                         <div class="flex justify-between">
-                            <span class="text-gray-600">流量:</span>
+                            <span class="text-gray-600">${i18next.t('components.flowRate')}</span>
                             <span class="font-mono font-bold text-gray-800">${outlet.m_dot.toFixed(3)} kg/s</span>
                         </div>
                     </div>
@@ -240,7 +242,7 @@ export function createHeatExchangerSelectionTable(selectionData, title, icon = '
             </div>
             <div class="mt-2 bg-blue-50/50 rounded-lg p-2 border border-blue-100/50">
                 <div class="flex justify-between items-center">
-                    <span class="text-xs font-semibold text-gray-700">热负荷:</span>
+                    <span class="text-xs font-semibold text-gray-700">${i18next.t('components.heatLoad')}</span>
                     <span class="font-mono font-bold text-blue-700 text-sm">${sideData.Q_kW.toFixed(2)} kW</span>
                 </div>
             </div>
@@ -251,8 +253,8 @@ export function createHeatExchangerSelectionTable(selectionData, title, icon = '
     return `
     <div class="bg-white/40 p-4 rounded-2xl border border-white/50 shadow-inner mt-4">
         ${createSectionHeader(title, icon)}
-        ${renderSide('热侧', selectionData.hot_side)}
-        ${renderSide('冷侧', selectionData.cold_side)}
+        ${renderSide(i18next.t('components.hotSide'), selectionData.hot_side)}
+        ${renderSide(i18next.t('components.coldSide'), selectionData.cold_side)}
     </div>
     `;
 }
@@ -291,7 +293,7 @@ export function createFlashTankSelectionTable(flashTankData, title, icon = '⚡'
                 ` : ''}
                 ${stateData.quality !== undefined ? `
                 <div class="flex justify-between">
-                    <span class="text-gray-600">干度:</span>
+                            <span class="text-gray-600">${i18next.t('components.dryness')}</span>
                     <span class="font-mono font-semibold text-gray-800">${(stateData.quality * 100).toFixed(1)} %</span>
                 </div>
                 ` : ''}
@@ -306,17 +308,17 @@ export function createFlashTankSelectionTable(flashTankData, title, icon = '⚡'
         
         <!-- 工作参数 -->
         <div class="mb-4">
-            <div class="text-xs font-bold text-gray-600 mb-2 uppercase tracking-wide">工作参数</div>
+            <div class="text-xs font-bold text-gray-600 mb-2 uppercase tracking-wide">${i18next.t('components.workingParams')}</div>
             <div class="grid grid-cols-2 gap-2 text-xs">
                 <div class="bg-blue-50/50 rounded-lg p-2 border border-blue-100/50">
                     <div class="flex justify-between items-center">
-                        <span class="text-gray-600">工作压力:</span>
+                        <span class="text-gray-600">${i18next.t('components.workingPressure')}</span>
                         <span class="font-mono font-bold text-blue-700">${flashTankData.working_pressure.toFixed(2)} bar</span>
                     </div>
                 </div>
                 <div class="bg-blue-50/50 rounded-lg p-2 border border-blue-100/50">
                     <div class="flex justify-between items-center">
-                        <span class="text-gray-600">饱和温度:</span>
+                        <span class="text-gray-600">${i18next.t('components.satTemp')}</span>
                         <span class="font-mono font-bold text-blue-700">${flashTankData.sat_temp.toFixed(1)} °C</span>
                     </div>
                 </div>
@@ -325,7 +327,7 @@ export function createFlashTankSelectionTable(flashTankData, title, icon = '⚡'
 
         <!-- 入口状态 -->
         <div class="mb-4">
-            <div class="text-xs font-bold text-gray-600 mb-2 uppercase tracking-wide">入口状态（节流后）</div>
+            <div class="text-xs font-bold text-gray-600 mb-2 uppercase tracking-wide">${i18next.t('components.inletState')}</div>
             ${renderState('点7 - 节流入口（两相）', {
                 ...flashTankData.inlet,
                 m_dot: flashTankData.total_inlet_flow
@@ -334,7 +336,7 @@ export function createFlashTankSelectionTable(flashTankData, title, icon = '⚡'
 
         <!-- 出口状态 -->
         <div class="mb-4">
-            <div class="text-xs font-bold text-gray-600 mb-2 uppercase tracking-wide">出口状态</div>
+            <div class="text-xs font-bold text-gray-600 mb-2 uppercase tracking-wide">${i18next.t('components.outletState')}</div>
             <div class="grid grid-cols-2 gap-2">
                 ${renderState('点6 - 饱和蒸汽（补气）', flashTankData.outlet_vapor)}
                 ${renderState('点5 - 饱和液体（主路）', flashTankData.outlet_liquid)}
@@ -343,17 +345,17 @@ export function createFlashTankSelectionTable(flashTankData, title, icon = '⚡'
 
         <!-- 闪蒸参数 -->
         <div class="mb-4">
-            <div class="text-xs font-bold text-gray-600 mb-2 uppercase tracking-wide">闪蒸参数</div>
+            <div class="text-xs font-bold text-gray-600 mb-2 uppercase tracking-wide">${i18next.t('components.flashParams')}</div>
             <div class="grid grid-cols-2 gap-2 text-xs">
                 <div class="bg-orange-50/50 rounded-lg p-2 border border-orange-100/50">
                     <div class="flex justify-between items-center">
-                        <span class="text-gray-600">闪蒸干度:</span>
+                        <span class="text-gray-600">${i18next.t('components.flashQuality')}</span>
                         <span class="font-mono font-bold text-orange-700">${(flashTankData.flash_quality * 100).toFixed(1)} %</span>
                     </div>
                 </div>
                 <div class="bg-orange-50/50 rounded-lg p-2 border border-orange-100/50">
                     <div class="flex justify-between items-center">
-                        <span class="text-gray-600">气液比:</span>
+                        <span class="text-gray-600">${i18next.t('components.vaporLiquidRatio')}</span>
                         <span class="font-mono font-bold text-orange-700">${flashTankData.vapor_liquid_ratio.toFixed(3)}</span>
                     </div>
                 </div>
@@ -362,18 +364,18 @@ export function createFlashTankSelectionTable(flashTankData, title, icon = '⚡'
 
         <!-- 流量参数 -->
         <div class="mb-4">
-            <div class="text-xs font-bold text-gray-600 mb-2 uppercase tracking-wide">流量参数</div>
+            <div class="text-xs font-bold text-gray-600 mb-2 uppercase tracking-wide">${i18next.t('components.flowParams')}</div>
             <div class="grid grid-cols-3 gap-2 text-xs">
                 <div class="bg-green-50/50 rounded-lg p-2 border border-green-100/50">
-                    <div class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">入口总流量</div>
+                    <div class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">${i18next.t('components.totalInletFlow')}</div>
                     <div class="font-mono font-bold text-green-700 text-sm">${flashTankData.total_inlet_flow.toFixed(3)} kg/s</div>
                 </div>
                 <div class="bg-green-50/50 rounded-lg p-2 border border-green-100/50">
-                    <div class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">出口气体流量</div>
+                    <div class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">${i18next.t('components.vaporOutletFlow')}</div>
                     <div class="font-mono font-bold text-green-700 text-sm">${flashTankData.vapor_outlet_flow.toFixed(3)} kg/s</div>
                 </div>
                 <div class="bg-green-50/50 rounded-lg p-2 border border-green-100/50">
-                    <div class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">出口液体流量</div>
+                    <div class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">${i18next.t('components.liquidOutletFlow')}</div>
                     <div class="font-mono font-bold text-green-700 text-sm">${flashTankData.liquid_outlet_flow.toFixed(3)} kg/s</div>
                 </div>
             </div>
@@ -381,9 +383,9 @@ export function createFlashTankSelectionTable(flashTankData, title, icon = '⚡'
 
         <!-- 备注 -->
         <div class="bg-yellow-50/50 rounded-lg p-2 border border-yellow-100/50 text-xs">
-            <div class="text-[10px] text-yellow-700 font-semibold mb-1">⚠️ 选型建议</div>
+            <div class="text-[10px] text-yellow-700 font-semibold mb-1">⚠️ ${i18next.t('components.selectionAdvice')}</div>
             <div class="text-gray-600 leading-relaxed">
-                闪蒸罐选型需考虑：停留时间（建议 30-60 秒）、气液分离效率、液位控制要求等。容器容积需根据流量和停留时间计算，建议咨询专业厂家进行详细设计。
+                ${i18next.t('components.selectionAdviceText')}
             </div>
         </div>
     </div>

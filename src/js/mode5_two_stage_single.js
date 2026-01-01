@@ -11,6 +11,7 @@ import { HistoryDB, SessionState } from './storage.js';
 import { openMobileSheet } from './ui.js';
 import { updateFluidInfo } from './coolprop_loader.js';
 import { calculateEmpiricalEfficiencies } from './efficiency_models.js';
+import i18next from './i18n.js';
 import { 
     getFilteredBrands,
     getFilteredSeriesByBrand,
@@ -40,16 +41,16 @@ let tempDischargeMidInput;  // 低压级设定排气温度输入
 // 中间压力设置
 let interPressMode, interSatTempInput;
 
-const BTN_TEXT_CALCULATE = 'Calculate Two-Stage';
-const BTN_TEXT_RECALCULATE = 'Recalculate (Input Changed)';
+const getBtnTextCalculate = () => i18next.t('common.calculate');
+const getBtnTextRecalculate = () => i18next.t('common.recalculate');
 
 // ---------------------------------------------------------------------
 // Helper Functions
 // ---------------------------------------------------------------------
 
 function setButtonStale5() {
-    if (calcButtonM5 && calcButtonM5.innerText !== BTN_TEXT_RECALCULATE) {
-        calcButtonM5.innerText = BTN_TEXT_RECALCULATE;
+    if (calcButtonM5 && calcButtonM5.innerText !== getBtnTextRecalculate()) {
+        calcButtonM5.innerText = getBtnTextRecalculate();
         calcButtonM5.classList.add('opacity-90', 'ring-2', 'ring-yellow-400', 'ring-offset-2');
         if (printButtonM5) {
             printButtonM5.disabled = true;
@@ -60,7 +61,7 @@ function setButtonStale5() {
 
 function setButtonFresh5() {
     if (calcButtonM5) {
-        calcButtonM5.innerText = BTN_TEXT_CALCULATE;
+        calcButtonM5.innerText = getBtnTextCalculate();
         calcButtonM5.classList.remove('opacity-90', 'ring-2', 'ring-yellow-400', 'ring-offset-2');
     }
 }
@@ -1526,7 +1527,7 @@ function calculateMode5() {
             const html = `
                 <div class="grid grid-cols-2 gap-4 mb-6">
                     ${createKpiCard('制冷量', (result.Q_evap_W / 1000).toFixed(2), 'kW', 'Cooling Capacity', 'blue')}
-                    ${createKpiCard('总轴功率', (result.W_shaft_W / 1000).toFixed(2), 'kW', 'Total Shaft Power', 'orange')}
+                    ${createKpiCard(i18next.t('components.totalShaftPower'), (result.W_shaft_W / 1000).toFixed(2), 'kW', i18next.t('components.totalShaftPower'), 'orange')}
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -1551,7 +1552,7 @@ function calculateMode5() {
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div class="bg-white/60 p-4 rounded-2xl border border-white/50">
                         ${createSectionHeader('System Performance', '📈')}
-                        ${createDetailRow('总轴功率', `${(result.W_shaft_W / 1000).toFixed(2)} kW`)}
+                        ${createDetailRow(i18next.t('components.totalShaftPower'), `${(result.W_shaft_W / 1000).toFixed(2)} kW`)}
                         ${createDetailRow('COP_c', result.COP_c.toFixed(3), true)}
                         ${createDetailRow('COP_h', result.COP_h.toFixed(3))}
                         ${createDetailRow('总油冷负荷', `${(result.Q_oil_total_W / 1000).toFixed(2)} kW`)}
@@ -1737,10 +1738,10 @@ function toggleChartTypeM5() {
     const toggleBtn = document.getElementById('chart-toggle-m5');
     const toggleBtnMobile = document.getElementById('chart-toggle-m5-mobile');
     if (toggleBtn) {
-        toggleBtn.textContent = newType === 'ph' ? '切换到 T-S 图' : '切换到 P-h 图';
+        toggleBtn.textContent = newType === 'ph' ? i18next.t('ui.switchToTS') : i18next.t('ui.switchToPH');
     }
     if (toggleBtnMobile) {
-        toggleBtnMobile.textContent = newType === 'ph' ? '切换到 T-S 图' : '切换到 P-h 图';
+        toggleBtnMobile.textContent = newType === 'ph' ? i18next.t('ui.switchToTS') : i18next.t('ui.switchToPH');
     }
 }
 
@@ -1751,7 +1752,7 @@ function toggleChartTypeM5() {
 function initCompressorModelSelectorsM5() {
     // Mode 5 (单机双级模式): 只保留前川 LSC、MS、SS 系列，其余品牌全部删除
     const brands = getFilteredBrands('m5');
-    compressorBrand.innerHTML = '<option value="">-- 选择品牌 --</option>';
+    compressorBrand.innerHTML = `<option value="">${i18next.t('common.selectBrand')}</option>`;
     brands.forEach(brand => {
         const option = document.createElement('option');
         option.value = brand;
@@ -1761,8 +1762,8 @@ function initCompressorModelSelectorsM5() {
 
     compressorBrand.addEventListener('change', () => {
         const brand = compressorBrand.value;
-        compressorSeries.innerHTML = '<option value="">-- 选择系列 --</option>';
-        compressorModel.innerHTML = '<option value="">-- 选择型号 --</option>';
+        compressorSeries.innerHTML = `<option value="">${i18next.t('common.selectSeries')}</option>`;
+        compressorModel.innerHTML = `<option value="">${i18next.t('common.selectModel')}</option>`;
         compressorSeries.disabled = !brand;
         compressorModel.disabled = true;
         modelDisplacementInfo.classList.add('hidden');
@@ -1782,7 +1783,7 @@ function initCompressorModelSelectorsM5() {
     compressorSeries.addEventListener('change', () => {
         const brand = compressorBrand.value;
         const series = compressorSeries.value;
-        compressorModel.innerHTML = '<option value="">-- 选择型号 --</option>';
+        compressorModel.innerHTML = `<option value="">${i18next.t('common.selectModel')}</option>`;
         compressorModel.disabled = !series;
         modelDisplacementInfo.classList.add('hidden');
 

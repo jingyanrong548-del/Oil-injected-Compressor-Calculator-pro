@@ -15,6 +15,7 @@ import {
 import { drawPHDiagram } from './charts.js';
 import { HistoryDB, SessionState } from './storage.js';
 import { AppState } from './state.js';
+import i18next from './i18n.js';
 import { openMobileSheet } from './ui.js';
 import { 
     getFilteredBrands,
@@ -41,16 +42,16 @@ let compressorBrandM3, compressorSeriesM3, compressorModelM3, modelDisplacementI
 let flowM3hM3;
 
 // Button States
-const BTN_TEXT_CALCULATE = "计算";
-const BTN_TEXT_RECALCULATE = "重新计算";
+const getBtnTextCalculate = () => i18next.t('common.calculate');
+const getBtnTextRecalculate = () => i18next.t('common.recalculate');
 
 // ---------------------------------------------------------------------
 // Helper Functions
 // ---------------------------------------------------------------------
 
 function setButtonStale3() {
-    if (calcButtonM3 && calcButtonM3.innerText !== BTN_TEXT_RECALCULATE) {
-        calcButtonM3.innerText = BTN_TEXT_RECALCULATE;
+    if (calcButtonM3 && calcButtonM3.innerText !== getBtnTextRecalculate()) {
+        calcButtonM3.innerText = getBtnTextRecalculate();
         calcButtonM3.classList.add('opacity-90', 'ring-2', 'ring-yellow-400', 'ring-offset-2');
         if(printButtonM3) {
             printButtonM3.disabled = true;
@@ -61,7 +62,7 @@ function setButtonStale3() {
 
 function setButtonFresh3() {
     if (calcButtonM3) {
-        calcButtonM3.innerText = BTN_TEXT_CALCULATE;
+        calcButtonM3.innerText = getBtnTextCalculate();
         calcButtonM3.classList.remove('opacity-90', 'ring-2', 'ring-yellow-400', 'ring-offset-2');
     }
 }
@@ -75,7 +76,7 @@ function updateMobileSummary(powerValue, effLabel, effValue) {
     if (!summaryMobileM3) return;
     summaryMobileM3.innerHTML = `
         <div>
-            <p class="text-[10px] text-gray-500 uppercase tracking-wider font-bold">Shaft Power</p>
+            <p class="text-[10px] text-gray-500 uppercase tracking-wider font-bold">${i18next.t('mode3.shaftPowerLabel')}</p>
             <p class="text-xl font-bold text-gray-900">${powerValue}</p>
         </div>
         <div class="text-right">
@@ -117,7 +118,7 @@ function updateAndDisplayEfficienciesM3() {
 function initCompressorModelSelectorsM3() {
     // Populate brand dropdown (Mode 3: 前川只保留N系列，其余品牌保留全部)
     const brands = getFilteredBrands('m3');
-    compressorBrandM3.innerHTML = '<option value="">-- 选择品牌 --</option>';
+    compressorBrandM3.innerHTML = `<option value="">${i18next.t('common.selectBrand')}</option>`;
     brands.forEach(brand => {
         const option = document.createElement('option');
         option.value = brand;
@@ -128,8 +129,8 @@ function initCompressorModelSelectorsM3() {
     // Brand change handler
     compressorBrandM3.addEventListener('change', () => {
         const brand = compressorBrandM3.value;
-        compressorSeriesM3.innerHTML = '<option value="">-- 选择系列 --</option>';
-        compressorModelM3.innerHTML = '<option value="">-- 选择型号 --</option>';
+        compressorSeriesM3.innerHTML = `<option value="">${i18next.t('common.selectSeries')}</option>`;
+        compressorModelM3.innerHTML = `<option value="">${i18next.t('common.selectModel')}</option>`;
         compressorSeriesM3.disabled = !brand;
         compressorModelM3.disabled = true;
         modelDisplacementInfoM3.classList.add('hidden');
@@ -150,7 +151,7 @@ function initCompressorModelSelectorsM3() {
     compressorSeriesM3.addEventListener('change', () => {
         const brand = compressorBrandM3.value;
         const series = compressorSeriesM3.value;
-        compressorModelM3.innerHTML = '<option value="">-- 选择型号 --</option>';
+        compressorModelM3.innerHTML = `<option value="">${i18next.t('common.selectModel')}</option>`;
         compressorModelM3.disabled = !series;
         modelDisplacementInfoM3.classList.add('hidden');
 

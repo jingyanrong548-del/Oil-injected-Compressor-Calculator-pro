@@ -10,6 +10,7 @@ import { HistoryDB, SessionState } from './storage.js';
 import { openMobileSheet } from './ui.js';
 import { updateFluidInfo } from './coolprop_loader.js';
 import { calculateEmpiricalEfficiencies } from './efficiency_models.js';
+import i18next from './i18n.js';
 import { 
     getFilteredBrands,
     getFilteredSeriesByBrand,
@@ -43,16 +44,16 @@ let compressorBrandHp, compressorSeriesHp, compressorModelHp, modelDisplacementI
 let tempDischargeActualHpInput;
 let acCheckboxHp, acTempTargetHp, acDropHp;
 
-const BTN_TEXT_CALCULATE = 'Calculate Two-Stage Gas';
-const BTN_TEXT_RECALCULATE = 'Recalculate (Input Changed)';
+const getBtnTextCalculate = () => i18next.t('common.calculate');
+const getBtnTextRecalculate = () => i18next.t('common.recalculate');
 
 // ---------------------------------------------------------------------
 // Helper Functions
 // ---------------------------------------------------------------------
 
 function setButtonStale3TS() {
-    if (calcButtonM3TS && calcButtonM3TS.innerText !== BTN_TEXT_RECALCULATE) {
-        calcButtonM3TS.innerText = BTN_TEXT_RECALCULATE;
+    if (calcButtonM3TS && calcButtonM3TS.innerText !== getBtnTextRecalculate()) {
+        calcButtonM3TS.innerText = getBtnTextRecalculate();
         calcButtonM3TS.classList.add('opacity-90', 'ring-2', 'ring-yellow-400', 'ring-offset-2');
         if (printButtonM3TS) {
             printButtonM3TS.disabled = true;
@@ -63,7 +64,7 @@ function setButtonStale3TS() {
 
 function setButtonFresh3TS() {
     if (calcButtonM3TS) {
-        calcButtonM3TS.innerText = BTN_TEXT_CALCULATE;
+        calcButtonM3TS.innerText = getBtnTextCalculate();
         calcButtonM3TS.classList.remove('opacity-90', 'ring-2', 'ring-yellow-400', 'ring-offset-2');
     }
 }
@@ -697,7 +698,7 @@ function calculateMode3TwoStage() {
             // 渲染结果面板
             const html = `
                 <div class="grid grid-cols-2 gap-4 mb-6">
-                    ${createKpiCard('总轴功率', (result.W_shaft_W / 1000).toFixed(2), 'kW', 'Total Shaft Power', 'blue')}
+                    ${createKpiCard(i18next.t('components.totalShaftPower'), (result.W_shaft_W / 1000).toFixed(2), 'kW', i18next.t('components.totalShaftPower'), 'blue')}
                     ${createKpiCard('总油冷负荷', (result.Q_oil_total_W / 1000).toFixed(2), 'kW', 'Total Oil Cooling', 'orange')}
                 </div>
 
@@ -727,7 +728,7 @@ function calculateMode3TwoStage() {
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div class="bg-white/60 p-4 rounded-2xl border border-white/50">
                         ${createSectionHeader('System Performance', '📈')}
-                        ${createDetailRow('总轴功率', `${(result.W_shaft_W / 1000).toFixed(2)} kW`)}
+                        ${createDetailRow(i18next.t('components.totalShaftPower'), `${(result.W_shaft_W / 1000).toFixed(2)} kW`)}
                         ${createDetailRow('总油冷负荷', `${(result.Q_oil_total_W / 1000).toFixed(2)} kW`)}
                     </div>
                     <div class="bg-white/60 p-4 rounded-2xl border border-white/50">
@@ -838,7 +839,7 @@ function printReportMode3TwoStage() {
 function initCompressorModelSelectorsM3TS() {
     // 低压级压缩机选择器
     const brandsLp = getFilteredBrands('m3');
-    compressorBrandLp.innerHTML = '<option value="">-- 选择品牌 --</option>';
+    compressorBrandLp.innerHTML = `<option value="">${i18next.t('common.selectBrand')}</option>`;
     brandsLp.forEach(brand => {
         const option = document.createElement('option');
         option.value = brand;
@@ -848,8 +849,8 @@ function initCompressorModelSelectorsM3TS() {
 
     compressorBrandLp.addEventListener('change', () => {
         const brand = compressorBrandLp.value;
-        compressorSeriesLp.innerHTML = '<option value="">-- 选择系列 --</option>';
-        compressorModelLp.innerHTML = '<option value="">-- 选择型号 --</option>';
+        compressorSeriesLp.innerHTML = `<option value="">${i18next.t('common.selectSeries')}</option>`;
+        compressorModelLp.innerHTML = `<option value="">${i18next.t('common.selectModel')}</option>`;
         compressorSeriesLp.disabled = !brand;
         compressorModelLp.disabled = true;
         modelDisplacementInfoLp.classList.add('hidden');
@@ -869,7 +870,7 @@ function initCompressorModelSelectorsM3TS() {
     compressorSeriesLp.addEventListener('change', () => {
         const brand = compressorBrandLp.value;
         const series = compressorSeriesLp.value;
-        compressorModelLp.innerHTML = '<option value="">-- 选择型号 --</option>';
+        compressorModelLp.innerHTML = `<option value="">${i18next.t('common.selectModel')}</option>`;
         compressorModelLp.disabled = !series;
         modelDisplacementInfoLp.classList.add('hidden');
 
@@ -911,7 +912,7 @@ function initCompressorModelSelectorsM3TS() {
 
     // 高压级压缩机选择器（类似逻辑）
     const brandsHp = getFilteredBrands('m3');
-    compressorBrandHp.innerHTML = '<option value="">-- 选择品牌 --</option>';
+    compressorBrandHp.innerHTML = `<option value="">${i18next.t('common.selectBrand')}</option>`;
     brandsHp.forEach(brand => {
         const option = document.createElement('option');
         option.value = brand;
@@ -921,8 +922,8 @@ function initCompressorModelSelectorsM3TS() {
 
     compressorBrandHp.addEventListener('change', () => {
         const brand = compressorBrandHp.value;
-        compressorSeriesHp.innerHTML = '<option value="">-- 选择系列 --</option>';
-        compressorModelHp.innerHTML = '<option value="">-- 选择型号 --</option>';
+        compressorSeriesHp.innerHTML = `<option value="">${i18next.t('common.selectSeries')}</option>`;
+        compressorModelHp.innerHTML = `<option value="">${i18next.t('common.selectModel')}</option>`;
         compressorSeriesHp.disabled = !brand;
         compressorModelHp.disabled = true;
         modelDisplacementInfoHp.classList.add('hidden');
@@ -942,7 +943,7 @@ function initCompressorModelSelectorsM3TS() {
     compressorSeriesHp.addEventListener('change', () => {
         const brand = compressorBrandHp.value;
         const series = compressorSeriesHp.value;
-        compressorModelHp.innerHTML = '<option value="">-- 选择型号 --</option>';
+        compressorModelHp.innerHTML = `<option value="">${i18next.t('common.selectModel')}</option>`;
         compressorModelHp.disabled = !series;
         modelDisplacementInfoHp.classList.add('hidden');
 

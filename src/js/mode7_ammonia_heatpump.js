@@ -16,7 +16,8 @@ import {
 } from './components.js';
 import { drawPHDiagram, drawTSDiagram, getChartInstance, drawSystemDiagramM7 } from './charts.js';
 import { HistoryDB, SessionState } from './storage.js';
-import { AppState } from './state.js'; 
+import { AppState } from './state.js';
+import i18next from './i18n.js'; 
 import { calculatePoly10, calculatePolyVSD } from './logic/polynomial_models.js';
 import { 
     getFilteredBrands,
@@ -45,16 +46,16 @@ let condenserEnabledM7, condenserApproachTempM7, condenserQM7, condenserWaterOut
 let desuperheaterEnabledM7, desuperheaterApproachTempM7, desuperheaterTargetTempM7, desuperheaterQM7, desuperheaterWaterOutM7;
 
 // Button States
-const BTN_TEXT_CALCULATE = "Calculate Performance";
-const BTN_TEXT_RECALCULATE = "Recalculate (Input Changed)";
+const getBtnTextCalculate = () => i18next.t('mode2.calculatePerformance');
+const getBtnTextRecalculate = () => i18next.t('common.recalculate');
 
 // ---------------------------------------------------------------------
 // Helper Functions
 // ---------------------------------------------------------------------
 
 function setButtonStale7() {
-    if (calcButtonM7 && calcButtonM7.innerText !== BTN_TEXT_RECALCULATE) {
-        calcButtonM7.innerText = BTN_TEXT_RECALCULATE;
+    if (calcButtonM7 && calcButtonM7.innerText !== getBtnTextRecalculate()) {
+        calcButtonM7.innerText = getBtnTextRecalculate();
         calcButtonM7.classList.add('opacity-90', 'ring-2', 'ring-yellow-400', 'ring-offset-2');
         if(printButtonM7) {
             printButtonM7.disabled = true;
@@ -65,7 +66,7 @@ function setButtonStale7() {
 
 function setButtonFresh7() {
     if (calcButtonM7) {
-        calcButtonM7.innerText = BTN_TEXT_CALCULATE;
+        calcButtonM7.innerText = getBtnTextCalculate();
         calcButtonM7.classList.remove('opacity-90', 'ring-2', 'ring-yellow-400', 'ring-offset-2');
     }
 }
@@ -133,7 +134,7 @@ function updateAndDisplayEfficienciesM7() {
 function initCompressorModelSelectorsM7() {
     // Populate brand dropdown (Mode 7: 使用m7的过滤器，因为逻辑相同)
     const brands = getFilteredBrands('m7');
-    compressorBrandM7.innerHTML = '<option value="">-- 选择品牌 --</option>';
+    compressorBrandM7.innerHTML = `<option value="">${i18next.t('common.selectBrand')}</option>`;
     brands.forEach(brand => {
         const option = document.createElement('option');
         option.value = brand;
@@ -144,8 +145,8 @@ function initCompressorModelSelectorsM7() {
     // Brand change handler
     compressorBrandM7.addEventListener('change', () => {
         const brand = compressorBrandM7.value;
-        compressorSeriesM7.innerHTML = '<option value="">-- 选择系列 --</option>';
-        compressorModelM7.innerHTML = '<option value="">-- 选择型号 --</option>';
+        compressorSeriesM7.innerHTML = `<option value="">${i18next.t('common.selectSeries')}</option>`;
+        compressorModelM7.innerHTML = `<option value="">${i18next.t('common.selectModel')}</option>`;
         compressorSeriesM7.disabled = !brand;
         compressorModelM7.disabled = true;
         modelDisplacementInfoM7.classList.add('hidden');
@@ -166,7 +167,7 @@ function initCompressorModelSelectorsM7() {
     compressorSeriesM7.addEventListener('change', () => {
         const brand = compressorBrandM7.value;
         const series = compressorSeriesM7.value;
-        compressorModelM7.innerHTML = '<option value="">-- 选择型号 --</option>';
+        compressorModelM7.innerHTML = `<option value="">${i18next.t('common.selectModel')}</option>`;
         compressorModelM7.disabled = !series;
         modelDisplacementInfoM7.classList.add('hidden');
 
@@ -1234,12 +1235,12 @@ function calculateMode7() {
             
             let html = `
                 <div class="grid grid-cols-2 gap-4 mb-6">
-                    ${createKpiCard('制冷量 (Cooling)', (Q_evap_W/1000).toFixed(2), 'kW', `COP: ${COP_R.toFixed(2)}`, 'blue')}
-                    ${createKpiCard('总供热 (Heating)', (Q_heating_total_W/1000).toFixed(2), 'kW', `COP: ${COP_H.toFixed(2)}`, 'orange')}
+                    ${createKpiCard(i18next.t('components.coolingCapacity'), (Q_evap_W/1000).toFixed(2), 'kW', `COP: ${COP_R.toFixed(2)}`, 'blue')}
+                    ${createKpiCard(i18next.t('components.heatingCapacity'), (Q_heating_total_W/1000).toFixed(2), 'kW', `COP: ${COP_H.toFixed(2)}`, 'orange')}
                 </div>
                 <div class="space-y-1 bg-white/40 p-4 rounded-2xl border border-white/50 shadow-inner">
-                    ${createSectionHeader('Power & Efficiency')}
-                    ${createDetailRow('Shaft Power', `${(W_shaft_W/1000).toFixed(2)} kW`, true)}
+                    ${createSectionHeader(i18next.t('components.powerAndEfficiency'))}
+                    ${createDetailRow(i18next.t('components.shaftPower'), `${(W_shaft_W/1000).toFixed(2)} kW`, true)}
                     ${createDetailRow('Oil Load', `${(Q_oil_W/1000).toFixed(2)} kW`)}
                     ${createDetailRow('Calc Logic', efficiency_info_text)}
                     ${createDetailRow('Volumetric Eff (η_v)', displayEtaV, AppState.currentMode === 'polynomial')}
@@ -1254,7 +1255,7 @@ function calculateMode7() {
             `;
 
             renderToAllViews(html);
-            updateMobileSummary('Cooling', `${(Q_evap_W/1000).toFixed(1)} kW`, 'COP', COP_R.toFixed(2));
+            updateMobileSummary(i18next.t('mode2.coolingCapacity'), `${(Q_evap_W/1000).toFixed(1)} kW`, 'COP', COP_R.toFixed(2));
             openMobileSheet('m7');
             
             // Update water flow display
@@ -1647,10 +1648,10 @@ function toggleChartTypeM7() {
     const toggleBtn = document.getElementById('chart-toggle-m7');
     const toggleBtnMobile = document.getElementById('chart-toggle-m7-mobile');
     if (toggleBtn) {
-        toggleBtn.textContent = newType === 'ph' ? '切换到 T-S 图' : '切换到 P-h 图';
+        toggleBtn.textContent = newType === 'ph' ? i18next.t('ui.switchToTS') : i18next.t('ui.switchToPH');
     }
     if (toggleBtnMobile) {
-        toggleBtnMobile.textContent = newType === 'ph' ? '切换到 T-S 图' : '切换到 P-h 图';
+        toggleBtnMobile.textContent = newType === 'ph' ? i18next.t('ui.switchToTS') : i18next.t('ui.switchToPH');
     }
 }
 

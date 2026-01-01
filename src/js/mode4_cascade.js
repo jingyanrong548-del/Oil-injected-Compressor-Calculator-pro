@@ -11,6 +11,7 @@ import { HistoryDB, SessionState } from './storage.js';
 import { openMobileSheet } from './ui.js';
 import { updateFluidInfo } from './coolprop_loader.js';
 import { calculateEmpiricalEfficiencies } from './efficiency_models.js';
+import i18next from './i18n.js';
 import { 
     getFilteredBrands,
     getFilteredSeriesByBrand,
@@ -43,16 +44,16 @@ let tempDischargeActualLt, tempDischargeActualHt;
 // 中间换热器
 let approachDtInput;
 
-const BTN_TEXT_CALCULATE = 'Calculate Cascade';
-const BTN_TEXT_RECALCULATE = 'Recalculate (Input Changed)';
+const getBtnTextCalculate = () => i18next.t('common.calculate');
+const getBtnTextRecalculate = () => i18next.t('common.recalculate');
 
 // ---------------------------------------------------------------------
 // Helper
 // ---------------------------------------------------------------------
 
 function setButtonStale4() {
-    if (calcButtonM4 && calcButtonM4.innerText !== BTN_TEXT_RECALCULATE) {
-        calcButtonM4.innerText = BTN_TEXT_RECALCULATE;
+    if (calcButtonM4 && calcButtonM4.innerText !== getBtnTextRecalculate()) {
+        calcButtonM4.innerText = getBtnTextRecalculate();
         calcButtonM4.classList.add('opacity-90', 'ring-2', 'ring-yellow-400', 'ring-offset-2');
         if (printButtonM4) {
             printButtonM4.disabled = true;
@@ -63,7 +64,7 @@ function setButtonStale4() {
 
 function setButtonFresh4() {
     if (calcButtonM4) {
-        calcButtonM4.innerText = BTN_TEXT_CALCULATE;
+        calcButtonM4.innerText = getBtnTextCalculate();
         calcButtonM4.classList.remove('opacity-90', 'ring-2', 'ring-yellow-400', 'ring-offset-2');
     }
 }
@@ -1503,7 +1504,7 @@ function calculateMode4() {
             const html = `
                 <div class="grid grid-cols-2 gap-4 mb-6">
                     ${createKpiCard('系统制冷量', (Q_evap_total_W / 1000).toFixed(2), 'kW', 'From Low Stage', 'blue')}
-                    ${createKpiCard('总轴功率', (W_shaft_total_W / 1000).toFixed(2), 'kW', 'Shaft Power', 'orange')}
+                    ${createKpiCard(i18next.t('components.totalShaftPower'), (W_shaft_total_W / 1000).toFixed(2), 'kW', i18next.t('components.shaftPower'), 'orange')}
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -1609,7 +1610,7 @@ function printReportMode4() {
 function initCompressorModelSelectorsM4Lt() {
     // Mode 4 LT (复叠压缩模式): 前川只保留N系列，其余品牌保留全部
     const brands = getFilteredBrands('m4');
-    compressorBrandLt.innerHTML = '<option value="">-- 选择品牌 --</option>';
+    compressorBrandLt.innerHTML = `<option value="">${i18next.t('common.selectBrand')}</option>`;
     brands.forEach(brand => {
         const option = document.createElement('option');
         option.value = brand;
@@ -1619,8 +1620,8 @@ function initCompressorModelSelectorsM4Lt() {
 
     compressorBrandLt.addEventListener('change', () => {
         const brand = compressorBrandLt.value;
-        compressorSeriesLt.innerHTML = '<option value="">-- 选择系列 --</option>';
-        compressorModelLt.innerHTML = '<option value="">-- 选择型号 --</option>';
+        compressorSeriesLt.innerHTML = `<option value="">${i18next.t('common.selectSeries')}</option>`;
+        compressorModelLt.innerHTML = `<option value="">${i18next.t('common.selectModel')}</option>`;
         compressorSeriesLt.disabled = !brand;
         compressorModelLt.disabled = true;
         modelDisplacementInfoLt.classList.add('hidden');
@@ -1640,7 +1641,7 @@ function initCompressorModelSelectorsM4Lt() {
     compressorSeriesLt.addEventListener('change', () => {
         const brand = compressorBrandLt.value;
         const series = compressorSeriesLt.value;
-        compressorModelLt.innerHTML = '<option value="">-- 选择型号 --</option>';
+        compressorModelLt.innerHTML = `<option value="">${i18next.t('common.selectModel')}</option>`;
         compressorModelLt.disabled = !series;
         modelDisplacementInfoLt.classList.add('hidden');
 
@@ -1683,7 +1684,7 @@ function initCompressorModelSelectorsM4Lt() {
 function initCompressorModelSelectorsM4Ht() {
     // Mode 4 HT (复叠压缩模式): 前川只保留N系列，其余品牌保留全部
     const brands = getFilteredBrands('m4');
-    compressorBrandHt.innerHTML = '<option value="">-- 选择品牌 --</option>';
+    compressorBrandHt.innerHTML = `<option value="">${i18next.t('common.selectBrand')}</option>`;
     brands.forEach(brand => {
         const option = document.createElement('option');
         option.value = brand;
@@ -1693,8 +1694,8 @@ function initCompressorModelSelectorsM4Ht() {
 
     compressorBrandHt.addEventListener('change', () => {
         const brand = compressorBrandHt.value;
-        compressorSeriesHt.innerHTML = '<option value="">-- 选择系列 --</option>';
-        compressorModelHt.innerHTML = '<option value="">-- 选择型号 --</option>';
+        compressorSeriesHt.innerHTML = `<option value="">${i18next.t('common.selectSeries')}</option>`;
+        compressorModelHt.innerHTML = `<option value="">${i18next.t('common.selectModel')}</option>`;
         compressorSeriesHt.disabled = !brand;
         compressorModelHt.disabled = true;
         modelDisplacementInfoHt.classList.add('hidden');
@@ -1714,7 +1715,7 @@ function initCompressorModelSelectorsM4Ht() {
     compressorSeriesHt.addEventListener('change', () => {
         const brand = compressorBrandHt.value;
         const series = compressorSeriesHt.value;
-        compressorModelHt.innerHTML = '<option value="">-- 选择型号 --</option>';
+        compressorModelHt.innerHTML = `<option value="">${i18next.t('common.selectModel')}</option>`;
         compressorModelHt.disabled = !series;
         modelDisplacementInfoHt.classList.add('hidden');
 

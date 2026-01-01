@@ -4,6 +4,7 @@
 // =====================================================================
 
 import * as echarts from 'echarts';
+import i18next from './i18n.js';
 
 const chartInstances = {};
 
@@ -19,27 +20,112 @@ const COLORS = {
     bgTooltip: 'rgba(255, 255, 255, 0.95)'
 };
 
-export function getChartInstance(domId) {
+export function getChartInstance(domId, silent = false) {
     const dom = document.getElementById(domId);
     if (!dom) return null;
+    
+    // 检查容器是否可见且有尺寸
+    const rect = dom.getBoundingClientRect();
+    const isVisible = rect.width > 0 && rect.height > 0 && 
+                      dom.offsetWidth > 0 && dom.offsetHeight > 0 &&
+                      !dom.classList.contains('hidden') &&
+                      getComputedStyle(dom).display !== 'none';
+    
+    if (!isVisible) {
+        // 如果容器不可见或尺寸为0，返回null，避免ECharts报错
+        // 对于移动端容器，静默跳过（silent=true时不输出警告）
+        if (!silent && !domId.includes('mobile')) {
+            console.warn(`[Charts] Container ${domId} is not visible or has zero size. Skipping chart initialization.`);
+        }
+        return null;
+    }
+    
     if (!chartInstances[domId]) {
-        chartInstances[domId] = echarts.init(dom, null, { renderer: 'canvas' });
-        window.addEventListener('resize', () => {
-            chartInstances[domId] && chartInstances[domId].resize();
-        });
+        try {
+            chartInstances[domId] = echarts.init(dom, null, { renderer: 'canvas' });
+            window.addEventListener('resize', () => {
+                if (chartInstances[domId]) {
+                    const container = document.getElementById(domId);
+                    if (container) {
+                        const rect = container.getBoundingClientRect();
+                        if (rect.width > 0 && rect.height > 0) {
+                            chartInstances[domId].resize();
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error(`[Charts] Failed to initialize chart for ${domId}:`, error);
+            return null;
+        }
     }
     return chartInstances[domId];
 }
 
 export function drawPHDiagram(domId, data) {
-    const chart = getChartInstance(domId);
-    if (!chart) return;
-
     const container = document.getElementById(domId);
-    if (container && container.classList.contains('hidden')) {
-        container.classList.remove('hidden');
-        chart.resize();
+    if (!container) {
+        // 对于移动端容器，静默跳过
+        if (!domId.includes('mobile')) {
+            console.warn(`[Charts] Container ${domId} not found`);
+        }
+        return;
     }
+    
+    // 检查是否为移动端容器
+    const isMobile = domId.includes('mobile');
+    
+    // 确保容器可见
+    if (container.classList.contains('hidden')) {
+        container.classList.remove('hidden');
+    }
+    
+    // 等待DOM更新后再初始化图表
+    setTimeout(() => {
+        // 对于移动端容器，如果不可见则静默跳过
+        const rect = container.getBoundingClientRect();
+        const isVisible = rect.width > 0 && rect.height > 0 && 
+                          container.offsetWidth > 0 && container.offsetHeight > 0 &&
+                          !container.classList.contains('hidden') &&
+                          getComputedStyle(container).display !== 'none';
+        
+        if (!isVisible) {
+            // 移动端容器可能在sheet未展开时不可见，这是正常的，静默跳过
+            if (!isMobile) {
+                console.warn(`[Charts] Container ${domId} is not visible, will retry when visible`);
+            }
+            // 对于移动端，如果sheet可能稍后会展开，延迟重试
+            if (isMobile) {
+                setTimeout(() => {
+                    const retryContainer = document.getElementById(domId);
+                    if (retryContainer) {
+                        const retryRect = retryContainer.getBoundingClientRect();
+                        if (retryRect.width > 0 && retryRect.height > 0) {
+                            const retryChart = getChartInstance(domId, true);
+                            if (retryChart) {
+                                drawPHDiagramInternal(retryChart, domId, data);
+                            }
+                        }
+                    }
+                }, 500);
+            }
+            return;
+        }
+        
+        const chart = getChartInstance(domId, isMobile);
+        if (!chart) {
+            // 移动端容器静默跳过
+            if (!isMobile) {
+                console.warn(`[Charts] Could not create chart instance for ${domId}`);
+            }
+            return;
+        }
+        
+        drawPHDiagramInternal(chart, domId, data);
+    }, 0);
+}
+
+function drawPHDiagramInternal(chart, domId, data) {
 
     const { 
         mainPoints, 
@@ -49,9 +135,9 @@ export function drawPHDiagram(domId, data) {
         economizerVaporPoints = [],  // 经济器循环（高压级ECO补气路）
         saturationLiquidPoints = [],
         saturationVaporPoints = [],
-        title = 'Thermodynamic Cycle',
-        xLabel = 'Enthalpy (kJ/kg)',
-        yLabel = 'Pressure (bar)'
+        title = i18next.t('charts.thermodynamicCycle'),
+        xLabel = i18next.t('charts.enthalpy'),
+        yLabel = i18next.t('charts.pressure')
     } = data;
 
     // Helper: Extract Y values for scaling
@@ -252,30 +338,87 @@ export function drawPHDiagram(domId, data) {
         animationEasing: 'cubicOut'
     };
 
-    chart.setOption(option, true); // 使用 notMerge=true 强制完全替换配置
-    chart.resize(); // 确保图表尺寸正确
+    try {
+        chart.setOption(option, true); // 使用 notMerge=true 强制完全替换配置
+        // 延迟resize，确保DOM已完全更新
+        setTimeout(() => {
+            const container = document.getElementById(domId);
+            if (container && chart) {
+                const rect = container.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                    chart.resize();
+                }
+            }
+        }, 50);
+    } catch (error) {
+        console.error(`[Charts] Error setting chart option for ${domId}:`, error);
+    }
 }
 
 export function drawTSDiagram(domId, data) {
     const container = document.getElementById(domId);
     if (!container) {
-        console.error(`Container ${domId} not found for T-S diagram`);
+        // 对于移动端容器，静默跳过
+        if (!domId.includes('mobile')) {
+            console.error(`Container ${domId} not found for T-S diagram`);
+        }
         return;
     }
+    
+    // 检查是否为移动端容器
+    const isMobile = domId.includes('mobile');
     
     // 确保容器可见
     if (container.classList.contains('hidden')) {
         container.classList.remove('hidden');
     }
     
-    const chart = getChartInstance(domId);
-    if (!chart) {
-        console.error(`Chart instance for ${domId} could not be created`);
-        return;
-    }
-    
-    // 如果容器刚被显示，需要调整图表大小
-    chart.resize();
+    // 等待DOM更新后再初始化图表
+    setTimeout(() => {
+        // 对于移动端容器，如果不可见则静默跳过
+        const rect = container.getBoundingClientRect();
+        const isVisible = rect.width > 0 && rect.height > 0 && 
+                          container.offsetWidth > 0 && container.offsetHeight > 0 &&
+                          !container.classList.contains('hidden') &&
+                          getComputedStyle(container).display !== 'none';
+        
+        if (!isVisible) {
+            // 移动端容器可能在sheet未展开时不可见，这是正常的，静默跳过
+            if (!isMobile) {
+                console.warn(`[Charts] Container ${domId} is not visible, will retry when visible`);
+            }
+            // 对于移动端，如果sheet可能稍后会展开，延迟重试
+            if (isMobile) {
+                setTimeout(() => {
+                    const retryContainer = document.getElementById(domId);
+                    if (retryContainer) {
+                        const retryRect = retryContainer.getBoundingClientRect();
+                        if (retryRect.width > 0 && retryRect.height > 0) {
+                            const retryChart = getChartInstance(domId, true);
+                            if (retryChart) {
+                                drawTSDiagramInternal(retryChart, domId, data);
+                            }
+                        }
+                    }
+                }, 500);
+            }
+            return;
+        }
+        
+        const chart = getChartInstance(domId, isMobile);
+        if (!chart) {
+            // 移动端容器静默跳过
+            if (!isMobile) {
+                console.warn(`[Charts] Could not create chart instance for ${domId}`);
+            }
+            return;
+        }
+        
+        drawTSDiagramInternal(chart, domId, data);
+    }, 0);
+}
+
+function drawTSDiagramInternal(chart, domId, data) {
 
     const { 
         mainPoints, 
@@ -465,12 +608,37 @@ export function drawTSDiagram(domId, data) {
         animationEasing: 'cubicOut'
     };
 
-    chart.setOption(option, true); // 使用 notMerge=true 强制完全替换配置
-    chart.resize(); // 确保图表尺寸正确
+    try {
+        chart.setOption(option, true); // 使用 notMerge=true 强制完全替换配置
+        // 延迟resize，确保DOM已完全更新
+        setTimeout(() => {
+            const container = document.getElementById(domId);
+            if (container && chart) {
+                const rect = container.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                    chart.resize();
+                }
+            }
+        }, 50);
+    } catch (error) {
+        console.error(`[Charts] Error setting chart option for ${domId}:`, error);
+    }
 }
 
 export function resizeAllCharts() {
-    Object.keys(chartInstances).forEach(id => chartInstances[id].resize());
+    Object.keys(chartInstances).forEach(id => {
+        const container = document.getElementById(id);
+        if (container && chartInstances[id]) {
+            const rect = container.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+                try {
+                    chartInstances[id].resize();
+                } catch (error) {
+                    console.warn(`[Charts] Error resizing chart ${id}:`, error);
+                }
+            }
+        }
+    });
 }
 
 // =====================================================================
@@ -954,7 +1122,7 @@ export function drawSystemDiagramM7(domId, nodeData) {
     // 制冷剂图例
     const refLegendRect = createRect(legendX, legendY, 18, 12, refColor, refColor, 0);
     svg.appendChild(refLegendRect);
-    const refLegendText = createText(legendX + 22, legendY + 4, '制冷剂 (R717)', 9);
+    const refLegendText = createText(legendX + 22, legendY + 4, i18next.t('ui.refrigerantR717'), 9);
     svg.appendChild(refLegendText);
     
     // 热水图例

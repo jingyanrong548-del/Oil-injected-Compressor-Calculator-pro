@@ -14,39 +14,44 @@
         
         <header class="relative mb-8 pt-2 flex items-center justify-center">
             <div class="text-center">
-                <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-2 drop-shadow-sm">Oil-injected Compressor Calculator</h1>
+                <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-2 drop-shadow-sm" data-i18n="common.appTitle">Oil-injected Compressor Calculator</h1>
                 <p class="text-xs md:text-sm font-medium text-ios-text-secondary uppercase tracking-widest version-display" data-version>OCC Pro v7.2.1</p>
             </div>
             
-            <button id="history-btn" class="absolute right-0 top-2 z-50 p-2.5 rounded-full bg-white/60 hover:bg-white text-gray-600 hover:text-teal-600 shadow-sm transition-all active:scale-90 backdrop-blur-md border border-white/40 cursor-pointer group" title="History">
-                <svg class="w-6 h-6 group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            </button>
+            <div class="absolute right-0 top-2 z-50 flex items-center gap-2">
+                <button id="lang-btn" class="p-2.5 rounded-full bg-white/60 hover:bg-white text-gray-600 hover:text-teal-600 shadow-sm transition-all active:scale-90 backdrop-blur-md border border-white/40 cursor-pointer group" title="Language" data-i18n-attr="title" data-i18n="common.language">
+                    <span class="text-sm font-bold">CN</span>
+                </button>
+                <button id="history-btn" class="p-2.5 rounded-full bg-white/60 hover:bg-white text-gray-600 hover:text-teal-600 shadow-sm transition-all active:scale-90 backdrop-blur-md border border-white/40 cursor-pointer group" title="History" data-i18n-attr="title" data-i18n="common.history">
+                    <svg class="w-6 h-6 group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </button>
+            </div>
         </header>
         
         <!-- 主导航 -->
         <nav class="max-w-md mx-auto mb-6 sticky top-2 z-30">
             <div class="glass-panel p-1 rounded-xl flex shadow-glass-hover backdrop-blur-md">
-                <button id="tab-btn-refrig" class="flex-1 py-2.5 rounded-[10px] text-sm font-bold transition-all duration-300 ease-ios text-white bg-teal-500 shadow-md ring-2 ring-teal-400">制冷热泵</button>
-                <button id="tab-btn-gas" class="flex-1 py-2.5 rounded-[10px] text-sm font-semibold transition-all duration-300 ease-ios text-gray-600 bg-white hover:text-gray-900 hover:bg-white/50">气体压缩</button>
+                <button id="tab-btn-refrig" class="flex-1 py-2.5 rounded-[10px] text-sm font-bold transition-all duration-300 ease-ios text-white bg-teal-500 shadow-md ring-2 ring-teal-400" data-i18n="nav.refrigeration">制冷热泵</button>
+                <button id="tab-btn-gas" class="flex-1 py-2.5 rounded-[10px] text-sm font-semibold transition-all duration-300 ease-ios text-gray-600 bg-white hover:text-gray-900 hover:bg-white/50" data-i18n="nav.gasCompression">气体压缩</button>
             </div>
         </nav>
 
         <!-- 子导航（仅在制冷热泵模式下显示） -->
         <nav id="refrig-sub-nav" class="max-w-md mx-auto mb-10 sticky top-16 z-30">
             <div class="glass-panel p-1 rounded-xl flex shadow-glass-hover backdrop-blur-md">
-                <button id="sub-tab-btn-m2" class="flex-1 py-2.5 rounded-[10px] text-sm font-bold transition-all duration-300 ease-ios text-white bg-teal-500 shadow-md ring-2 ring-teal-400">单级</button>
-                <button id="sub-tab-btn-m4" class="flex-1 py-2.5 rounded-[10px] text-sm font-semibold transition-all duration-300 ease-ios text-gray-600 bg-white hover:text-gray-900 hover:bg-white/50">复叠</button>
-                <button id="sub-tab-btn-m5" class="flex-1 py-2.5 rounded-[10px] text-sm font-semibold transition-all duration-300 ease-ios text-gray-600 bg-white hover:text-gray-900 hover:bg-white/50">单机双级</button>
-                <button id="sub-tab-btn-m6" class="flex-1 py-2.5 rounded-[10px] text-sm font-semibold transition-all duration-300 ease-ios text-gray-600 bg-white hover:text-gray-900 hover:bg-white/50">双机双级</button>
-                <button id="sub-tab-btn-m7" class="flex-1 py-2.5 rounded-[10px] text-sm font-semibold transition-all duration-300 ease-ios text-gray-600 bg-white hover:text-gray-900 hover:bg-white/50">氨热泵</button>
+                <button id="sub-tab-btn-m2" class="flex-1 py-2.5 rounded-[10px] text-sm font-bold transition-all duration-300 ease-ios text-white bg-teal-500 shadow-md ring-2 ring-teal-400" data-i18n="nav.singleStage">单级</button>
+                <button id="sub-tab-btn-m4" class="flex-1 py-2.5 rounded-[10px] text-sm font-semibold transition-all duration-300 ease-ios text-gray-600 bg-white hover:text-gray-900 hover:bg-white/50" data-i18n="nav.cascade">复叠</button>
+                <button id="sub-tab-btn-m5" class="flex-1 py-2.5 rounded-[10px] text-sm font-semibold transition-all duration-300 ease-ios text-gray-600 bg-white hover:text-gray-900 hover:bg-white/50" data-i18n="nav.twoStageSingle">单机双级</button>
+                <button id="sub-tab-btn-m6" class="flex-1 py-2.5 rounded-[10px] text-sm font-semibold transition-all duration-300 ease-ios text-gray-600 bg-white hover:text-gray-900 hover:bg-white/50" data-i18n="nav.twoStageDouble">双机双级</button>
+                <button id="sub-tab-btn-m7" class="flex-1 py-2.5 rounded-[10px] text-sm font-semibold transition-all duration-300 ease-ios text-gray-600 bg-white hover:text-gray-900 hover:bg-white/50" data-i18n="nav.ammoniaHeatpump">氨热泵</button>
             </div>
         </nav>
 
         <!-- 子导航（仅在气体压缩模式下显示） -->
         <nav id="gas-sub-nav" class="max-w-md mx-auto mb-10 sticky top-16 z-30 hidden">
             <div class="glass-panel p-1 rounded-xl flex shadow-glass-hover backdrop-blur-md">
-                <button id="sub-tab-btn-m3" class="flex-1 py-2.5 rounded-[10px] text-sm font-bold transition-all duration-300 ease-ios text-white bg-orange-500 shadow-md ring-2 ring-orange-400">单级</button>
-                <button id="sub-tab-btn-m3-two-stage" class="flex-1 py-2.5 rounded-[10px] text-sm font-semibold transition-all duration-300 ease-ios text-gray-600 bg-white hover:text-gray-900 hover:bg-white/50">双级</button>
+                <button id="sub-tab-btn-m3" class="flex-1 py-2.5 rounded-[10px] text-sm font-bold transition-all duration-300 ease-ios text-white bg-orange-500 shadow-md ring-2 ring-orange-400" data-i18n="nav.singleStage">单级</button>
+                <button id="sub-tab-btn-m3-two-stage" class="flex-1 py-2.5 rounded-[10px] text-sm font-semibold transition-all duration-300 ease-ios text-gray-600 bg-white hover:text-gray-900 hover:bg-white/50" data-i18n="nav.twoStage">双级</button>
             </div>
         </nav>
 
@@ -110,25 +115,25 @@
                                 <div class="bg-gray-100/80 p-1 rounded-xl flex shadow-inner-ios">
                                     <label class="flex-1 cursor-pointer">
                                         <input type="radio" name="flow_mode_m3" value="rpm" class="peer sr-only" checked>
-                                        <div class="py-2 text-xs font-semibold text-gray-500 text-center rounded-[8px] transition-all peer-checked:bg-white peer-checked:text-gray-900 peer-checked:shadow-sm">转速模式</div>
+                                        <div class="py-2 text-xs font-semibold text-gray-500 text-center rounded-[8px] transition-all peer-checked:bg-white peer-checked:text-gray-900 peer-checked:shadow-sm" data-i18n="mode3.rpmMode">转速模式</div>
                                     </label>
                                     <label class="flex-1 cursor-pointer">
                                         <input type="radio" name="flow_mode_m3" value="vol" class="peer sr-only">
-                                        <div class="py-2 text-xs font-semibold text-gray-500 text-center rounded-[8px] transition-all peer-checked:bg-white peer-checked:text-gray-900 peer-checked:shadow-sm">流量模式</div>
+                                        <div class="py-2 text-xs font-semibold text-gray-500 text-center rounded-[8px] transition-all peer-checked:bg-white peer-checked:text-gray-900 peer-checked:shadow-sm" data-i18n="mode3.flowMode">流量模式</div>
                                     </label>
                                 </div>
 
                                 <div class="bg-blue-50/50 rounded-xl p-4 border border-blue-100/50 mb-5">
                                     <div class="flex items-center gap-2 mb-3">
                                         <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
-                                        <label class="text-xs font-bold text-blue-700">压缩机型号选择</label>
+                                        <label class="text-xs font-bold text-blue-700" data-i18n="mode2.compressorBrand">压缩机型号选择</label>
                                     </div>
                                     <div class="grid grid-cols-3 gap-3">
                                         <div>
-                                            <label class="block text-[10px] text-gray-500 mb-1 ml-1">品牌</label>
+                                            <label class="block text-[10px] text-gray-500 mb-1 ml-1" data-i18n="mode2.brand">品牌</label>
                                             <div class="relative">
                                                 <select id="compressor_brand_m3" class="block w-full appearance-none bg-white border-0 rounded-lg py-2 px-3 text-xs text-gray-900 font-medium ring-1 ring-blue-100 focus:ring-2 focus:ring-blue-500 transition-all">
-                                                    <option value="">-- 选择品牌 --</option>
+                                                    <option value="" data-i18n="common.selectBrand">-- 选择品牌 --</option>
                                                 </select>
                                                 <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
                                                     <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
@@ -136,10 +141,10 @@
                                             </div>
                                         </div>
                                         <div>
-                                            <label class="block text-[10px] text-gray-500 mb-1 ml-1">系列</label>
+                                            <label class="block text-[10px] text-gray-500 mb-1 ml-1" data-i18n="mode2.series">系列</label>
                                             <div class="relative">
                                                 <select id="compressor_series_m3" class="block w-full appearance-none bg-white border-0 rounded-lg py-2 px-3 text-xs text-gray-900 font-medium ring-1 ring-blue-100 focus:ring-2 focus:ring-blue-500 transition-all" disabled>
-                                                    <option value="">-- 选择系列 --</option>
+                                                    <option value="" data-i18n="common.selectSeries">-- 选择系列 --</option>
                                                 </select>
                                                 <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
                                                     <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
@@ -147,10 +152,10 @@
                                             </div>
                                         </div>
                                         <div>
-                                            <label class="block text-[10px] text-gray-500 mb-1 ml-1">型号</label>
+                                            <label class="block text-[10px] text-gray-500 mb-1 ml-1" data-i18n="mode2.model">型号</label>
                                             <div class="relative">
                                                 <select id="compressor_model_m3" class="block w-full appearance-none bg-white border-0 rounded-lg py-2 px-3 text-xs text-gray-900 font-medium ring-1 ring-blue-100 focus:ring-2 focus:ring-blue-500 transition-all" disabled>
-                                                    <option value="">-- 选择型号 --</option>
+                                                    <option value="" data-i18n="common.selectModel">-- 选择型号 --</option>
                                                 </select>
                                                 <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
                                                     <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
@@ -159,30 +164,30 @@
                                         </div>
                                     </div>
                                     <div id="model_displacement_info_m3" class="mt-2 text-[10px] text-blue-600 font-mono px-1 hidden">
-                                        <span class="font-bold">理论排量:</span> <span id="model_displacement_value_m3">--</span> m³/h
+                                        <span class="font-bold" data-i18n="mode2.theoreticalDisplacement">理论排量:</span> <span id="model_displacement_value_m3">--</span> m³/h
                                     </div>
                                     <div class="mt-2 text-[9px] text-amber-600 px-1 leading-relaxed">
-                                        <span class="font-semibold">⚠️ 备注：</span>请参考该压缩机的技术手册或咨询技术人员确认应用范围与实际参数。
+                                        <span class="font-semibold" data-i18n="mode2.note">⚠️ 备注：</span><span data-i18n="mode2.noteText">请参考该压缩机的技术手册或咨询技术人员确认应用范围与实际参数。</span>
                                     </div>
                                 </div>
                                 <div id="rpm-inputs-m3" class="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label class="block text-xs text-gray-500 mb-1 ml-1">运行转速 (RPM)</label>
+                                        <label class="block text-xs text-gray-500 mb-1 ml-1" data-i18n="mode3.runningRpm">运行转速 (RPM)</label>
                                         <input type="number" id="rpm_m3" value="2900" step="any" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium bg-gray-50/50" required>
                                     </div>
                                     <div>
-                                        <label class="block text-xs text-gray-500 mb-1 ml-1">排量 (cm³/rev)</label>
+                                        <label class="block text-xs text-gray-500 mb-1 ml-1" data-i18n="mode3.displacement">排量 (cm³/rev)</label>
                                         <input type="number" id="displacement_m3" value="437.5" step="any" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium bg-gray-50/50" required>
                                     </div>
                                 </div>
                                 
                                 <div id="vsd-inputs-m3" class="hidden">
-                                    <label class="block text-xs text-indigo-600 mb-1 ml-1 font-bold">额定转速 (Rated RPM)</label>
+                                    <label class="block text-xs text-indigo-600 mb-1 ml-1 font-bold" data-i18n="mode3.ratedRpm">额定转速 (Rated RPM)</label>
                                     <input type="number" id="rated_rpm_m3" value="2900" step="any" class="glass-input block w-full rounded-xl py-2 px-3 text-indigo-900 font-medium bg-indigo-50/50 border-indigo-100">
                                 </div>
 
                                 <div id="vol-inputs-m3" style="display: none;">
-                                    <label class="block text-xs text-gray-500 mb-1 ml-1">理论流量 (m³/h)</label>
+                                    <label class="block text-xs text-gray-500 mb-1 ml-1" data-i18n="mode3.theoreticalFlow">理论流量 (m³/h)</label>
                                     <input type="number" id="flow_m3h_m3" value="100" step="any" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium bg-gray-50/50">
                                 </div>
                             </div>
@@ -193,19 +198,19 @@
                                 <div class="w-8 h-8 rounded-xl bg-purple-100 flex items-center justify-center text-purple-600 shadow-sm">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
                                 </div>
-                                <h3 class="text-base font-bold text-gray-900">压力与温度</h3>
+                                <h3 class="text-base font-bold text-gray-900" data-i18n="mode3.pressureAndTemp">压力与温度</h3>
                             </div>
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-xs text-gray-500 mb-1 ml-1">吸气压力 (bar a)</label>
+                                    <label class="block text-xs text-gray-500 mb-1 ml-1" data-i18n="mode3.suctionPress">吸气压力 (bar a)</label>
                                     <input type="number" id="press_in_m3" value="1.0" step="any" class="glass-input block w-full rounded-xl py-2.5 px-3 text-gray-900 font-medium" required>
                                 </div>
                                 <div>
-                                    <label class="block text-xs text-gray-500 mb-1 ml-1">吸气温度 (°C)</label>
+                                    <label class="block text-xs text-gray-500 mb-1 ml-1" data-i18n="mode3.suctionTemp">吸气温度 (°C)</label>
                                     <input type="number" id="temp_in_m3" value="25" step="any" class="glass-input block w-full rounded-xl py-2.5 px-3 text-gray-900 font-medium" required>
                                 </div>
                                 <div class="col-span-2">
-                                    <label class="block text-xs text-gray-500 mb-1 ml-1">排气压力 (bar a)</label>
+                                    <label class="block text-xs text-gray-500 mb-1 ml-1" data-i18n="mode3.dischargePress">排气压力 (bar a)</label>
                                     <input type="number" id="press_out_m3" value="8.0" step="any" class="glass-input block w-full rounded-xl py-2.5 px-3 text-gray-900 font-medium" required>
                                 </div>
                             </div>
@@ -217,10 +222,10 @@
                                     <div class="w-8 h-8 rounded-xl bg-pink-100 flex items-center justify-center text-pink-600 shadow-sm">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                     </div>
-                                    <h3 class="text-base font-bold text-gray-900">效率设定</h3>
+                                    <h3 class="text-base font-bold text-gray-900" data-i18n="mode3.efficiency">效率设定</h3>
                                 </div>
                                 <div class="flex items-center">
-                                    <span class="mr-2 text-xs font-medium text-gray-500">Auto</span>
+                                    <span class="mr-2 text-xs font-medium text-gray-500" data-i18n="mode3.auto">Auto</span>
                                     <label class="relative inline-flex items-center cursor-pointer">
                                         <input type="checkbox" id="auto-eff-m3" class="sr-only peer">
                                         <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all after:shadow-sm peer-checked:bg-indigo-500 transition-colors duration-300 ease-ios"></div>
@@ -231,11 +236,11 @@
                                 <div class="bg-gray-100/80 p-1 rounded-xl flex shadow-inner-ios">
                                     <label class="flex-1 cursor-pointer">
                                         <input type="radio" name="eff_mode_m3" value="shaft" class="peer sr-only" checked>
-                                        <div class="py-1.5 text-xs font-semibold text-gray-500 text-center rounded-[8px] transition-all peer-checked:bg-white peer-checked:text-indigo-600 peer-checked:shadow-sm">轴功率</div>
+                                        <div class="py-1.5 text-xs font-semibold text-gray-500 text-center rounded-[8px] transition-all peer-checked:bg-white peer-checked:text-indigo-600 peer-checked:shadow-sm" data-i18n="mode3.shaftPower">轴功率</div>
                                     </label>
                                     <label class="flex-1 cursor-pointer">
                                         <input type="radio" name="eff_mode_m3" value="input" class="peer sr-only">
-                                        <div class="py-1.5 text-xs font-semibold text-gray-500 text-center rounded-[8px] transition-all peer-checked:bg-white peer-checked:text-indigo-600 peer-checked:shadow-sm">输入功率</div>
+                                        <div class="py-1.5 text-xs font-semibold text-gray-500 text-center rounded-[8px] transition-all peer-checked:bg-white peer-checked:text-indigo-600 peer-checked:shadow-sm" data-i18n="mode3.inputPower">输入功率</div>
                                     </label>
                                 </div>
                             </div>
@@ -243,30 +248,30 @@
                                 <div class="bg-gray-100/80 p-1 rounded-xl flex shadow-inner-ios">
                                     <label class="flex-1 cursor-pointer">
                                         <input type="radio" name="eff_type_m3" value="isothermal" class="peer sr-only" checked>
-                                        <div class="py-1.5 text-xs font-semibold text-gray-500 text-center rounded-[8px] transition-all peer-checked:bg-white peer-checked:text-pink-600 peer-checked:shadow-sm">等温 (Iso-T)</div>
+                                        <div class="py-1.5 text-xs font-semibold text-gray-500 text-center rounded-[8px] transition-all peer-checked:bg-white peer-checked:text-pink-600 peer-checked:shadow-sm" data-i18n="mode3.isothermal">等温 (Iso-T)</div>
                                     </label>
                                     <label class="flex-1 cursor-pointer">
                                         <input type="radio" name="eff_type_m3" value="isentropic" class="peer sr-only">
-                                        <div class="py-1.5 text-xs font-semibold text-gray-500 text-center rounded-[8px] transition-all peer-checked:bg-white peer-checked:text-pink-600 peer-checked:shadow-sm">等熵 (Iso-S)</div>
+                                        <div class="py-1.5 text-xs font-semibold text-gray-500 text-center rounded-[8px] transition-all peer-checked:bg-white peer-checked:text-pink-600 peer-checked:shadow-sm" data-i18n="mode3.isentropic">等熵 (Iso-S)</div>
                                     </label>
                                 </div>
                             </div>
                             <div class="grid grid-cols-2 gap-4 mb-4">
                                 <div>
-                                    <label id="eta_label_m3" class="block text-xs text-gray-500 mb-1 ml-1">效率数值</label>
+                                    <label id="eta_label_m3" class="block text-xs text-gray-500 mb-1 ml-1" data-i18n="mode3.efficiencyValue">效率数值</label>
                                     <input type="number" id="eta_iso_m3" value="0.75" step="any" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium">
                                 </div>
                                 <div>
-                                    <label class="block text-xs text-gray-500 mb-1 ml-1">容积效率 η_v</label>
+                                    <label class="block text-xs text-gray-500 mb-1 ml-1" data-i18n="mode3.volumetricEfficiency">容积效率 η_v</label>
                                     <input type="number" id="eta_v_m3" value="0.95" step="any" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium">
                                 </div>
                             </div>
                             <div id="motor-eff-group-m3" class="mb-5" style="display: none;">
-                                <label class="block text-xs text-gray-500 mb-1 ml-1">电机效率 η_motor</label>
+                                <label class="block text-xs text-gray-500 mb-1 ml-1" data-i18n="mode3.motorEfficiency">电机效率 η_motor</label>
                                 <input type="number" id="motor_eff_m3" value="0.95" step="any" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium">
                             </div>
                             <div class="pt-4 border-t border-gray-100/50">
-                                <label class="block text-xs font-bold text-indigo-600 mb-1 ml-1">预估实际排气温度 T2a (°C)</label>
+                                <label class="block text-xs font-bold text-indigo-600 mb-1 ml-1" data-i18n="mode3.estimatedDischargeTemp">预估实际排气温度 T2a (°C)</label>
                                 <input type="number" id="temp_discharge_actual_m3" value="85" step="any" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-bold bg-indigo-50/50 border-indigo-100 focus:ring-indigo-200">
                             </div>
                         </div>
@@ -277,7 +282,7 @@
                                     <div class="w-8 h-8 rounded-xl bg-cyan-100 flex items-center justify-center text-cyan-600 shadow-sm">
                                         <span class="font-bold text-xs">AC</span>
                                     </div>
-                                    <h3 class="text-base font-bold text-gray-900">后冷却器</h3>
+                                    <h3 class="text-base font-bold text-gray-900" data-i18n="mode3.aftercooler">后冷却器</h3>
                                 </div>
                                 <label class="relative inline-flex items-center cursor-pointer">
                                     <input type="checkbox" id="enable_aftercooler_m3" class="sr-only peer">
@@ -288,7 +293,7 @@
                             <div id="ac-settings-m3" class="hidden space-y-5 relative z-10 animate-fade-in">
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label class="block text-xs text-gray-500 mb-1 ml-1">目标排气温 (°C)</label>
+                                        <label class="block text-xs text-gray-500 mb-1 ml-1" data-i18n="mode3.targetDischargeTemp">目标排气温 (°C)</label>
                                         <input type="number" id="temp_aftercooler_target_m3" value="40" step="any" class="glass-input block w-full rounded-xl py-2 px-3 text-gray-900 font-medium">
                                     </div>
                                     <div>
@@ -322,13 +327,13 @@
                                 <div id="results-desktop-m3">
                                     <div class="flex flex-col items-center justify-center h-full text-gray-400 space-y-4 opacity-60">
                                         <svg class="w-16 h-16 stroke-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                                        <p class="text-sm font-medium">Ready to calculate</p>
+                                        <p class="text-sm font-medium" data-i18n="ui.readyToCalculate">Ready to calculate</p>
                                     </div>
                                 </div>
                             </div>
                             <div class="p-4 bg-white/50 border-t border-white/60">
                                 <button type="button" id="print-button-mode-3" class="w-full bg-white border border-gray-200 text-gray-700 font-semibold py-3 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition-colors shadow-sm flex items-center justify-center" disabled>
-                                    Export Report
+                                    <span data-i18n="ui.exportReport">Export Report</span>
                                 </button>
                             </div>
                         </div>
@@ -341,7 +346,7 @@
                             <div class="absolute top-3 left-1/2 transform -translate-x-1/2 w-12 h-1.5 bg-gray-300 rounded-full"></div>
                             <div class="px-6 pt-7 flex items-center justify-between" id="mobile-summary-m3">
                                 <div>
-                                    <p class="text-[10px] text-gray-500 uppercase tracking-wider font-bold">Shaft Power</p>
+                                    <p class="text-[10px] text-gray-500 uppercase tracking-wider font-bold" data-i18n="mode3.shaftPowerLabel">Shaft Power</p>
                                     <p class="text-xl font-bold text-gray-900">- kW</p>
                                 </div>
                                 <div class="text-right">
@@ -354,12 +359,12 @@
                             <div id="chart-mobile-m3" class="w-full h-64 bg-white/40 rounded-xl mb-4 hidden border border-white/20"></div>
                             <div id="mobile-results-m3">
                                 <div class="text-center text-gray-400 py-10">
-                                    <p class="text-sm">Pull up for details</p>
+                                    <p class="text-sm" data-i18n="ui.pullUpForDetails">Pull up for details</p>
                                 </div>
                             </div>
                         </div>
                          <div class="p-4 bg-white border-t border-gray-100 safe-area-bottom">
-                            <button type="button" id="mobile-close-m3" class="w-full bg-gray-100 text-gray-800 font-bold py-3 rounded-xl">Close Report</button>
+                            <button type="button" id="mobile-close-m3" class="w-full bg-gray-100 text-gray-800 font-bold py-3 rounded-xl" data-i18n="ui.closeReport">Close Report</button>
                         </div>
                     </div>
                 </div>
@@ -708,13 +713,13 @@
                                 <div id="results-desktop-m3-two-stage">
                                     <div class="flex flex-col items-center justify-center h-full text-gray-400 space-y-4 opacity-60">
                                         <svg class="w-16 h-16 stroke-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                                        <p class="text-sm font-medium">Ready to calculate</p>
+                                        <p class="text-sm font-medium" data-i18n="ui.readyToCalculate">Ready to calculate</p>
                                     </div>
                                 </div>
                             </div>
                             <div class="p-4 bg-white/50 border-t border-white/60">
                                 <button type="button" id="print-button-mode-3-two-stage" class="w-full bg-white border border-gray-200 text-gray-700 font-semibold py-3 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition-colors shadow-sm flex items-center justify-center" disabled>
-                                    Export Report
+                                    <span data-i18n="ui.exportReport">Export Report</span>
                                 </button>
                             </div>
                         </div>
@@ -740,12 +745,12 @@
                             <div id="chart-mobile-m3-two-stage" class="w-full h-64 bg-white/40 rounded-xl mb-4 hidden border border-white/20"></div>
                             <div id="mobile-results-m3-two-stage">
                                 <div class="text-center text-gray-400 py-10">
-                                    <p class="text-sm">Pull up for details</p>
+                                    <p class="text-sm" data-i18n="ui.pullUpForDetails">Pull up for details</p>
                                 </div>
                             </div>
                         </div>
                          <div class="p-4 bg-white border-t border-gray-100 safe-area-bottom">
-                            <button type="button" id="mobile-close-m3-two-stage" class="w-full bg-gray-100 text-gray-800 font-bold py-3 rounded-xl">Close Report</button>
+                            <button type="button" id="mobile-close-m3-two-stage" class="w-full bg-gray-100 text-gray-800 font-bold py-3 rounded-xl" data-i18n="ui.closeReport">Close Report</button>
                         </div>
                     </div>
                 </div>
@@ -1173,14 +1178,14 @@
                             <div class="flex-grow p-6 overflow-y-auto bg-white/30 space-y-4">
                                 <div class="flex justify-end mb-2">
                                     <button type="button" id="chart-toggle-m2" class="text-xs px-3 py-1.5 bg-white/60 hover:bg-white text-gray-700 font-medium rounded-lg border border-gray-200 transition-colors">
-                                        切换到 T-S 图
+                                        <span data-i18n="ui.switchToTS">切换到 T-S 图</span>
                                     </button>
                                 </div>
                                 <div id="chart-desktop-m2" class="w-full h-64 bg-white/40 rounded-xl mb-4 hidden border border-white/20"></div>
                                 <div id="results-desktop-m2">
                                     <div class="flex flex-col items-center justify-center h-32 text-gray-400 space-y-4 opacity-60">
                                         <svg class="w-12 h-12 stroke-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                                        <p class="text-sm font-medium">Ready to calculate</p>
+                                        <p class="text-sm font-medium" data-i18n="ui.readyToCalculate">Ready to calculate</p>
                                     </div>
                                 </div>
                             </div>
@@ -1217,12 +1222,12 @@
                             <div id="chart-mobile-m2" class="w-full h-64 bg-white/40 rounded-xl mb-4 hidden border border-white/20"></div>
                             <div id="mobile-results-m2">
                                 <div class="text-center text-gray-400 py-10">
-                                    <p class="text-sm">Pull up for details</p>
+                                    <p class="text-sm" data-i18n="ui.pullUpForDetails">Pull up for details</p>
                                 </div>
                             </div>
                         </div>
                          <div class="p-4 bg-white border-t border-gray-100 safe-area-bottom">
-                            <button type="button" id="mobile-close-m2" class="w-full bg-gray-100 text-gray-800 font-bold py-3 rounded-xl">Close Report</button>
+                            <button type="button" id="mobile-close-m2" class="w-full bg-gray-100 text-gray-800 font-bold py-3 rounded-xl" data-i18n="ui.closeReport">Close Report</button>
                         </div>
                     </div>
                 </div>
@@ -1620,7 +1625,7 @@
                             </div>
                             <div class="p-4 bg-white/50 border-t border-white/60">
                                 <button type="button" id="print-button-mode-4" class="w-full bg-white border border-gray-200 text-gray-700 font-semibold py-3 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition-colors shadow-sm flex items-center justify-center" disabled>
-                                    Export Report
+                                    <span data-i18n="ui.exportReport">Export Report</span>
                                 </button>
                             </div>
                         </div>
@@ -1659,7 +1664,7 @@
                             </div>
                         </div>
                         <div class="p-4 bg-white border-t border-gray-100 safe-area-bottom">
-                            <button type="button" id="mobile-close-m4" class="w-full bg-gray-100 text-gray-800 font-bold py-3 rounded-xl">Close Report</button>
+                            <button type="button" id="mobile-close-m4" class="w-full bg-gray-100 text-gray-800 font-bold py-3 rounded-xl" data-i18n="ui.closeReport">Close Report</button>
                         </div>
                     </div>
                 </div>
@@ -1918,7 +1923,7 @@
                                 <div class="grid grid-cols-1 gap-4">
                                     <div class="flex justify-end mb-2">
                                         <button type="button" id="chart-toggle-m5" class="text-xs px-3 py-1.5 bg-white/60 hover:bg-white text-gray-700 font-medium rounded-lg border border-gray-200 transition-colors">
-                                            切换到 T-S 图
+                                            <span data-i18n="ui.switchToTS">切换到 T-S 图</span>
                                         </button>
                                     </div>
                                     <div id="chart-desktop-m5" class="w-full h-56 bg-white/40 rounded-xl hidden border border-white/20"></div>
@@ -1932,7 +1937,7 @@
                             </div>
                             <div class="p-4 bg-white/50 border-t border-white/60">
                                 <button type="button" id="print-button-mode-5" class="w-full bg-white border border-gray-200 text-gray-700 font-semibold py-3 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition-colors shadow-sm flex items-center justify-center" disabled>
-                                    Export Report
+                                    <span data-i18n="ui.exportReport">Export Report</span>
                                 </button>
                             </div>
                         </div>
@@ -1959,7 +1964,7 @@
                             <div class="grid grid-cols-1 gap-4 mb-4">
                                 <div class="flex justify-end mb-2">
                                     <button type="button" id="chart-toggle-m5-mobile" class="text-xs px-3 py-1.5 bg-white/60 hover:bg-white text-gray-700 font-medium rounded-lg border border-gray-200 transition-colors">
-                                        切换到 T-S 图
+                                        <span data-i18n="ui.switchToTS">切换到 T-S 图</span>
                                     </button>
                                 </div>
                                 <div id="chart-mobile-m5" class="w-full h-56 bg-white/40 rounded-xl hidden border border-white/20"></div>
@@ -1971,7 +1976,7 @@
                             </div>
                         </div>
                         <div class="p-4 bg-white border-t border-gray-100 safe-area-bottom">
-                            <button type="button" id="mobile-close-m5" class="w-full bg-gray-100 text-gray-800 font-bold py-3 rounded-xl">Close Report</button>
+                            <button type="button" id="mobile-close-m5" class="w-full bg-gray-100 text-gray-800 font-bold py-3 rounded-xl" data-i18n="ui.closeReport">Close Report</button>
                         </div>
                     </div>
                 </div>
@@ -2354,7 +2359,7 @@
                                 <div class="grid grid-cols-1 gap-4">
                                     <div class="flex justify-end mb-2">
                                         <button type="button" id="chart-toggle-m6" class="text-xs px-3 py-1.5 bg-white/60 hover:bg-white text-gray-700 font-medium rounded-lg border border-gray-200 transition-colors">
-                                            切换到 T-S 图
+                                            <span data-i18n="ui.switchToTS">切换到 T-S 图</span>
                                         </button>
                                     </div>
                                     <div id="chart-desktop-m6" class="w-full h-56 bg-white/40 rounded-xl hidden border border-white/20"></div>
@@ -2368,7 +2373,7 @@
                             </div>
                             <div class="p-4 bg-white/50 border-t border-white/60">
                                 <button type="button" id="print-button-mode-6" class="w-full bg-white border border-gray-200 text-gray-700 font-semibold py-3 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition-colors shadow-sm flex items-center justify-center" disabled>
-                                    Export Report
+                                    <span data-i18n="ui.exportReport">Export Report</span>
                                 </button>
                             </div>
                         </div>
@@ -2395,7 +2400,7 @@
                             <div class="grid grid-cols-1 gap-4 mb-4">
                                 <div class="flex justify-end mb-2">
                                     <button type="button" id="chart-toggle-m6-mobile" class="text-xs px-3 py-1.5 bg-white/60 hover:bg-white text-gray-700 font-medium rounded-lg border border-gray-200 transition-colors">
-                                        切换到 T-S 图
+                                        <span data-i18n="ui.switchToTS">切换到 T-S 图</span>
                                     </button>
                                 </div>
                                 <div id="chart-mobile-m6" class="w-full h-56 bg-white/40 rounded-xl hidden border border-white/20"></div>
@@ -2407,7 +2412,7 @@
                             </div>
                         </div>
                         <div class="p-4 bg-white border-t border-gray-100 safe-area-bottom">
-                            <button type="button" id="mobile-close-m6" class="w-full bg-gray-100 text-gray-800 font-bold py-3 rounded-xl">Close Report</button>
+                            <button type="button" id="mobile-close-m6" class="w-full bg-gray-100 text-gray-800 font-bold py-3 rounded-xl" data-i18n="ui.closeReport">Close Report</button>
                         </div>
                     </div>
                 </div>
@@ -2448,7 +2453,7 @@
                                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                         </div>
                                     </div>
-                                    <p class="mt-1 text-[10px] text-amber-600 px-2">注：氨热泵模式固定使用氨(R717)作为制冷剂</p><div id="fluid-info-m7" class="mt-2 text-[10px] text-gray-400 font-mono px-2 truncate">--- 加载中 ---</div>
+                                    <p class="mt-1 text-[10px] text-amber-600 px-2" data-i18n="ui.ammoniaNote">注：氨热泵模式固定使用氨(R717)作为制冷剂</p><div id="fluid-info-m7" class="mt-2 text-[10px] text-gray-400 font-mono px-2 truncate">--- 加载中 ---</div>
                                 </div>
 
                                 <div class="bg-gray-100/80 p-1 rounded-xl flex shadow-inner-ios">
@@ -2889,7 +2894,7 @@
                             <div class="flex-grow p-6 overflow-y-auto bg-white/30 space-y-4">
                                 <div class="flex justify-end mb-2">
                                     <button type="button" id="chart-toggle-m7" class="text-xs px-3 py-1.5 bg-white/60 hover:bg-white text-gray-700 font-medium rounded-lg border border-gray-200 transition-colors">
-                                        切换到 T-S 图
+                                        <span data-i18n="ui.switchToTS">切换到 T-S 图</span>
                                     </button>
                                 </div>
                                 <div id="chart-desktop-m7" class="w-full h-64 bg-white/40 rounded-xl mb-4 hidden border border-white/20"></div>
@@ -2897,7 +2902,7 @@
                                 <div id="results-desktop-m7">
                                     <div class="flex flex-col items-center justify-center h-32 text-gray-400 space-y-4 opacity-60">
                                         <svg class="w-12 h-12 stroke-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                                        <p class="text-sm font-medium">Ready to calculate</p>
+                                        <p class="text-sm font-medium" data-i18n="ui.readyToCalculate">Ready to calculate</p>
                                     </div>
                                 </div>
                             </div>
@@ -2935,12 +2940,12 @@
                             <div id="system-diagram-m7-mobile" class="w-full min-h-[500px] bg-white/40 rounded-xl mb-4 hidden border border-white/20"></div>
                             <div id="mobile-results-m7">
                                 <div class="text-center text-gray-400 py-10">
-                                    <p class="text-sm">Pull up for details</p>
+                                    <p class="text-sm" data-i18n="ui.pullUpForDetails">Pull up for details</p>
                                 </div>
                             </div>
                         </div>
                          <div class="p-4 bg-white border-t border-gray-100 safe-area-bottom">
-                            <button type="button" id="mobile-close-m7" class="w-full bg-gray-100 text-gray-800 font-bold py-3 rounded-xl">Close Report</button>
+                            <button type="button" id="mobile-close-m7" class="w-full bg-gray-100 text-gray-800 font-bold py-3 rounded-xl" data-i18n="ui.closeReport">Close Report</button>
                         </div>
                     </div>
                 </div>

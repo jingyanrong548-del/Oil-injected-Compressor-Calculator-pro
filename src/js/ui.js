@@ -4,8 +4,9 @@
 // =====================================================================
 
 import { HistoryDB } from './storage.js';
-import { resizeAllCharts } from './charts.js';
+import { resizeAllCharts, getChartInstance } from './charts.js';
 import { AppState } from './state.js';
+import i18next from './i18n.js';
 
 export function initUI() {
     console.log("🚀 UI Initializing (v7.2 SLHX)...");
@@ -48,7 +49,7 @@ export function initUI() {
 
     if (historyClearBtn) {
         historyClearBtn.addEventListener('click', () => {
-            if (confirm('Clear history?')) { HistoryDB.clear(); renderHistoryList(); }
+            if (confirm(i18next.t('common.clearHistoryConfirm'))) { HistoryDB.clear(); renderHistoryList(); }
         });
     }
 
@@ -57,7 +58,7 @@ export function initUI() {
         if (!historyList) return;
         historyList.innerHTML = '';
         if (records.length === 0) {
-            historyList.innerHTML = `<div class="text-center text-gray-400 mt-20 text-sm">No records yet.<br>Calculate to save.</div>`;
+            historyList.innerHTML = `<div class="text-center text-gray-400 mt-20 text-sm">${i18next.t('common.noRecords')}<br>${i18next.t('common.calculateToSave')}</div>`;
             return;
         }
         records.forEach(rec => {
@@ -576,7 +577,7 @@ export function initUI() {
         const motorGroup = document.getElementById('motor-eff-group-m2');
         const label = document.getElementById('eta_s_label_m2');
         if (motorGroup) motorGroup.style.display = v === 'input' ? 'block' : 'none';
-        if (label) label.textContent = v === 'input' ? '总等熵效率' : '等熵效率';
+        if (label) label.textContent = v === 'input' ? i18next.t('mode2.totalIsentropicEfficiency') : i18next.t('mode2.isentropicEfficiency');
     });
 
     // Mode 3: Gas Settings
@@ -984,7 +985,17 @@ export function openMobileSheet(mode) {
             }
             // 触发图表调整，延迟执行以确保sheet已完全展开
             setTimeout(() => { 
-                resizeAllCharts(); 
+                resizeAllCharts();
+                // 尝试初始化移动端图表（如果之前因为不可见而跳过）
+                const mobileChartId = `chart-mobile-${mode}`;
+                const mobileChart = document.getElementById(mobileChartId);
+                if (mobileChart && !mobileChart.classList.contains('hidden')) {
+                    // 如果图表容器现在可见，触发resize以初始化
+                    const chartInstance = getChartInstance(mobileChartId);
+                    if (chartInstance) {
+                        chartInstance.resize();
+                    }
+                }
             }, 350);
         }
     } else {

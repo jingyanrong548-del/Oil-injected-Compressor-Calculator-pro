@@ -3,6 +3,8 @@
 // 职责: 必须存在此文件，否则 ui.js 无法加载，会导致所有按钮失效！
 // =====================================================================
 
+import i18next from './i18n.js';
+
 const DB_KEY = 'comp_pro_history_v1';
 const MAX_RECORDS = 50; 
 
@@ -52,8 +54,8 @@ export const HistoryDB = {
         const now = new Date();
         const diffSec = Math.floor((now - date) / 1000);
 
-        if (diffSec < 60) return 'Just now';
-        if (diffSec < 3600) return `${Math.floor(diffSec/60)}m ago`;
+        if (diffSec < 60) return i18next.t('storage.justNow');
+        if (diffSec < 3600) return i18next.t('storage.minutesAgo', { count: Math.floor(diffSec/60) });
         
         if (date.toDateString() === now.toDateString()) {
             return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
