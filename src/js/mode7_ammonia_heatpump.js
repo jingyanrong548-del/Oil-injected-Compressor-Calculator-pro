@@ -339,7 +339,314 @@ function generateSaturationLinesTS(fluid, Te_C, Tc_C, numPoints = 100) {
 }
 
 /**
- * 将 P-h 图的点转换为 T-s 图的点
+ * 生成等压路径的T-s数据点
+ * @param {string} fluid - 工质名称
+ * @param {number} P_Pa - 压力 (Pa)
+ * @param {number} h_start - 起始焓值 (J/kg)
+ * @param {number} h_end - 结束焓值 (J/kg)
+ * @param {number} numPoints - 数据点数量
+ * @returns {Array} T-s 数据点数组，格式为 [s (kJ/kg·K), T (°C)]
+ */
+function generateIsobaricPathTS(fluid, P_Pa, h_start, h_end, numPoints = 20) {
+    if (!CP_INSTANCE) return [];
+    
+    const points = [];
+    
+    for (let i = 0; i <= numPoints; i++) {
+        const ratio = i / numPoints;
+        const h = h_start + (h_end - h_start) * ratio;
+        
+        try {
+            const T_K = CP_INSTANCE.PropsSI('T', 'H', h, 'P', P_Pa, fluid);
+            const s_J = CP_INSTANCE.PropsSI('S', 'H', h, 'P', P_Pa, fluid);
+            points.push([s_J / 1000, T_K - 273.15]); // [s (kJ/kg·K), T (°C)]
+        } catch (e) {
+            continue;
+        }
+    }
+    
+    return points;
+}
+
+/**
+ * 生成等温等压路径（冷凝过程）的T-s数据点
+ * @param {string} fluid - 工质名称
+ * @param {number} P_Pa - 压力 (Pa)
+ * @param {number} T_K - 温度 (K)
+ * @param {number} numPoints - 数据点数量
+ * @returns {Array} T-s 数据点数组，格式为 [s (kJ/kg·K), T (°C)]
+ */
+function generateIsothermalIsobaricPathTS(fluid, P_Pa, T_K, numPoints = 20) {
+    if (!CP_INSTANCE) return [];
+    
+    const points = [];
+    
+    try {
+        // 从饱和气体(Q=1)到饱和液体(Q=0)
+        const h_vap = CP_INSTANCE.PropsSI('H', 'P', P_Pa, 'Q', 1, fluid);
+        const h_liq = CP_INSTANCE.PropsSI('H', 'P', P_Pa, 'Q', 0, fluid);
+        
+        for (let i = 0; i <= numPoints; i++) {
+            const ratio = i / numPoints;
+            const h = h_vap + (h_liq - h_vap) * ratio;
+            const s_J = CP_INSTANCE.PropsSI('S', 'H', h, 'P', P_Pa, fluid);
+            points.push([s_J / 1000, T_K - 273.15]); // [s (kJ/kg·K), T (°C)]
+        }
+    } catch (e) {
+        // 如果失败，返回空数组
+        return [];
+    }
+    
+    return points;
+}
+
+/**
+ * 生成等焓路径（节流过程）的T-s数据点
+ * @param {string} fluid - 工质名称
+ * @param {number} h_J - 焓值 (J/kg)
+ * @param {number} P_start_Pa - 起始压力 (Pa)
+ * @param {number} P_end_Pa - 结束压力 (Pa)
+ * @param {number} numPoints - 数据点数量
+ * @returns {Array} T-s 数据点数组，格式为 [s (kJ/kg·K), T (°C)]
+ */
+function generateIsenthalpicPathTS(fluid, h_J, P_start_Pa, P_end_Pa, numPoints = 20) {
+    if (!CP_INSTANCE) return [];
+    
+    const points = [];
+    
+    for (let i = 0; i <= numPoints; i++) {
+        const ratio = i / numPoints;
+        const logP_start = Math.log10(P_start_Pa);
+        const logP_end = Math.log10(P_end_Pa);
+        const logP = logP_start + (logP_end - logP_start) * ratio;
+        const P_Pa = Math.pow(10, logP);
+        
+        try {
+            const T_K = CP_INSTANCE.PropsSI('T', 'H', h_J, 'P', P_Pa, fluid);
+            const s_J = CP_INSTANCE.PropsSI('S', 'H', h_J, 'P', P_Pa, fluid);
+            points.push([s_J / 1000, T_K - 273.15]); // [s (kJ/kg·K), T (°C)]
+        } catch (e) {
+            continue;
+        }
+    }
+    
+    return points;
+}
+
+/**
+ * 生成压缩过程的T-s数据点
+ * @param {string} fluid - 工质名称
+ * @param {number} h_start - 起始焓值 (J/kg)
+ * @param {number} P_start_Pa - 起始压力 (Pa)
+ * @param {number} h_end - 结束焓值 (J/kg)
+ * @param {number} P_end_Pa - 结束压力 (Pa)
+ * @param {number} numPoints - 数据点数量
+ * @returns {Array} T-s 数据点数组，格式为 [s (kJ/kg·K), T (°C)]
+ */
+function generateCompressionPathTS(fluid, h_start, P_start_Pa, h_end, P_end_Pa, numPoints = 20) {
+    if (!CP_INSTANCE) return [];
+    
+    const points = [];
+    
+    for (let i = 0; i <= numPoints; i++) {
+        const ratio = i / numPoints;
+        
+        // 焓值插值
+        const h = h_start + (h_end - h_start) * ratio;
+        // 压力对数插值
+        const logP_start = Math.log10(P_start_Pa);
+        const logP_end = Math.log10(P_end_Pa);
+        const logP = logP_start + (logP_end - logP_start) * ratio;
+        const P_Pa = Math.pow(10, logP);
+        
+        try {
+            const T_K = CP_INSTANCE.PropsSI('T', 'H', h, 'P', P_Pa, fluid);
+            const s_J = CP_INSTANCE.PropsSI('S', 'H', h, 'P', P_Pa, fluid);
+            points.push([s_J / 1000, T_K - 273.15]); // [s (kJ/kg·K), T (°C)]
+        } catch (e) {
+            continue;
+        }
+    }
+    
+    return points;
+}
+
+/**
+ * 为Mode7生成正确的T-s图路径点
+ * @param {string} fluid - 工质名称
+ * @param {Object} cycleData - 循环数据
+ * @param {number} cycleData.h_1 - 点1的焓值 (J/kg)
+ * @param {number} cycleData.h_2 - 点2的焓值 (J/kg)
+ * @param {number} cycleData.h_2b - 点2b的焓值 (J/kg)，可选
+ * @param {number} cycleData.h_3 - 点3的焓值 (J/kg)
+ * @param {number} cycleData.h_3p - 点3'的焓值 (J/kg)，可选
+ * @param {number} cycleData.h_4 - 点4的焓值 (J/kg)
+ * @param {number} cycleData.Pe_Pa - 蒸发压力 (Pa)
+ * @param {number} cycleData.Pc_Pa - 冷凝压力 (Pa)
+ * @param {number} cycleData.Te_C - 蒸发温度 (°C)
+ * @param {number} cycleData.Tc_C - 冷凝温度 (°C)
+ * @param {boolean} cycleData.isDesuperheaterEnabled - 是否启用降低过热器
+ * @param {boolean} cycleData.isSubcoolerEnabled - 是否启用过冷器
+ * @returns {Array} T-s 图的主循环点数组，格式为 { name, value: [s, T], label }
+ */
+function generateTSPathM7(fluid, cycleData) {
+    if (!CP_INSTANCE) return [];
+    
+    const {
+        h_1, h_2, h_2b, h_3, h_3p, h_4,
+        Pe_Pa, Pc_Pa, Te_C, Tc_C,
+        isDesuperheaterEnabled, isSubcoolerEnabled
+    } = cycleData;
+    
+    const tsPoints = [];
+    const Te_K = Te_C + 273.15;
+    const Tc_K = Tc_C + 273.15;
+    
+    // 辅助函数：添加关键点
+    const addPoint = (name, h_J, p_Pa, labelPos = 'right') => {
+        try {
+            const s_J = CP_INSTANCE.PropsSI('S', 'H', h_J, 'P', p_Pa, fluid);
+            const T_K = CP_INSTANCE.PropsSI('T', 'H', h_J, 'P', p_Pa, fluid);
+            const T_C = T_K - 273.15;
+            tsPoints.push({
+                name: name,
+                value: [s_J / 1000, T_C],
+                label: { position: labelPos, show: true }
+            });
+        } catch (e) {
+            console.warn(`Failed to add point ${name} to T-S:`, e);
+        }
+    };
+    
+    // 辅助函数：添加路径点（不显示标签）
+    const addPathPoints = (pathPoints) => {
+        pathPoints.forEach(pt => {
+            tsPoints.push({
+                name: '',
+                value: pt,
+                label: { show: false }
+            });
+        });
+    };
+    
+    // 1. 点1（蒸发器出口/压缩机入口）
+    addPoint('1', h_1, Pe_Pa, 'right');
+    
+    // 2. 压缩过程：1 -> 2（等熵压缩的近似）
+    const compressionPath = generateCompressionPathTS(fluid, h_1, Pe_Pa, h_2, Pc_Pa, 30);
+    addPathPoints(compressionPath);
+    
+    // 3. 点2（压缩机出口）
+    addPoint('2', h_2, Pc_Pa, 'top');
+    
+    // 4. 等压降温过程：2 -> 2b（如果启用降低过热器）
+    if (isDesuperheaterEnabled && h_2b !== undefined) {
+        const desuperPath = generateIsobaricPathTS(fluid, Pc_Pa, h_2, h_2b, 15);
+        addPathPoints(desuperPath);
+        
+        // 点2b
+        addPoint('2b', h_2b, Pc_Pa, 'top');
+        
+        // 5. 冷凝过程：2b -> 3
+        // 5a. 2b到饱和气体点（等压降温）
+        const T_2b_K = CP_INSTANCE.PropsSI('T', 'H', h_2b, 'P', Pc_Pa, fluid);
+        const h_sat_vap = CP_INSTANCE.PropsSI('H', 'P', Pc_Pa, 'Q', 1, fluid);
+        const path2bToSatVap = generateIsobaricPathTS(fluid, Pc_Pa, h_2b, h_sat_vap, 10);
+        addPathPoints(path2bToSatVap);
+        
+        // 5b. 饱和气体到饱和液体（等温等压冷凝）
+        const condensationPath = generateIsothermalIsobaricPathTS(fluid, Pc_Pa, Tc_K, 20);
+        addPathPoints(condensationPath);
+        
+        // 5c. 到达饱和液体点（点3应该在饱和液体线上）
+        // 不再需要额外的路径，因为点3就是饱和液体点
+    } else {
+        // 如果没有降低过热器，直接从点2到点3
+        // 5a. 2到饱和气体点（等压降温）
+        const h_sat_vap = CP_INSTANCE.PropsSI('H', 'P', Pc_Pa, 'Q', 1, fluid);
+        const path2ToSatVap = generateIsobaricPathTS(fluid, Pc_Pa, h_2, h_sat_vap, 10);
+        addPathPoints(path2ToSatVap);
+        
+        // 5b. 饱和气体到饱和液体（等温等压冷凝）
+        const condensationPath = generateIsothermalIsobaricPathTS(fluid, Pc_Pa, Tc_K, 20);
+        addPathPoints(condensationPath);
+        
+        // 5c. 到达饱和液体点（点3应该在饱和液体线上）
+        // 不再需要额外的路径，因为点3就是饱和液体点
+    }
+    
+    // 6. 点3（冷凝器出口，应该是饱和液体）
+    // 注意：在实际计算中h_3可能已经考虑了基础过冷度，
+    // 但在T-s图中，点3应该显示在饱和液体线上（标准冷凝器出口状态）
+    // 我们使用饱和液体状态来绘制点3
+    const h_sat_liq_cond = CP_INSTANCE.PropsSI('H', 'P', Pc_Pa, 'Q', 0, fluid);
+    addPoint('3', h_sat_liq_cond, Pc_Pa, 'top');
+    
+    // 7. 等压过冷过程：3 -> 3'（如果启用过冷器）
+    if (isSubcoolerEnabled && h_3p !== undefined) {
+        // 从饱和液体到过冷液体（点3'），应该在饱和线下方
+        // 使用实际计算的点3'状态（已经过冷）
+        const subcoolPath = generateIsobaricPathTS(fluid, Pc_Pa, h_sat_liq_cond, h_3p, 15);
+        addPathPoints(subcoolPath);
+        
+        // 点3'（过冷液体，在饱和线下方）
+        addPoint("3'", h_3p, Pc_Pa, 'bottom');
+        
+        // 8. 等焓节流：3' -> 4
+        const expansionPath = generateIsenthalpicPathTS(fluid, h_3p, Pc_Pa, Pe_Pa, 20);
+        addPathPoints(expansionPath);
+    } else {
+        // 如果没有过冷器，直接从点3（饱和液体）节流到点4
+        const h_sat_liq_cond = CP_INSTANCE.PropsSI('H', 'P', Pc_Pa, 'Q', 0, fluid);
+        const expansionPath = generateIsenthalpicPathTS(fluid, h_sat_liq_cond, Pc_Pa, Pe_Pa, 20);
+        addPathPoints(expansionPath);
+    }
+    
+    // 9. 点4（节流阀出口/蒸发器入口）
+    // 注意：等焓节流后的点4应该在两相区，4点左边不应该有额外的线
+    addPoint('4', h_4, Pe_Pa, 'bottom');
+    
+    // 10. 蒸发过程：4 -> 1
+    // 根据用户描述：4点等温等压到饱和气体线，然后等压升温到1点
+    // 注意：4点左边没有线，等焓节流直接到4点，然后从4点向右开始蒸发
+    const h_sat_vap_evap = CP_INSTANCE.PropsSI('H', 'P', Pe_Pa, 'Q', 1, fluid);
+    const h_sat_liq_evap = CP_INSTANCE.PropsSI('H', 'P', Pe_Pa, 'Q', 0, fluid);
+    
+    // 10a. 等温等压蒸发：从点4到饱和气体（水平线）
+    // 等焓节流后的点4应该已经在两相区
+    // 从点4的实际位置开始，向右（熵增加方向）到饱和气体
+    if (h_4 <= h_sat_vap_evap && h_4 >= h_sat_liq_evap) {
+        // 点4在两相区，从点4直接到饱和气体（等温等压，水平线）
+        const path4ToSatVap = generateIsobaricPathTS(fluid, Pe_Pa, h_4, h_sat_vap_evap, 15);
+        addPathPoints(path4ToSatVap);
+    } else if (h_4 < h_sat_liq_evap) {
+        // 点4在过冷区（理论上不应该发生，但处理这种情况）
+        // 先从点4到饱和液体，然后等温等压到饱和气体
+        const path4ToSatLiq = generateIsobaricPathTS(fluid, Pe_Pa, h_4, h_sat_liq_evap, 5);
+        addPathPoints(path4ToSatLiq);
+        const pathSatLiqToSatVap = generateIsobaricPathTS(fluid, Pe_Pa, h_sat_liq_evap, h_sat_vap_evap, 15);
+        addPathPoints(pathSatLiqToSatVap);
+    }
+    
+    // 10b. 等压升温：从饱和气体到点1（过热）
+    // 如果点4已经在过热区，直接从点4到点1
+    if (h_4 > h_sat_vap_evap) {
+        const path4To1 = generateIsobaricPathTS(fluid, Pe_Pa, h_4, h_1, 15);
+        addPathPoints(path4To1);
+    } else if (h_1 > h_sat_vap_evap) {
+        // 如果点1在过热区，从饱和气体到点1
+        const pathSatVapTo1 = generateIsobaricPathTS(fluid, Pe_Pa, h_sat_vap_evap, h_1, 15);
+        addPathPoints(pathSatVapTo1);
+    }
+    
+    // 最后再添加点1，确保循环闭合
+    addPoint('1', h_1, Pe_Pa, 'right');
+    
+    return tsPoints;
+}
+
+/**
+ * 将 P-h 图的点转换为 T-s 图的点（保留用于向后兼容）
  * @param {string} fluid - 工质名称
  * @param {Array} points - P-h 图的点数组，格式为 { name, value: [h, p], label }
  * @returns {Array} T-s 图的点数组，格式为 { name, value: [s, T], label }
@@ -808,8 +1115,21 @@ function calculateMode7() {
             const satLinesPH = generateSaturationLinesPH(fluid, Pe_Pa, Pc_Pa);
             const satLinesTS = generateSaturationLinesTS(fluid, Te_C, Tc_C);
             
-            // 生成 T-s 图数据点
-            const mainPointsTS = convertPointsToTS(fluid, mainPoints);
+            // 生成 T-s 图数据点（使用新的路径生成函数）
+            const mainPointsTS = generateTSPathM7(fluid, {
+                h_1: h_1,
+                h_2: h_2a_final,
+                h_2b: isDesuperheaterEnabled ? h_2a_after_desuper : undefined,
+                h_3: h_3,
+                h_3p: isSubcoolerEnabled ? h_3_final : undefined,
+                h_4: h_liq_out_final,
+                Pe_Pa: Pe_Pa,
+                Pc_Pa: Pc_Pa,
+                Te_C: Te_C,
+                Tc_C: Tc_C,
+                isDesuperheaterEnabled: isDesuperheaterEnabled,
+                isSubcoolerEnabled: isSubcoolerEnabled
+            });
             
             // 保存图表数据以便切换
             lastCalculationData = lastCalculationData || {};
